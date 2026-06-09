@@ -1,0 +1,55 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, privoo ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: 'stable'
+          cache: true
+
+      # ⭐ إنشاء google-services.json من الـ Secrets
+      - name: Create google-services.json
+        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+
+      # ⭐ إنشاء ملف .env من متغيرات البيئة
+      - name: Create .env file
+        run: |
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
+          echo "REMOVE_BG_API_KEY=${{ secrets.REMOVE_BG_API_KEY }}" >> .env
+          echo "HUGGINGFACE_API_KEY=${{ secrets.HUGGINGFACE_API_KEY }}" >> .env
+          echo "GIPHY_API_KEY=${{ secrets.GIPHY_API_KEY }}" >> .env
+          echo "LINK_PREVIEW_API_KEY=${{ secrets.LINK_PREVIEW_API_KEY }}" >> .env
+          echo "✅ .env file created"
+
+      - name: Clean and get packages
+        run: |
+          flutter clean
+          flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: List output
+        run: ls -la build/app/outputs/flutter-apk/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: privoo-apk
+          path: build/app/outputs/flutter-apk/*.apk

@@ -1,0 +1,47 @@
+{
+  "hosting": {
+    "public": "web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/apk/**",
+        "destination": "/404.html"
+      },
+      {
+        "source": "/404.html",
+        "destination": "/404.html"
+      },
+      {
+        "source": "**",
+        "destination": "/index_privoo_landing.html"
+      }
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false
+  },
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log"
+      ]
+    }
+  ],
+  "firestore": {
+    "rules": "database.rules.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  }
+}

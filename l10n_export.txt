@@ -1,0 +1,4310 @@
+================== app_localizations.dart ==================
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/intl.dart' as intl;
+
+import 'app_localizations_ar.dart';
+import 'app_localizations_de.dart';
+import 'app_localizations_en.dart';
+import 'app_localizations_es.dart';
+import 'app_localizations_fr.dart';
+import 'app_localizations_hi.dart';
+import 'app_localizations_it.dart';
+import 'app_localizations_ru.dart';
+import 'app_localizations_tr.dart';
+import 'app_localizations_zh.dart';
+
+// ignore_for_file: type=lint
+
+/// Callers can lookup localized strings with an instance of AppLocalizations
+/// returned by `AppLocalizations.of(context)`.
+///
+/// Applications need to include `AppLocalizations.delegate()` in their app's
+/// `localizationDelegates` list, and the locales they support in the app's
+/// `supportedLocales` list. For example:
+///
+/// ```dart
+/// import 'l10n/app_localizations.dart';
+///
+/// return MaterialApp(
+///   localizationsDelegates: AppLocalizations.localizationsDelegates,
+///   supportedLocales: AppLocalizations.supportedLocales,
+///   home: MyApplicationHome(),
+/// );
+/// ```
+///
+/// ## Update pubspec.yaml
+///
+/// Please make sure to update your pubspec.yaml to include the following
+/// packages:
+///
+/// ```yaml
+/// dependencies:
+///   # Internationalization support.
+///   flutter_localizations:
+///     sdk: flutter
+///   intl: any # Use the pinned version from flutter_localizations
+///
+///   # Rest of dependencies
+/// ```
+///
+/// ## iOS Applications
+///
+/// iOS applications define key application metadata, including supported
+/// locales, in an Info.plist file that is built into the application bundle.
+/// To configure the locales supported by your app, you’ll need to edit this
+/// file.
+///
+/// First, open your project’s ios/Runner.xcworkspace Xcode workspace file.
+/// Then, in the Project Navigator, open the Info.plist file under the Runner
+/// project’s Runner folder.
+///
+/// Next, select the Information Property List item, select Add Item from the
+/// Editor menu, then select Localizations from the pop-up menu.
+///
+/// Select and expand the newly-created Localizations item then, for each
+/// locale your application supports, add a new item and select the locale
+/// you wish to add from the pop-up menu in the Value field. This list should
+/// be consistent with the languages listed in the AppLocalizations.supportedLocales
+/// property.
+abstract class AppLocalizations {
+  AppLocalizations(String locale)
+      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+
+  final String localeName;
+
+  static AppLocalizations? of(BuildContext context) {
+    return Localizations.of<AppLocalizations>(context, AppLocalizations);
+  }
+
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
+
+  /// A list of this localizations delegate along with the default localizations
+  /// delegates.
+  ///
+  /// Returns a list of localizations delegates containing this delegate along with
+  /// GlobalMaterialLocalizations.delegate, GlobalCupertinoLocalizations.delegate,
+  /// and GlobalWidgetsLocalizations.delegate.
+  ///
+  /// Additional delegates can be added by appending to this list in
+  /// MaterialApp. This list does not have to be used at all if a custom list
+  /// of delegates is preferred or required.
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
+
+  /// A list of this localizations delegate's supported locales.
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('ar'),
+    Locale('de'),
+    Locale('en'),
+    Locale('es'),
+    Locale('fr'),
+    Locale('hi'),
+    Locale('it'),
+    Locale('ru'),
+    Locale('tr'),
+    Locale('zh')
+  ];
+
+  /// No description provided for @appName.
+  ///
+  /// In en, this message translates to:
+  /// **'Privoo'**
+  String get appName;
+
+  /// No description provided for @welcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Privoo'**
+  String get welcome;
+
+  /// No description provided for @login.
+  ///
+  /// In en, this message translates to:
+  /// **'Login'**
+  String get login;
+
+  /// No description provided for @logout.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout'**
+  String get logout;
+
+  /// No description provided for @send.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get send;
+
+  /// No description provided for @settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settings;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// No description provided for @theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get theme;
+
+  /// No description provided for @backup.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup'**
+  String get backup;
+
+  /// No description provided for @darkMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark Mode'**
+  String get darkMode;
+
+  /// No description provided for @lightMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Light Mode'**
+  String get lightMode;
+
+  /// No description provided for @about.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get about;
+
+  /// No description provided for @version.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get version;
+
+  /// No description provided for @appDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Privoo is a secure and smart chat app.'**
+  String get appDescription;
+
+  /// No description provided for @chatWithDeveloper.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat with Developer'**
+  String get chatWithDeveloper;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacyPolicy;
+
+  /// No description provided for @rateApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate App'**
+  String get rateApp;
+
+  /// No description provided for @allRightsReserved.
+  ///
+  /// In en, this message translates to:
+  /// **'All rights reserved.'**
+  String get allRightsReserved;
+
+  /// No description provided for @aiModelLicenseNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This app uses Qwen3-8B-GGUF model by Alibaba Cloud, under Apache 2.0 license.'**
+  String get aiModelLicenseNotice;
+
+  /// No description provided for @pro.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro'**
+  String get pro;
+
+  /// No description provided for @free.
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get free;
+
+  /// No description provided for @upgrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade'**
+  String get upgrade;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @search.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get search;
+
+  /// No description provided for @loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get loading;
+
+  /// No description provided for @error.
+  ///
+  /// In en, this message translates to:
+  /// **'An error occurred'**
+  String get error;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @noData.
+  ///
+  /// In en, this message translates to:
+  /// **'No data'**
+  String get noData;
+
+  /// No description provided for @online.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get online;
+
+  /// No description provided for @offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get offline;
+
+  /// No description provided for @typing.
+  ///
+  /// In en, this message translates to:
+  /// **'typing...'**
+  String get typing;
+
+  /// No description provided for @copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get copied;
+
+  /// No description provided for @pinned.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned'**
+  String get pinned;
+
+  /// No description provided for @unpinned.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpinned'**
+  String get unpinned;
+
+  /// No description provided for @deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get deleted;
+
+  /// No description provided for @blocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked'**
+  String get blocked;
+
+  /// No description provided for @unblocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Unblocked'**
+  String get unblocked;
+
+  /// No description provided for @adminPanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Panel'**
+  String get adminPanel;
+
+  /// No description provided for @supportTickets.
+  ///
+  /// In en, this message translates to:
+  /// **'Support Tickets'**
+  String get supportTickets;
+
+  /// No description provided for @manageUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Users'**
+  String get manageUsers;
+
+  /// No description provided for @manageAdmins.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Admins'**
+  String get manageAdmins;
+
+  /// No description provided for @sendNotification.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Notification'**
+  String get sendNotification;
+
+  /// No description provided for @scientificAchievements.
+  ///
+  /// In en, this message translates to:
+  /// **'Scientific Achievements'**
+  String get scientificAchievements;
+
+  /// No description provided for @compliance.
+  ///
+  /// In en, this message translates to:
+  /// **'Legal Compliance'**
+  String get compliance;
+
+  /// No description provided for @themeFreeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'8 basic themes'**
+  String get themeFreeCount;
+
+  /// No description provided for @themeProCount.
+  ///
+  /// In en, this message translates to:
+  /// **'25 themes available'**
+  String get themeProCount;
+
+  /// No description provided for @themeLockedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'exclusive themes for subscribers'**
+  String get themeLockedCount;
+
+  /// No description provided for @backupSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Backup completed'**
+  String get backupSuccess;
+
+  /// No description provided for @restoreSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'♻️ Backup restored'**
+  String get restoreSuccess;
+
+  /// No description provided for @cacheCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'🧹 Cache cleared'**
+  String get cacheCleared;
+
+  /// No description provided for @settingsReset.
+  ///
+  /// In en, this message translates to:
+  /// **'♻️ Settings reset'**
+  String get settingsReset;
+
+  /// No description provided for @call.
+  ///
+  /// In en, this message translates to:
+  /// **'Call'**
+  String get call;
+
+  /// No description provided for @videoCall.
+  ///
+  /// In en, this message translates to:
+  /// **'Video Call'**
+  String get videoCall;
+
+  /// No description provided for @groupVideoCall.
+  ///
+  /// In en, this message translates to:
+  /// **'Group Video Call'**
+  String get groupVideoCall;
+
+  /// No description provided for @groupVoiceCall.
+  ///
+  /// In en, this message translates to:
+  /// **'Group Voice Call'**
+  String get groupVoiceCall;
+
+  /// No description provided for @participants.
+  ///
+  /// In en, this message translates to:
+  /// **'participants'**
+  String get participants;
+
+  /// No description provided for @noParticipants.
+  ///
+  /// In en, this message translates to:
+  /// **'No participants'**
+  String get noParticipants;
+
+  /// No description provided for @summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation Summary'**
+  String get summary;
+
+  /// No description provided for @smartReplies.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Replies'**
+  String get smartReplies;
+
+  /// No description provided for @pinnedMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned Messages'**
+  String get pinnedMessages;
+
+  /// No description provided for @encrypted.
+  ///
+  /// In en, this message translates to:
+  /// **'Fully Encrypted'**
+  String get encrypted;
+
+  /// No description provided for @quantumResistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantum Resistant'**
+  String get quantumResistant;
+
+  /// No description provided for @sealedSender.
+  ///
+  /// In en, this message translates to:
+  /// **'Sealed Sender'**
+  String get sealedSender;
+}
+
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
+  const _AppLocalizationsDelegate();
+
+  @override
+  Future<AppLocalizations> load(Locale locale) {
+    return SynchronousFuture<AppLocalizations>(lookupAppLocalizations(locale));
+  }
+
+  @override
+  bool isSupported(Locale locale) => <String>[
+        'ar',
+        'de',
+        'en',
+        'es',
+        'fr',
+        'hi',
+        'it',
+        'ru',
+        'tr',
+        'zh'
+      ].contains(locale.languageCode);
+
+  @override
+  bool shouldReload(_AppLocalizationsDelegate old) => false;
+}
+
+AppLocalizations lookupAppLocalizations(Locale locale) {
+  // Lookup logic when only language code is specified.
+  switch (locale.languageCode) {
+    case 'ar':
+      return AppLocalizationsAr();
+    case 'de':
+      return AppLocalizationsDe();
+    case 'en':
+      return AppLocalizationsEn();
+    case 'es':
+      return AppLocalizationsEs();
+    case 'fr':
+      return AppLocalizationsFr();
+    case 'hi':
+      return AppLocalizationsHi();
+    case 'it':
+      return AppLocalizationsIt();
+    case 'ru':
+      return AppLocalizationsRu();
+    case 'tr':
+      return AppLocalizationsTr();
+    case 'zh':
+      return AppLocalizationsZh();
+  }
+
+  throw FlutterError(
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
+}
+
+================== app_localizations_ar.dart ==================
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Arabic (`ar`).
+class AppLocalizationsAr extends AppLocalizations {
+  AppLocalizationsAr([String locale = 'ar']) : super(locale);
+
+  @override
+  String get appName => 'بريفو';
+
+  @override
+  String get welcome => 'مرحبًا بك في بريفو';
+
+  @override
+  String get login => 'تسجيل الدخول';
+
+  @override
+  String get logout => 'تسجيل الخروج';
+
+  @override
+  String get send => 'إرسال';
+
+  @override
+  String get settings => 'الإعدادات';
+
+  @override
+  String get language => 'اللغة';
+
+  @override
+  String get theme => 'الثيم';
+
+  @override
+  String get backup => 'نسخ احتياطي';
+
+  @override
+  String get darkMode => 'الوضع الداكن';
+
+  @override
+  String get lightMode => 'الوضع الفاتح';
+
+  @override
+  String get about => 'حول التطبيق';
+
+  @override
+  String get version => 'الإصدار';
+
+  @override
+  String get appDescription => 'بريفو هو تطبيق دردشة آمن وذكي.';
+
+  @override
+  String get chatWithDeveloper => 'الدردشة مع المطور';
+
+  @override
+  String get privacyPolicy => 'سياسة الخصوصية';
+
+  @override
+  String get rateApp => 'قيّم التطبيق';
+
+  @override
+  String get allRightsReserved => 'جميع الحقوق محفوظة.';
+
+  @override
+  String get aiModelLicenseNotice =>
+      'هذا التطبيق يستخدم نموذج Qwen3-8B-GGUF من تطوير Alibaba Cloud، وفقًا لترخيص Apache 2.0.';
+
+  @override
+  String get pro => 'برو';
+
+  @override
+  String get free => 'مجاني';
+
+  @override
+  String get upgrade => 'ترقية';
+
+  @override
+  String get cancel => 'إلغاء';
+
+  @override
+  String get save => 'حفظ';
+
+  @override
+  String get delete => 'حذف';
+
+  @override
+  String get edit => 'تعديل';
+
+  @override
+  String get search => 'بحث';
+
+  @override
+  String get loading => 'جاري التحميل...';
+
+  @override
+  String get error => 'حدث خطأ';
+
+  @override
+  String get retry => 'إعادة المحاولة';
+
+  @override
+  String get noData => 'لا توجد بيانات';
+
+  @override
+  String get online => 'متصل';
+
+  @override
+  String get offline => 'غير متصل';
+
+  @override
+  String get typing => 'يكتب...';
+
+  @override
+  String get copied => 'تم النسخ';
+
+  @override
+  String get pinned => 'مثبت';
+
+  @override
+  String get unpinned => 'تم إلغاء التثبيت';
+
+  @override
+  String get deleted => 'تم الحذف';
+
+  @override
+  String get blocked => 'تم الحظر';
+
+  @override
+  String get unblocked => 'تم إلغاء الحظر';
+
+  @override
+  String get adminPanel => 'لوحة تحكم المشرفين';
+
+  @override
+  String get supportTickets => 'تذاكر الدعم';
+
+  @override
+  String get manageUsers => 'إدارة المستخدمين';
+
+  @override
+  String get manageAdmins => 'إدارة المشرفين';
+
+  @override
+  String get sendNotification => 'إرسال إشعار';
+
+  @override
+  String get scientificAchievements => 'الإنجازات العلمية';
+
+  @override
+  String get compliance => 'الامتثال القانوني';
+
+  @override
+  String get themeFreeCount => '8 ثيمات أساسية';
+
+  @override
+  String get themeProCount => '25 ثيماً متاحة';
+
+  @override
+  String get themeLockedCount => 'ثيماً حصرية للمشتركين';
+
+  @override
+  String get backupSuccess => '✅ تم عمل نسخة احتياطية';
+
+  @override
+  String get restoreSuccess => '♻️ تم استعادة النسخة الاحتياطية';
+
+  @override
+  String get cacheCleared => '🧹 تم مسح الكاش';
+
+  @override
+  String get settingsReset => '♻️ تم إعادة ضبط الإعدادات';
+
+  @override
+  String get call => 'مكالمة';
+
+  @override
+  String get videoCall => 'مكالمة فيديو';
+
+  @override
+  String get groupVideoCall => 'مكالمة فيديو جماعية';
+
+  @override
+  String get groupVoiceCall => 'مكالمة صوتية جماعية';
+
+  @override
+  String get participants => 'مشاركين';
+
+  @override
+  String get noParticipants => 'لا يوجد مشاركين';
+
+  @override
+  String get summary => 'ملخص المحادثة';
+
+  @override
+  String get smartReplies => 'ردود ذكية';
+
+  @override
+  String get pinnedMessages => 'الرسائل المثبتة';
+
+  @override
+  String get encrypted => 'مشفر بالكامل';
+
+  @override
+  String get quantumResistant => 'مقاوم للكم';
+
+  @override
+  String get sealedSender => 'مرسل مختوم';
+}
+
+================== app_localizations_de.dart ==================
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for German (`de`).
+class AppLocalizationsDe extends AppLocalizations {
+  AppLocalizationsDe([String locale = 'de']) : super(locale);
+
+  @override
+  String get appName => 'Privoo';
+
+  @override
+  String get welcome => 'Willkommen bei Privoo';
+
+  @override
+  String get login => 'Anmelden';
+
+  @override
+  String get logout => 'Abmelden';
+
+  @override
+  String get send => 'Senden';
+
+  @override
+  String get settings => 'Einstellungen';
+
+  @override
+  String get language => 'Sprache';
+
+  @override
+  String get theme => 'Thema';
+
+  @override
+  String get backup => 'Sicherung';
+
+  @override
+  String get darkMode => 'Dunkelmodus';
+
+  @override
+  String get lightMode => 'Hellmodus';
+
+  @override
+  String get about => 'Über';
+
+  @override
+  String get version => 'Version';
+
+  @override
+  String get appDescription =>
+      'Privoo ist eine sichere und intelligente Chat-App.';
+
+  @override
+  String get chatWithDeveloper => 'Mit Entwickler chatten';
+
+  @override
+  String get privacyPolicy => 'Datenschutzrichtlinie';
+
+  @override
+  String get rateApp => 'App bewerten';
+
+  @override
+  String get allRightsReserved => 'Alle Rechte vorbehalten.';
+
+  @override
+  String get aiModelLicenseNotice =>
+      'Diese App verwendet das Qwen3-8B-GGUF-Modell von Alibaba Cloud unter der Apache 2.0-Lizenz.';
+
+  @override
+  String get pro => 'Pro';
+
+  @override
+  String get free => 'Kostenlos';
+
+  @override
+  String get upgrade => 'Upgrade';
+
+  @override
+  String get cancel => 'Abbrechen';
+
+  @override
+  String get save => 'Speichern';
+
+  @override
+  String get delete => 'Löschen';
+
+  @override
+  String get edit => 'Bearbeiten';
+
+  @override
+  String get search => 'Suchen';
+
+  @override
+  String get loading => 'Laden...';
+
+  @override
+  String get error => 'Ein Fehler ist aufgetreten';
+
+  @override
+  String get retry => 'Wiederholen';
+
+  @override
+  String get noData => 'Keine Daten';
+
+  @override
+  String get online => 'Online';
+
+  @override
+  String get offline => 'Offline';
+
+  @override
+  String get typing => 'tippt...';
+
+  @override
+  String get copied => 'Kopiert';
+
+  @override
+  String get pinned => 'Angeheftet';
+
+  @override
+  String get unpinned => 'Losgelöst';
+
+  @override
+  String get deleted => 'Gelöscht';
+
+  @override
+  String get blocked => 'Blockiert';
+
+  @override
+  String get unblocked => 'Entblockt';
+
+  @override
+  String get adminPanel => 'Admin-Bereich';
+
+  @override
+  String get supportTickets => 'Support-Tickets';
+
+  @override
+  String get manageUsers => 'Benutzer verwalten';
+
+  @override
+  String get manageAdmins => 'Administratoren verwalten';
+
+  @override
+  String get sendNotification => 'Benachrichtigung senden';
+
+  @override
+  String get scientificAchievements => 'Wissenschaftliche Errungenschaften';
+
+  @override
+  String get compliance => 'Rechtliche Compliance';
+
+  @override
+  String get themeFreeCount => '4 grundlegende Themen';
+
+  @override
+  String get themeProCount => '25 Themen verfügbar';
+
+  @override
+  String get themeLockedCount => 'exklusive Themen für Abonnenten';
+
+  @override
+  String get backupSuccess => '✅ Sicherung abgeschlossen';
+
+  @override
+  String get restoreSuccess => '♻️ Sicherung wiederhergestellt';
+
+  @override
+  String get cacheCleared => '🧹 Cache geleert';
+
+  @override
+  String get settingsReset => '♻️ Einstellungen zurückgesetzt';
+
+  @override
+  String get call => 'Anruf';
+
+  @override
+  String get videoCall => 'Videoanruf';
+
+  @override
+  String get groupVideoCall => 'Gruppen-Videoanruf';
+
+  @override
+  String get groupVoiceCall => 'Gruppen-Sprachanruf';
+
+  @override
+  String get participants => 'Teilnehmer';
+
+  @override
+  String get noParticipants => 'Keine Teilnehmer';
+
+  @override
+  String get summary => 'Gesprächszusammenfassung';
+
+  @override
+  String get smartReplies => 'Intelligente Antworten';
+
+  @override
+  String get pinnedMessages => 'Angeheftete Nachrichten';
+
+  @override
+  String get encrypted => 'Vollständig verschlüsselt';
+
+  @override
+  String get quantumResistant => 'Quantenresistent';
+
+  @override
+  String get sealedSender => 'Versiegelter Absender';
+}
+
+================== app_localizations_en.dart ==================
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for English (`en`).
+class AppLocalizationsEn extends AppLocalizations {
+  AppLocalizationsEn([String locale = 'en']) : super(locale);
+
+  @override
+  String get appName => 'Privoo';
+
+  @override
+  String get welcome => 'Welcome to Privoo';
+
+  @override
+  String get login => 'Login';
+
+  @override
+  String get logout => 'Logout';
+
+  @override
+  String get send => 'Send';
+
+  @override
+  String get settings => 'Settings';
+
+  @override
+  String get language => 'Language';
+
+  @override
+  String get theme => 'Theme';
+
+  @override
+  String get backup => 'Backup';
+
+  @override
+  String get darkMode => 'Dark Mode';
+
+  @override
+  String get lightMode => 'Light Mode';
+
+  @override
+  String get about => 'About';
+
+  @override
+  String get version => 'Version';
+
+  @override
+  String get appDescription => 'Privoo is a secure and smart chat app.';
+
+  @override
+  String get chatWithDeveloper => 'Chat with Developer';
+
+  @override
+  String get privacyPolicy => 'Privacy Policy';
+
+  @override
+  String get rateApp => 'Rate App';
+
+  @override
+  String get allRightsReserved => 'All rights reserved.';
+
+  @override
+  String get aiModelLicenseNotice =>
+      'This app uses Qwen3-8B-GGUF model by Alibaba Cloud, under Apache 2.0 license.';
+
+  @override
+  String get pro => 'Pro';
+
+  @override
+  String get free => 'Free';
+
+  @override
+  String get upgrade => 'Upgrade';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get search => 'Search';
+
+  @override
+  String get loading => 'Loading...';
+
+  @override
+  String get error => 'An error occurred';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get noData => 'No data';
+
+  @override
+  String get online => 'Online';
+
+  @override
+  String get offline => 'Offline';
+
+  @override
+  String get typing => 'typing...';
+
+  @override
+  String get copied => 'Copied';
+
+  @override
+  String get pinned => 'Pinned';
+
+  @override
+  String get unpinned => 'Unpinned';
+
+  @override
+  String get deleted => 'Deleted';
+
+  @override
+  String get blocked => 'Blocked';
+
+  @override
+  String get unblocked => 'Unblocked';
+
+  @override
+  String get adminPanel => 'Admin Panel';
+
+  @override
+  String get supportTickets => 'Support Tickets';
+
+  @override
+  String get manageUsers => 'Manage Users';
+
+  @override
+  String get manageAdmins => 'Manage Admins';
+
+  @override
+  String get sendNotification => 'Send Notification';
+
+  @override
+  String get scientificAchievements => 'Scientific Achievements';
+
+  @override
+  String get compliance => 'Legal Compliance';
+
+  @override
+  String get themeFreeCount => '8 basic themes';
+
+  @override
+  String get themeProCount => '25 themes available';
+
+  @override
+  String get themeLockedCount => 'exclusive themes for subscribers';
+
+  @override
+  String get backupSuccess => '✅ Backup completed';
+
+  @override
+  String get restoreSuccess => '♻️ Backup restored';
+
+  @override
+  String get cacheCleared => '🧹 Cache cleared';
+
+  @override
+  String get settingsReset => '♻️ Settings reset';
+
+  @override
+  String get call => 'Call';
+
+  @override
+  String get videoCall => 'Video Call';
+
+  @override
+  String get groupVideoCall => 'Group Video Call';
+
+  @override
+  String get groupVoiceCall => 'Group Voice Call';
+
+  @override
+  String get participants => 'participants';
+
+  @override
+  String get noParticipants => 'No participants';
+
+  @override
+  String get summary => 'Conversation Summary';
+
+  @override
+  String get smartReplies => 'Smart Replies';
+
+  @override
+  String get pinnedMessages => 'Pinned Messages';
+
+  @override
+  String get encrypted => 'Fully Encrypted';
+
+  @override
+  String get quantumResistant => 'Quantum Resistant';
+
+  @override
+  String get sealedSender => 'Sealed Sender';
+}
+
+================== app_localizations_es.dart ==================
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Spanish Castilian (`es`).
+class AppLocalizationsEs extends AppLocalizations {
+  AppLocalizationsEs([String locale = 'es']) : super(locale);
+
+  @override
+  String get appName => 'Privoo';
+
+  @override
+  String get welcome => 'Bienvenido a Privoo';
+
+  @override
+  String get login => 'Iniciar sesión';
+
+  @override
+  String get logout => 'Cerrar sesión';
+
+  @override
+  String get send => 'Enviar';
+
+  @override
+  String get settings => 'Ajustes';
+
+  @override
+  String get language => 'Idioma';
+
+  @override
+  String get theme => 'Tema';
+
+  @override
+  String get backup => 'Copia de seguridad';
+
+  @override
+  String get darkMode => 'Modo oscuro';
+
+  @override
+  String get lightMode => 'Modo claro';
+
+  @override
+  String get about => 'Acerca de';
+
+  @override
+  String get version => 'Versión';
+
+  @override
+  String get appDescription =>
+      'Privoo es una aplicación de chat segura e inteligente.';
+
+  @override
+  String get chatWithDeveloper => 'Chatear con el desarrollador';
+
+  @override
+  String get privacyPolicy => 'Política de privacidad';
+
+  @override
+  String get rateApp => 'Calificar la aplicación';
+
+  @override
+  String get allRightsReserved => 'Todos los derechos reservados.';
+
+  @override
+  String get aiModelLicenseNotice =>
+      'Esta aplicación utiliza el modelo Qwen3-8B-GGUF de Alibaba Cloud, bajo licencia Apache 2.0.';
+
+  @override
+  String get pro => 'Pro';
+
+  @override
+  String get free => 'Gratis';
+
+  @override
+  String get upgrade => 'Actualizar';
+
+  @override
+  String get cancel => 'Cancelar';
+
+  @override
+  String get save => 'Guardar';
+
+  @override
+  String get delete => 'Eliminar';
+
+  @override
+  String get edit => 'Editar';
+
+  @override
+  String get search => 'Buscar';
+
+  @override
+  String get loading => 'Cargando...';
+
+  @override
+  String get error => 'Ocurrió un error';
+
+  @override
+  String get retry => 'Reintentar';
+
+  @override
+  String get noData => 'Sin datos';
+
+  @override
+  String get online => 'En línea';
+
+  @override
+  String get offline => 'Desconectado';
+
+  @override
+  String get typing => 'escribiendo...';
+
+  @override
+  String get copied => 'Copiado';
+
+  @override
+  String get pinned => 'Fijado';
+
+  @override
+  String get unpinned => 'Desfijado';
+
+  @override
+  String get deleted => 'Eliminado';
+
+  @override
+  String get blocked => 'Bloqueado';
+
+  @override
+  String get unblocked => 'Desbloqueado';
+
+  @override
+  String get adminPanel => 'Panel de administración';
+
+  @override
+  String get supportTickets => 'Tickets de soporte';
+
+  @override
+  String get manageUsers => 'Gestionar usuarios';
+
+  @override
+  String get manageAdmins => 'Gestionar administradores';
+
+  @override
+  String get sendNotification => 'Enviar notificación';
+
+  @override
+  String get scientificAchievements => 'Logros científicos';
+
+  @override
+  String get compliance => 'Cumplimiento legal';
+
+  @override
+  String get themeFreeCount => '4 temas básicos';
+
+  @override
+  String get themeProCount => '25 temas disponibles';
+
+  @override
+  String get themeLockedCount => 'temas exclusivos para suscriptores';
+
+  @override
+  String get backupSuccess => '✅ Copia de seguridad completada';
+
+  @override
+  String get restoreSuccess => '♻️ Copia de seguridad restaurada';
+
+  @override
+  String get cacheCleared => '🧹 Caché limpiado';
+
+  @override
+  String get settingsReset => '♻️ Ajustes restablecidos';
+
+  @override
+  String get call => 'Llamada';
+
+  @override
+  String get videoCall => 'Videollamada';
+
+  @override
+  String get groupVideoCall => 'Videollamada grupal';
+
+  @override
+  String get groupVoiceCall => 'Llamada de voz grupal';
+
+  @override
+  String get participants => 'participantes';
+
+  @override
+  String get noParticipants => 'Sin participantes';
+
+  @override
+  String get summary => 'Resumen de la conversación';
+
+  @override
+  String get smartReplies => 'Respuestas inteligentes';
+
+  @override
+  String get pinnedMessages => 'Mensajes fijados';
+
+  @override
+  String get encrypted => 'Totalmente cifrado';
+
+  @override
+  String get quantumResistant => 'Resistente cuántico';
+
+  @override
+  String get sealedSender => 'Remitente sellado';
+}
+
+================== app_localizations_fr.dart ==================
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for French (`fr`).
+class AppLocalizationsFr extends AppLocalizations {
+  AppLocalizationsFr([String locale = 'fr']) : super(locale);
+
+  @override
+  String get appName => 'Privoo';
+
+  @override
+  String get welcome => 'Bienvenue sur Privoo';
+
+  @override
+  String get login => 'Connexion';
+
+  @override
+  String get logout => 'Déconnexion';
+
+  @override
+  String get send => 'Envoyer';
+
+  @override
+  String get settings => 'Paramètres';
+
+  @override
+  String get language => 'Langue';
+
+  @override
+  String get theme => 'Thème';
+
+  @override
+  String get backup => 'Sauvegarde';
+
+  @override
+  String get darkMode => 'Mode sombre';
+
+  @override
+  String get lightMode => 'Mode clair';
+
+  @override
+  String get about => 'À propos';
+
+  @override
+  String get version => 'Version';
+
+  @override
+  String get appDescription =>
+      'Privoo est une application de chat sécurisée et intelligente.';
+
+  @override
+  String get chatWithDeveloper => 'Discuter avec le développeur';
+
+  @override
+  String get privacyPolicy => 'Politique de confidentialité';
+
+  @override
+  String get rateApp => 'Évaluer l\'application';
+
+  @override
+  String get allRightsReserved => 'Tous droits réservés.';
+
+  @override
+  String get aiModelLicenseNotice =>
+      'Cette application utilise le modèle Qwen3-8B-GGUF d\'Alibaba Cloud, sous licence Apache 2.0.';
+
+  @override
+  String get pro => 'Pro';
+
+  @override
+  String get free => 'Gratuit';
+
+  @override
+  String get upgrade => 'Mettre à niveau';
+
+  @override
+  String get cancel => 'Annuler';
+
+  @override
+  String get save => 'Enregistrer';
+
+  @override
+  String get delete => 'Supprimer';
+
+  @override
+  String get edit => 'Modifier';
+
+  @override
+  String get search => 'Rechercher';
+
+  @override
+  String get loading => 'Chargement...';
+
+  @override
+  String get error => 'Une erreur est survenue';
+
+  @override
+  String get retry => 'Réessayer';
+
+  @override
+  String get noData => 'Aucune donnée';
+
+  @override
+  String get online => 'En ligne';
+
+  @override
+  String get offline => 'Hors ligne';
+
+  @override
+  String get typing => 'écrit...';
+
+  @override
+  String get copied => 'Copié';
+
+  @override
+  String get pinned => 'Épinglé';
+
+  @override
+  String get unpinned => 'Désépinglé';
+
+  @override
+  String get deleted => 'Supprimé';
+
+  @override
+  String get blocked => 'Bloqué';
+
+  @override
+  String get unblocked => 'Débloqué';
+
+  @override
+  String get adminPanel => 'Panneau d\'administration';
+
+  @override
+  String get supportTickets => 'Tickets de support';
+
+  @override
+  String get manageUsers => 'Gérer les utilisateurs';
+
+  @override
+  String get manageAdmins => 'Gérer les administrateurs';
+
+  @override
+  String get sendNotification => 'Envoyer une notification';
+
+  @override
+  String get scientificAchievements => 'Réalisations scientifiques';
+
+  @override
+  String get compliance => 'Conformité légale';
+
+  @override
+  String get themeFreeCount => '4 thèmes de base';
+
+  @override
+  String get themeProCount => '25 thèmes disponibles';
+
+  @override
+  String get themeLockedCount => 'thèmes exclusifs pour les abonnés';
+
+  @override
+  String get backupSuccess => '✅ Sauvegarde terminée';
+
+  @override
+  String get restoreSuccess => '♻️ Sauvegarde restaurée';
+
+  @override
+  String get cacheCleared => '🧹 Cache vidé';
+
+  @override
+  String get settingsReset => '♻️ Paramètres réinitialisés';
+
+  @override
+  String get call => 'Appel';
+
+  @override
+  String get videoCall => 'Appel vidéo';
+
+  @override
+  String get groupVideoCall => 'Appel vidéo de groupe';
+
+  @override
+  String get groupVoiceCall => 'Appel vocal de groupe';
+
+  @override
+  String get participants => 'participants';
+
+  @override
+  String get noParticipants => 'Aucun participant';
+
+  @override
+  String get summary => 'Résumé de la conversation';
+
+  @override
+  String get smartReplies => 'Réponses intelligentes';
+
+  @override
+  String get pinnedMessages => 'Messages épinglés';
+
+  @override
+  String get encrypted => 'Entièrement chiffré';
+
+  @override
+  String get quantumResistant => 'Résistant quantique';
+
+  @override
+  String get sealedSender => 'Expéditeur scellé';
+}
+
+================== app_localizations_hi.dart ==================
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Hindi (`hi`).
+class AppLocalizationsHi extends AppLocalizations {
+  AppLocalizationsHi([String locale = 'hi']) : super(locale);
+
+  @override
+  String get appName => 'Privoo';
+
+  @override
+  String get welcome => 'Privoo में आपका स्वागत है';
+
+  @override
+  String get login => 'लॉग इन करें';
+
+  @override
+  String get logout => 'लॉग आउट करें';
+
+  @override
+  String get send => 'भेजें';
+
+  @override
+  String get settings => 'सेटिंग्स';
+
+  @override
+  String get language => 'भाषा';
+
+  @override
+  String get theme => 'थीम';
+
+  @override
+  String get backup => 'बैकअप';
+
+  @override
+  String get darkMode => 'डार्क मोड';
+
+  @override
+  String get lightMode => 'लाइट मोड';
+
+  @override
+  String get about => 'के बारे में';
+
+  @override
+  String get version => 'संस्करण';
+
+  @override
+  String get appDescription => 'Privoo एक सुरक्षित और स्मार्ट चैट ऐप है।';
+
+  @override
+  String get chatWithDeveloper => 'डेवलपर से चैट करें';
+
+  @override
+  String get privacyPolicy => 'गोपनीयता नीति';
+
+  @override
+  String get rateApp => 'ऐप रेट करें';
+
+  @override
+  String get allRightsReserved => 'सर्वाधिकार सुरक्षित।';
+
+  @override
+  String get aiModelLicenseNotice =>
+      'यह ऐप अलिबाबा क्लाउड के Qwen3-8B-GGUF मॉडल का उपयोग करता है, Apache 2.0 लाइसेंस के तहत।';
+
+  @override
+  String get pro => 'प्रो';
+
+  @override
+  String get free => 'मुफ्त';
+
+  @override
+  String get upgrade => 'अपग्रेड करें';
+
+  @override
+  String get cancel => 'रद्द करें';
+
+  @override
+  String get save => 'सहेजें';
+
+  @override
+  String get delete => 'हटाएं';
+
+  @override
+  String get edit => 'संपादित करें';
+
+  @override
+  String get search => 'खोजें';
+
+  @override
+  String get loading => 'लोड हो रहा है...';
+
+  @override
+  String get error => 'एक त्रुटि हुई';
+
+  @override
+  String get retry => 'पुनः प्रयास करें';
+
+  @override
+  String get noData => 'कोई डेटा नहीं';
+
+  @override
+  String get online => 'ऑनलाइन';
+
+  @override
+  String get offline => 'ऑफलाइन';
+
+  @override
+  String get typing => 'टाइप कर रहा है...';
+
+  @override
+  String get copied => 'कॉपी किया गया';
+
+  @override
+  String get pinned => 'पिन किया गया';
+
+  @override
+  String get unpinned => 'पिन हटाया गया';
+
+  @override
+  String get deleted => 'हटाया गया';
+
+  @override
+  String get blocked => 'ब्लॉक किया गया';
+
+  @override
+  String get unblocked => 'अनब्लॉक किया गया';
+
+  @override
+  String get adminPanel => 'एडमिन पैनल';
+
+  @override
+  String get supportTickets => 'सहायता टिकट';
+
+  @override
+  String get manageUsers => 'उपयोगकर्ता प्रबंधित करें';
+
+  @override
+  String get manageAdmins => 'एडमिन प्रबंधित करें';
+
+  @override
+  String get sendNotification => 'सूचना भेजें';
+
+  @override
+  String get scientificAchievements => 'वैज्ञानिक उपलब्धियाँ';
+
+  @override
+  String get compliance => 'कानूनी अनुपालन';
+
+  @override
+  String get themeFreeCount => '4 बुनियादी थीम';
+
+  @override
+  String get themeProCount => '25 थीम उपलब्ध';
+
+  @override
+  String get themeLockedCount => 'सदस्यों के लिए विशेष थीम';
+
+  @override
+  String get backupSuccess => '✅ बैकअप पूरा हुआ';
+
+  @override
+  String get restoreSuccess => '♻️ बैकअप बहाल किया गया';
+
+  @override
+  String get cacheCleared => '🧹 कैश साफ़ किया गया';
+
+  @override
+  String get settingsReset => '♻️ सेटिंग्स रीसेट की गईं';
+
+  @override
+  String get call => 'कॉल';
+
+  @override
+  String get videoCall => 'वीडियो कॉल';
+
+  @override
+  String get groupVideoCall => 'समूह वीडियो कॉल';
+
+  @override
+  String get groupVoiceCall => 'समूह वॉयस कॉल';
+
+  @override
+  String get participants => 'प्रतिभागी';
+
+  @override
+  String get noParticipants => 'कोई प्रतिभागी नहीं';
+
+  @override
+  String get summary => 'बातचीत का सारांश';
+
+  @override
+  String get smartReplies => 'स्मार्ट जवाब';
+
+  @override
+  String get pinnedMessages => 'पिन किए गए संदेश';
+
+  @override
+  String get encrypted => 'पूरी तरह एन्क्रिप्टेड';
+
+  @override
+  String get quantumResistant => 'क्वांटम प्रतिरोधी';
+
+  @override
+  String get sealedSender => 'सीलबंद भेजने वाला';
+}
+
+================== app_localizations_it.dart ==================
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Italian (`it`).
+class AppLocalizationsIt extends AppLocalizations {
+  AppLocalizationsIt([String locale = 'it']) : super(locale);
+
+  @override
+  String get appName => 'Privoo';
+
+  @override
+  String get welcome => 'Benvenuto su Privoo';
+
+  @override
+  String get login => 'Accedi';
+
+  @override
+  String get logout => 'Esci';
+
+  @override
+  String get send => 'Invia';
+
+  @override
+  String get settings => 'Impostazioni';
+
+  @override
+  String get language => 'Lingua';
+
+  @override
+  String get theme => 'Tema';
+
+  @override
+  String get backup => 'Backup';
+
+  @override
+  String get darkMode => 'Modalità scura';
+
+  @override
+  String get lightMode => 'Modalità chiara';
+
+  @override
+  String get about => 'Informazioni';
+
+  @override
+  String get version => 'Versione';
+
+  @override
+  String get appDescription =>
+      'Privoo è un\'app di chat sicura e intelligente.';
+
+  @override
+  String get chatWithDeveloper => 'Chatta con lo sviluppatore';
+
+  @override
+  String get privacyPolicy => 'Informativa sulla privacy';
+
+  @override
+  String get rateApp => 'Valuta l\'app';
+
+  @override
+  String get allRightsReserved => 'Tutti i diritti riservati.';
+
+  @override
+  String get aiModelLicenseNotice =>
+      'Questa app utilizza il modello Qwen3-8B-GGUF di Alibaba Cloud, sotto licenza Apache 2.0.';
+
+  @override
+  String get pro => 'Pro';
+
+  @override
+  String get free => 'Gratuito';
+
+  @override
+  String get upgrade => 'Aggiorna';
+
+  @override
+  String get cancel => 'Annulla';
+
+  @override
+  String get save => 'Salva';
+
+  @override
+  String get delete => 'Elimina';
+
+  @override
+  String get edit => 'Modifica';
+
+  @override
+  String get search => 'Cerca';
+
+  @override
+  String get loading => 'Caricamento...';
+
+  @override
+  String get error => 'Si è verificato un errore';
+
+  @override
+  String get retry => 'Riprova';
+
+  @override
+  String get noData => 'Nessun dato';
+
+  @override
+  String get online => 'Online';
+
+  @override
+  String get offline => 'Offline';
+
+  @override
+  String get typing => 'sta scrivendo...';
+
+  @override
+  String get copied => 'Copiato';
+
+  @override
+  String get pinned => 'Fissato';
+
+  @override
+  String get unpinned => 'Rimosso fissaggio';
+
+  @override
+  String get deleted => 'Eliminato';
+
+  @override
+  String get blocked => 'Bloccato';
+
+  @override
+  String get unblocked => 'Sbloccato';
+
+  @override
+  String get adminPanel => 'Pannello di amministrazione';
+
+  @override
+  String get supportTickets => 'Ticket di supporto';
+
+  @override
+  String get manageUsers => 'Gestisci utenti';
+
+  @override
+  String get manageAdmins => 'Gestisci amministratori';
+
+  @override
+  String get sendNotification => 'Invia notifica';
+
+  @override
+  String get scientificAchievements => 'Risultati scientifici';
+
+  @override
+  String get compliance => 'Conformità legale';
+
+  @override
+  String get themeFreeCount => '4 temi di base';
+
+  @override
+  String get themeProCount => '25 temi disponibili';
+
+  @override
+  String get themeLockedCount => 'temi esclusivi per gli abbonati';
+
+  @override
+  String get backupSuccess => '✅ Backup completato';
+
+  @override
+  String get restoreSuccess => '♻️ Backup ripristinato';
+
+  @override
+  String get cacheCleared => '🧹 Cache pulita';
+
+  @override
+  String get settingsReset => '♻️ Impostazioni ripristinate';
+
+  @override
+  String get call => 'Chiamata';
+
+  @override
+  String get videoCall => 'Videochiamata';
+
+  @override
+  String get groupVideoCall => 'Videochiamata di gruppo';
+
+  @override
+  String get groupVoiceCall => 'Chiamata vocale di gruppo';
+
+  @override
+  String get participants => 'partecipanti';
+
+  @override
+  String get noParticipants => 'Nessun partecipante';
+
+  @override
+  String get summary => 'Riepilogo della conversazione';
+
+  @override
+  String get smartReplies => 'Risposte intelligenti';
+
+  @override
+  String get pinnedMessages => 'Messaggi fissati';
+
+  @override
+  String get encrypted => 'Completamente crittografato';
+
+  @override
+  String get quantumResistant => 'Resistente ai quanti';
+
+  @override
+  String get sealedSender => 'Mittente sigillato';
+}
+
+================== app_localizations_ru.dart ==================
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Russian (`ru`).
+class AppLocalizationsRu extends AppLocalizations {
+  AppLocalizationsRu([String locale = 'ru']) : super(locale);
+
+  @override
+  String get appName => 'Privoo';
+
+  @override
+  String get welcome => 'Добро пожаловать в Privoo';
+
+  @override
+  String get login => 'Войти';
+
+  @override
+  String get logout => 'Выйти';
+
+  @override
+  String get send => 'Отправить';
+
+  @override
+  String get settings => 'Настройки';
+
+  @override
+  String get language => 'Язык';
+
+  @override
+  String get theme => 'Тема';
+
+  @override
+  String get backup => 'Резервное копирование';
+
+  @override
+  String get darkMode => 'Тёмный режим';
+
+  @override
+  String get lightMode => 'Светлый режим';
+
+  @override
+  String get about => 'О приложении';
+
+  @override
+  String get version => 'Версия';
+
+  @override
+  String get appDescription =>
+      'Privoo - безопасное и умное приложение для чата.';
+
+  @override
+  String get chatWithDeveloper => 'Чат с разработчиком';
+
+  @override
+  String get privacyPolicy => 'Политика конфиденциальности';
+
+  @override
+  String get rateApp => 'Оценить приложение';
+
+  @override
+  String get allRightsReserved => 'Все права защищены.';
+
+  @override
+  String get aiModelLicenseNotice =>
+      'Это приложение использует модель Qwen3-8B-GGUF от Alibaba Cloud по лицензии Apache 2.0.';
+
+  @override
+  String get pro => 'Pro';
+
+  @override
+  String get free => 'Бесплатно';
+
+  @override
+  String get upgrade => 'Обновить';
+
+  @override
+  String get cancel => 'Отмена';
+
+  @override
+  String get save => 'Сохранить';
+
+  @override
+  String get delete => 'Удалить';
+
+  @override
+  String get edit => 'Редактировать';
+
+  @override
+  String get search => 'Поиск';
+
+  @override
+  String get loading => 'Загрузка...';
+
+  @override
+  String get error => 'Произошла ошибка';
+
+  @override
+  String get retry => 'Повторить';
+
+  @override
+  String get noData => 'Нет данных';
+
+  @override
+  String get online => 'В сети';
+
+  @override
+  String get offline => 'Не в сети';
+
+  @override
+  String get typing => 'печатает...';
+
+  @override
+  String get copied => 'Скопировано';
+
+  @override
+  String get pinned => 'Закреплено';
+
+  @override
+  String get unpinned => 'Откреплено';
+
+  @override
+  String get deleted => 'Удалено';
+
+  @override
+  String get blocked => 'Заблокирован';
+
+  @override
+  String get unblocked => 'Разблокирован';
+
+  @override
+  String get adminPanel => 'Панель администратора';
+
+  @override
+  String get supportTickets => 'Заявки в поддержку';
+
+  @override
+  String get manageUsers => 'Управление пользователями';
+
+  @override
+  String get manageAdmins => 'Управление администраторами';
+
+  @override
+  String get sendNotification => 'Отправить уведомление';
+
+  @override
+  String get scientificAchievements => 'Научные достижения';
+
+  @override
+  String get compliance => 'Правовое соответствие';
+
+  @override
+  String get themeFreeCount => '4 основные темы';
+
+  @override
+  String get themeProCount => '25 доступных тем';
+
+  @override
+  String get themeLockedCount => 'эксклюзивные темы для подписчиков';
+
+  @override
+  String get backupSuccess => '✅ Резервное копирование завершено';
+
+  @override
+  String get restoreSuccess => '♻️ Резервная копия восстановлена';
+
+  @override
+  String get cacheCleared => '🧹 Кэш очищен';
+
+  @override
+  String get settingsReset => '♻️ Настройки сброшены';
+
+  @override
+  String get call => 'Звонок';
+
+  @override
+  String get videoCall => 'Видеозвонок';
+
+  @override
+  String get groupVideoCall => 'Групповой видеозвонок';
+
+  @override
+  String get groupVoiceCall => 'Групповой голосовой звонок';
+
+  @override
+  String get participants => 'участников';
+
+  @override
+  String get noParticipants => 'Нет участников';
+
+  @override
+  String get summary => 'Сводка разговора';
+
+  @override
+  String get smartReplies => 'Умные ответы';
+
+  @override
+  String get pinnedMessages => 'Закреплённые сообщения';
+
+  @override
+  String get encrypted => 'Полностью зашифровано';
+
+  @override
+  String get quantumResistant => 'Квантово-устойчивый';
+
+  @override
+  String get sealedSender => 'Запечатанный отправитель';
+}
+
+================== app_localizations_tr.dart ==================
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Turkish (`tr`).
+class AppLocalizationsTr extends AppLocalizations {
+  AppLocalizationsTr([String locale = 'tr']) : super(locale);
+
+  @override
+  String get appName => 'Privoo';
+
+  @override
+  String get welcome => 'Privoo\'ya Hoş Geldiniz';
+
+  @override
+  String get login => 'Giriş Yap';
+
+  @override
+  String get logout => 'Çıkış Yap';
+
+  @override
+  String get send => 'Gönder';
+
+  @override
+  String get settings => 'Ayarlar';
+
+  @override
+  String get language => 'Dil';
+
+  @override
+  String get theme => 'Tema';
+
+  @override
+  String get backup => 'Yedekleme';
+
+  @override
+  String get darkMode => 'Karanlık Mod';
+
+  @override
+  String get lightMode => 'Aydınlık Mod';
+
+  @override
+  String get about => 'Hakkında';
+
+  @override
+  String get version => 'Sürüm';
+
+  @override
+  String get appDescription =>
+      'Privoo güvenli ve akıllı bir sohbet uygulamasıdır.';
+
+  @override
+  String get chatWithDeveloper => 'Geliştiriciyle Sohbet Et';
+
+  @override
+  String get privacyPolicy => 'Gizlilik Politikası';
+
+  @override
+  String get rateApp => 'Uygulamayı Değerlendir';
+
+  @override
+  String get allRightsReserved => 'Tüm hakları saklıdır.';
+
+  @override
+  String get aiModelLicenseNotice =>
+      'Bu uygulama, Alibaba Cloud\'un Qwen3-8B-GGUF modelini Apache 2.0 lisansı altında kullanmaktadır.';
+
+  @override
+  String get pro => 'Pro';
+
+  @override
+  String get free => 'Ücretsiz';
+
+  @override
+  String get upgrade => 'Yükselt';
+
+  @override
+  String get cancel => 'İptal';
+
+  @override
+  String get save => 'Kaydet';
+
+  @override
+  String get delete => 'Sil';
+
+  @override
+  String get edit => 'Düzenle';
+
+  @override
+  String get search => 'Ara';
+
+  @override
+  String get loading => 'Yükleniyor...';
+
+  @override
+  String get error => 'Bir hata oluştu';
+
+  @override
+  String get retry => 'Yeniden Dene';
+
+  @override
+  String get noData => 'Veri yok';
+
+  @override
+  String get online => 'Çevrimiçi';
+
+  @override
+  String get offline => 'Çevrimdışı';
+
+  @override
+  String get typing => 'yazıyor...';
+
+  @override
+  String get copied => 'Kopyalandı';
+
+  @override
+  String get pinned => 'Sabitlendi';
+
+  @override
+  String get unpinned => 'Sabitlik kaldırıldı';
+
+  @override
+  String get deleted => 'Silindi';
+
+  @override
+  String get blocked => 'Engellendi';
+
+  @override
+  String get unblocked => 'Engel kaldırıldı';
+
+  @override
+  String get adminPanel => 'Yönetici Paneli';
+
+  @override
+  String get supportTickets => 'Destek Talepleri';
+
+  @override
+  String get manageUsers => 'Kullanıcıları Yönet';
+
+  @override
+  String get manageAdmins => 'Yöneticileri Yönet';
+
+  @override
+  String get sendNotification => 'Bildirim Gönder';
+
+  @override
+  String get scientificAchievements => 'Bilimsel Başarılar';
+
+  @override
+  String get compliance => 'Yasal Uyumluluk';
+
+  @override
+  String get themeFreeCount => '4 temel tema';
+
+  @override
+  String get themeProCount => '25 tema mevcut';
+
+  @override
+  String get themeLockedCount => 'aboneler için özel temalar';
+
+  @override
+  String get backupSuccess => '✅ Yedekleme tamamlandı';
+
+  @override
+  String get restoreSuccess => '♻️ Yedek geri yüklendi';
+
+  @override
+  String get cacheCleared => '🧹 Önbellek temizlendi';
+
+  @override
+  String get settingsReset => '♻️ Ayarlar sıfırlandı';
+
+  @override
+  String get call => 'Arama';
+
+  @override
+  String get videoCall => 'Görüntülü Arama';
+
+  @override
+  String get groupVideoCall => 'Grup Görüntülü Arama';
+
+  @override
+  String get groupVoiceCall => 'Grup Sesli Arama';
+
+  @override
+  String get participants => 'katılımcı';
+
+  @override
+  String get noParticipants => 'Katılımcı yok';
+
+  @override
+  String get summary => 'Sohbet Özeti';
+
+  @override
+  String get smartReplies => 'Akıllı Yanıtlar';
+
+  @override
+  String get pinnedMessages => 'Sabitlenmiş Mesajlar';
+
+  @override
+  String get encrypted => 'Tamamen Şifreli';
+
+  @override
+  String get quantumResistant => 'Kuantum Dirençli';
+
+  @override
+  String get sealedSender => 'Mühürlü Gönderici';
+}
+
+================== app_localizations_zh.dart ==================
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Chinese (`zh`).
+class AppLocalizationsZh extends AppLocalizations {
+  AppLocalizationsZh([String locale = 'zh']) : super(locale);
+
+  @override
+  String get appName => 'Privoo';
+
+  @override
+  String get welcome => '欢迎使用 Privoo';
+
+  @override
+  String get login => '登录';
+
+  @override
+  String get logout => '登出';
+
+  @override
+  String get send => '发送';
+
+  @override
+  String get settings => '设置';
+
+  @override
+  String get language => '语言';
+
+  @override
+  String get theme => '主题';
+
+  @override
+  String get backup => '备份';
+
+  @override
+  String get darkMode => '深色模式';
+
+  @override
+  String get lightMode => '浅色模式';
+
+  @override
+  String get about => '关于';
+
+  @override
+  String get version => '版本';
+
+  @override
+  String get appDescription => 'Privoo 是一个安全智能的聊天应用。';
+
+  @override
+  String get chatWithDeveloper => '与开发者聊天';
+
+  @override
+  String get privacyPolicy => '隐私政策';
+
+  @override
+  String get rateApp => '评价应用';
+
+  @override
+  String get allRightsReserved => '版权所有。';
+
+  @override
+  String get aiModelLicenseNotice =>
+      '本应用使用阿里云的 Qwen3-8B-GGUF 模型，遵循 Apache 2.0 许可证。';
+
+  @override
+  String get pro => '专业版';
+
+  @override
+  String get free => '免费';
+
+  @override
+  String get upgrade => '升级';
+
+  @override
+  String get cancel => '取消';
+
+  @override
+  String get save => '保存';
+
+  @override
+  String get delete => '删除';
+
+  @override
+  String get edit => '编辑';
+
+  @override
+  String get search => '搜索';
+
+  @override
+  String get loading => '加载中...';
+
+  @override
+  String get error => '发生错误';
+
+  @override
+  String get retry => '重试';
+
+  @override
+  String get noData => '无数据';
+
+  @override
+  String get online => '在线';
+
+  @override
+  String get offline => '离线';
+
+  @override
+  String get typing => '正在输入...';
+
+  @override
+  String get copied => '已复制';
+
+  @override
+  String get pinned => '已置顶';
+
+  @override
+  String get unpinned => '已取消置顶';
+
+  @override
+  String get deleted => '已删除';
+
+  @override
+  String get blocked => '已屏蔽';
+
+  @override
+  String get unblocked => '已解除屏蔽';
+
+  @override
+  String get adminPanel => '管理面板';
+
+  @override
+  String get supportTickets => '支持工单';
+
+  @override
+  String get manageUsers => '管理用户';
+
+  @override
+  String get manageAdmins => '管理管理员';
+
+  @override
+  String get sendNotification => '发送通知';
+
+  @override
+  String get scientificAchievements => '科学成就';
+
+  @override
+  String get compliance => '法律合规';
+
+  @override
+  String get themeFreeCount => '4个基础主题';
+
+  @override
+  String get themeProCount => '25个可用主题';
+
+  @override
+  String get themeLockedCount => '订阅者专属主题';
+
+  @override
+  String get backupSuccess => '✅ 备份完成';
+
+  @override
+  String get restoreSuccess => '♻️ 备份已恢复';
+
+  @override
+  String get cacheCleared => '🧹 缓存已清除';
+
+  @override
+  String get settingsReset => '♻️ 设置已重置';
+
+  @override
+  String get call => '通话';
+
+  @override
+  String get videoCall => '视频通话';
+
+  @override
+  String get groupVideoCall => '群组视频通话';
+
+  @override
+  String get groupVoiceCall => '群组语音通话';
+
+  @override
+  String get participants => '参与者';
+
+  @override
+  String get noParticipants => '无参与者';
+
+  @override
+  String get summary => '对话摘要';
+
+  @override
+  String get smartReplies => '智能回复';
+
+  @override
+  String get pinnedMessages => '置顶消息';
+
+  @override
+  String get encrypted => '完全加密';
+
+  @override
+  String get quantumResistant => '抗量子';
+
+  @override
+  String get sealedSender => '密封发送者';
+}
+
+================== app_ar.arb ==================
+{
+  "@@locale": "ar",
+  
+  "appName": "بريفو",
+  "welcome": "مرحبًا بك في بريفو",
+  "login": "تسجيل الدخول",
+  "logout": "تسجيل الخروج",
+  "send": "إرسال",
+  "settings": "الإعدادات",
+  "language": "اللغة",
+  "theme": "الثيم",
+  "backup": "نسخ احتياطي",
+  "darkMode": "الوضع الداكن",
+  "lightMode": "الوضع الفاتح",
+  "about": "حول التطبيق",
+  "version": "الإصدار",
+  "appDescription": "بريفو هو تطبيق دردشة آمن وذكي.",
+  "chatWithDeveloper": "الدردشة مع المطور",
+  "privacyPolicy": "سياسة الخصوصية",
+  "rateApp": "قيّم التطبيق",
+  "allRightsReserved": "جميع الحقوق محفوظة.",
+  "aiModelLicenseNotice": "هذا التطبيق يستخدم نموذج Qwen3-8B-GGUF من تطوير Alibaba Cloud، وفقًا لترخيص Apache 2.0.",
+  
+  "pro": "برو",
+  "free": "مجاني",
+  "upgrade": "ترقية",
+  "cancel": "إلغاء",
+  "save": "حفظ",
+  "delete": "حذف",
+  "edit": "تعديل",
+  "search": "بحث",
+  "loading": "جاري التحميل...",
+  "error": "حدث خطأ",
+  "retry": "إعادة المحاولة",
+  "noData": "لا توجد بيانات",
+  "online": "متصل",
+  "offline": "غير متصل",
+  "typing": "يكتب...",
+  "copied": "تم النسخ",
+  "pinned": "مثبت",
+  "unpinned": "تم إلغاء التثبيت",
+  "deleted": "تم الحذف",
+  "blocked": "تم الحظر",
+  "unblocked": "تم إلغاء الحظر",
+  
+  "adminPanel": "لوحة تحكم المشرفين",
+  "supportTickets": "تذاكر الدعم",
+  "manageUsers": "إدارة المستخدمين",
+  "manageAdmins": "إدارة المشرفين",
+  "sendNotification": "إرسال إشعار",
+  "scientificAchievements": "الإنجازات العلمية",
+  "compliance": "الامتثال القانوني",
+  
+  "themeFreeCount": "8 ثيمات أساسية",
+  "themeProCount": "25 ثيماً متاحة",
+  "themeLockedCount": "ثيماً حصرية للمشتركين",
+  
+  "backupSuccess": "✅ تم عمل نسخة احتياطية",
+  "restoreSuccess": "♻️ تم استعادة النسخة الاحتياطية",
+  "cacheCleared": "🧹 تم مسح الكاش",
+  "settingsReset": "♻️ تم إعادة ضبط الإعدادات",
+  
+  "call": "مكالمة",
+  "videoCall": "مكالمة فيديو",
+  "groupVideoCall": "مكالمة فيديو جماعية",
+  "groupVoiceCall": "مكالمة صوتية جماعية",
+  "participants": "مشاركين",
+  "noParticipants": "لا يوجد مشاركين",
+  
+  "summary": "ملخص المحادثة",
+  "smartReplies": "ردود ذكية",
+  "pinnedMessages": "الرسائل المثبتة",
+  
+  "encrypted": "مشفر بالكامل",
+  "quantumResistant": "مقاوم للكم",
+  "sealedSender": "مرسل مختوم"
+  ,
+  "lockApp": "قفل التطبيق ببصمة/كلمة مرور",
+  "lockAppEnabled": "تم تفعيل قفل التطبيق",
+  "lockAppDisabled": "تم إيقاف قفل التطبيق",
+
+  "hideLastSeen": "إخفاء آخر ظهور",
+  "hideLastSeenEnabled": "تم إخفاء آخر ظهور",
+  "hideLastSeenDisabled": "تم إظهار آخر ظهور",
+
+  "hideOnlineStatus": "إخفاء حالة النشاط",
+  "hideOnlineStatusEnabled": "تم إخفاء حالة النشاط",
+  "hideOnlineStatusDisabled": "تم إظهار حالة النشاط",
+
+  "manageAllowedSenders": "إدارة من يمكنه مراسلتي",
+  "manageHiddenChats": "إدارة المحادثات المخفية",
+  "blockedUsers": "المستخدمون المحظورون",
+  "blockedUsersSubtitle": "إدارة قائمة الحظر",
+
+  "notificationsTitle": "الإشعارات",
+  "enableNotifications": "تفعيل الإشعارات",
+  "vibration": "تفعيل الاهتزاز",
+  "notificationSound": "نغمة الإشعارات",
+  "silentNotifications": "الإشعارات الصامتة",
+
+  "accountManagement": "إدارة الحساب",
+  "changeName": "تغيير الاسم",
+  "changeAvatar": "تغيير الصورة الشخصية",
+  "changeCredentials": "تغيير البريد وكلمة المرور",
+  "linkProviders": "ربط الحساب بجوجل / أبل",
+  "deleteAccount": "حذف الحساب نهائيًا",
+  "confirmDeleteTitle": "تأكيد حذف الحساب",
+  "confirmDeleteContent": "هل أنت متأكد من حذف حسابك نهائيًا؟",
+  "cancel": "إلغاء",
+  "delete": "حذف",
+
+  "chatSettings": "إعدادات المحادثات",
+  "changeChatWallpaper": "تغيير خلفية المحادثة",
+  "chatFontSize": "حجم الخط في الرسائل",
+  "readReceipts": "إظهار تأكيد قراءة الرسائل",
+  "readReceiptsEnabled": "تم تفعيل تأكيد القراءة",
+  "readReceiptsDisabled": "تم إيقاف تأكيد القراءة",
+  "autoDownloadMedia": "تنزيل الوسائط تلقائيًا",
+
+  "advancedSettings": "إعدادات متقدمة",
+  "clearCache": "مسح الكاش",
+  "cacheCleared": "تم مسح الكاش",
+  "resetSettings": "إعادة ضبط الإعدادات",
+  "settingsReset": "تم إعادة ضبط الإعدادات",
+  "dataSaver": "وضع توفير البيانات",
+  "dataSaverEnabled": "تم تفعيل وضع توفير البيانات",
+  "dataSaverDisabled": "تم إيقاف وضع توفير البيانات",
+
+  "adminPanelTitle": "لوحة تحكم المشرفين",
+  "supportTicketsTitle": "تذاكر الدعم الفني",
+  "supportTicketsSubtitle": "عرض والرد على رسائل المستخدمين",
+  "manageUsersTitle": "إدارة المستخدمين",
+  "manageUsersSubtitle": "عرض، حظر، منح اشتراكات",
+  "manageAdminsTitle": "إدارة المشرفين",
+  "manageAdminsSubtitle": "إضافة، تعديل، حذف المشرفين",
+  "manageOffersTitle": "إدارة العروض والكوبونات",
+  "manageOffersSubtitle": "إضافة وتعديل أكواد الخصم",
+  "sendNotificationTitle": "إرسال إشعار جماعي",
+  "sendNotificationSubtitle": "إشعار لجميع المستخدمين",
+  "workInProgress": "قيد التطوير",
+
+  "complianceTitle": "الامتثال القانوني وحقوقي",
+  "complianceSubtitle": "GDPR • CCPA • PDPL • PIPL • وغيرها (13 دولة)",
+  "scientificAchievementsTitle": "الإنجازات العلمية",
+  "scientificAchievementsSubtitle": "التشفير المقاوم للكم • الذكاء الاصطناعي • بروتوكولات متقدمة",
+
+  "downloadApp": "تحميل التطبيق",
+  "openingWeb": "سيتم فتح {file} في المتصفح"
+}
+================== app_de.arb ==================
+{
+  "@@locale": "de",
+  
+  "appName": "Privoo",
+  "welcome": "Willkommen bei Privoo",
+  "login": "Anmelden",
+  "logout": "Abmelden",
+  "send": "Senden",
+  "settings": "Einstellungen",
+  "language": "Sprache",
+  "theme": "Thema",
+  "backup": "Sicherung",
+  "darkMode": "Dunkelmodus",
+  "lightMode": "Hellmodus",
+  "about": "Über",
+  "version": "Version",
+  "appDescription": "Privoo ist eine sichere und intelligente Chat-App.",
+  "chatWithDeveloper": "Mit Entwickler chatten",
+  "privacyPolicy": "Datenschutzrichtlinie",
+  "terms": "Nutzungsbedingungen",
+  "rateApp": "App bewerten",
+  "allRightsReserved": "Alle Rechte vorbehalten.",
+  "aiModelLicenseNotice": "Diese App verwendet das Qwen3-8B-GGUF-Modell von Alibaba Cloud unter der Apache 2.0-Lizenz.",
+
+  "pro": "Pro",
+  "free": "Kostenlos",
+  "upgrade": "Upgrade",
+  "cancel": "Abbrechen",
+  "save": "Speichern",
+  "delete": "Löschen",
+  "edit": "Bearbeiten",
+  "search": "Suchen",
+  "loading": "Laden...",
+  "error": "Ein Fehler ist aufgetreten",
+  "retry": "Wiederholen",
+  "noData": "Keine Daten",
+  "online": "Online",
+  "offline": "Offline",
+  "typing": "tippt...",
+  "copied": "Kopiert",
+  "pinned": "Angeheftet",
+  "unpinned": "Gelöst",
+  "deleted": "Gelöscht",
+  "blocked": "Blockiert",
+  "unblocked": "Entblockt",
+
+  "adminPanel": "Admin-Bereich",
+  "supportTickets": "Support-Tickets",
+  "manageUsers": "Benutzer verwalten",
+  "manageAdmins": "Administratoren verwalten",
+  "sendNotification": "Benachrichtigung senden",
+  "scientificAchievements": "Wissenschaftliche Errungenschaften",
+  "compliance": "Rechtliche Compliance",
+
+  "themeFreeCount": "8 grundlegende Themen",
+  "themeProCount": "25 Themen verfügbar",
+  "themeLockedCount": "Exklusive Themen für Abonnenten",
+
+  "backupSuccess": "✅ Sicherung abgeschlossen",
+  "restoreSuccess": "♻️ Sicherung wiederhergestellt",
+  "cacheCleared": "🧹 Cache geleert",
+  "settingsReset": "♻️ Einstellungen zurückgesetzt",
+    "appName": "Privoo",
+    "welcome": "Willkommen bei Privoo",
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "send": "Senden",
+    "settings": "Einstellungen",
+    "language": "Sprache",
+    "theme": "Design",
+    "backup": "Sicherung",
+    "darkMode": "Dunkler Modus",
+    "lightMode": "Heller Modus",
+    "about": "Über",
+    "version": "Version",
+    "appDescription": "Privoo ist eine sichere und intelligente Chat-App.",
+    "chatWithDeveloper": "Mit dem Entwickler chatten",
+    "privacyPolicy": "Datenschutzrichtlinie",
+    "terms": "Nutzungsbedingungen",
+    "rateApp": "App bewerten",
+    "allRightsReserved": "Alle Rechte vorbehalten.",
+    "aiModelLicenseNotice": "Diese App verwendet das Qwen3-8B-GGUF-Modell von Alibaba Cloud unter der Apache 2.0-Lizenz.",
+
+    "pro": "Pro",
+    "free": "Kostenlos",
+    "upgrade": "Aktualisieren",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "search": "Suchen",
+    "loading": "Wird geladen...",
+    "error": "Ein Fehler ist aufgetreten",
+    "retry": "Erneut versuchen",
+    "noData": "Keine Daten",
+    "online": "Online",
+    "offline": "Offline",
+    "typing": "schreibt...",
+    "copied": "Kopiert",
+    "pinned": "Angepinnt",
+    "unpinned": "Entfernt",
+    "deleted": "Gelöscht",
+    "blocked": "Blockiert",
+    "unblocked": "Entblockt",
+
+    "adminPanel": "Admin-Bereich",
+    "supportTickets": "Support-Tickets",
+    "manageUsers": "Benutzer verwalten",
+    "manageAdmins": "Admins verwalten",
+    "sendNotification": "Benachrichtigung senden",
+    "scientificAchievements": "Wissenschaftliche Errungenschaften",
+    "compliance": "Rechtliche Konformität",
+
+    "themeFreeCount": "8 Grundthemen",
+    "themeProCount": "25 verfügbare Themen",
+    "themeLockedCount": "Exklusive Themen für Abonnenten",
+
+    "backupSuccess": "✅ Sicherung abgeschlossen",
+    "restoreSuccess": "♻️ Sicherung wiederhergestellt",
+    "cacheCleared": "🧹 Cache geleert",
+    "settingsReset": "♻️ Einstellungen zurückgesetzt",
+
+    "call": "Anruf",
+    "videoCall": "Videoanruf",
+    "groupVideoCall": "Gruppen-Videoanruf",
+    "groupVoiceCall": "Gruppen-Sprachanruf",
+    "participants": "Teilnehmer",
+    "noParticipants": "Keine Teilnehmer",
+
+    "summary": "Konversationszusammenfassung",
+    "smartReplies": "Intelligente Antworten",
+    "pinnedMessages": "Angepinnte Nachrichten",
+
+    "encrypted": "Vollständig verschlüsselt",
+    "quantumResistant": "Quantenresistent",
+    "sealedSender": "Versiegelter Absender",
+
+    "lockApp": "App sperren (Biometrie/Passwort)",
+    "lockAppEnabled": "App-Sperre aktiviert",
+    "lockAppDisabled": "App-Sperre deaktiviert",
+
+    "hideLastSeen": "Zuletzt online verbergen",
+    "hideLastSeenEnabled": "Zuletzt online verborgen",
+    "hideLastSeenDisabled": "Zuletzt online sichtbar",
+
+    "hideOnlineStatus": "Online-Status verbergen",
+    "hideOnlineStatusEnabled": "Online-Status verborgen",
+    "hideOnlineStatusDisabled": "Online-Status sichtbar",
+
+    "manageAllowedSenders": "Verwalte, wer mir schreiben darf",
+    "manageHiddenChats": "Verwalte versteckte Chats",
+    "blockedUsers": "Blockierte Benutzer",
+    "blockedUsersSubtitle": "Blockliste verwalten",
+
+    "notificationsTitle": "Benachrichtigungen",
+    "enableNotifications": "Benachrichtigungen aktivieren",
+    "vibration": "Vibration",
+    "notificationSound": "Benachrichtigungston",
+    "silentNotifications": "Stille Benachrichtigungen",
+
+    "accountManagement": "Kontoverwaltung",
+    "changeName": "Namen ändern",
+    "changeAvatar": "Avatar ändern",
+    "changeCredentials": "E-Mail und Passwort ändern",
+    "linkProviders": "Google / Apple verknüpfen",
+    "deleteAccount": "Konto dauerhaft löschen",
+    "confirmDeleteTitle": "Löschen bestätigen",
+    "confirmDeleteContent": "Möchten Sie Ihr Konto wirklich dauerhaft löschen?",
+    "delete": "Löschen",
+
+    "chatSettings": "Chat-Einstellungen",
+    "changeChatWallpaper": "Chat-Hintergrund ändern",
+    "chatFontSize": "Chat-Schriftgröße",
+    "readReceipts": "Lesebestätigungen anzeigen",
+    "readReceiptsEnabled": "Lesebestätigungen aktiviert",
+    "readReceiptsDisabled": "Lesebestätigungen deaktiviert",
+    "autoDownloadMedia": "Medien automatisch herunterladen",
+
+    "advancedSettings": "Erweiterte Einstellungen",
+    "clearCache": "Cache leeren",
+    "cacheCleared": "Cache geleert",
+    "resetSettings": "Einstellungen zurücksetzen",
+    "settingsReset": "Einstellungen zurückgesetzt",
+    "dataSaver": "Daten­sparmodus",
+    "dataSaverEnabled": "Datensparmodus aktiviert",
+    "dataSaverDisabled": "Datensparmodus deaktiviert",
+
+    "adminPanelTitle": "Admin-Bereich",
+    "supportTicketsTitle": "Support-Tickets",
+    "supportTicketsSubtitle": "Benutzer­nachrichten ansehen und beantworten",
+    "manageUsersTitle": "Benutzer verwalten",
+    "manageUsersSubtitle": "Ansehen, sperren, Abos vergeben",
+    "manageAdminsTitle": "Admins verwalten",
+    "manageAdminsSubtitle": "Admins hinzufügen, bearbeiten, entfernen",
+    "manageOffersTitle": "Angebote und Gutscheine verwalten",
+    "manageOffersSubtitle": "Promo-Codes hinzufügen und bearbeiten",
+    "sendNotificationTitle": "Massenbenachrichtigung senden",
+    "sendNotificationSubtitle": "Alle Nutzer benachrichtigen",
+    "workInProgress": "In Arbeit",
+
+    "complianceTitle": "Rechtliche Konformität",
+    "complianceSubtitle": "GDPR • CCPA • PDPL • PIPL • etc. (13 Länder)",
+    "scientificAchievementsTitle": "Wissenschaftliche Errungenschaften",
+    "scientificAchievementsSubtitle": "Quantenresistente Verschlüsselung • KI • fortgeschrittene Protokolle",
+
+    "downloadApp": "App herunterladen",
+    "openingWeb": "Öffne {file} im Browser"
+  }
+================== app_en.arb ==================
+{
+  "@@locale": "en",
+  
+  "appName": "Privoo",
+  "welcome": "Welcome to Privoo",
+  "login": "Login",
+  "logout": "Logout",
+  "send": "Send",
+  "settings": "Settings",
+  "language": "Language",
+  "theme": "Theme",
+  "backup": "Backup",
+  "darkMode": "Dark Mode",
+  "lightMode": "Light Mode",
+  "about": "About",
+  "version": "Version",
+  "appDescription": "Privoo is a secure and smart chat app.",
+  "chatWithDeveloper": "Chat with Developer",
+  "privacyPolicy": "Privacy Policy",
+  "terms": "Terms of Use",
+  "rateApp": "Rate App",
+  "allRightsReserved": "All rights reserved.",
+  "aiModelLicenseNotice": "This app uses Qwen3-8B-GGUF model by Alibaba Cloud, under Apache 2.0 license.",
+  
+  "pro": "Pro",
+  "free": "Free",
+  "upgrade": "Upgrade",
+  "cancel": "Cancel",
+  "save": "Save",
+  "delete": "Delete",
+  "edit": "Edit",
+  "search": "Search",
+  "loading": "Loading...",
+  "error": "An error occurred",
+  "retry": "Retry",
+  "noData": "No data",
+  "online": "Online",
+  "offline": "Offline",
+  "typing": "typing...",
+  "copied": "Copied",
+  "pinned": "Pinned",
+  "unpinned": "Unpinned",
+  "deleted": "Deleted",
+  "blocked": "Blocked",
+  "unblocked": "Unblocked",
+  
+  "adminPanel": "Admin Panel",
+  "supportTickets": "Support Tickets",
+  "manageUsers": "Manage Users",
+  "manageAdmins": "Manage Admins",
+  "sendNotification": "Send Notification",
+  "scientificAchievements": "Scientific Achievements",
+  "compliance": "Legal Compliance",
+  
+  "themeFreeCount": "8 basic themes",
+  "themeProCount": "25 themes available",
+  "themeLockedCount": "exclusive themes for subscribers",
+  
+  "backupSuccess": "✅ Backup completed",
+  "restoreSuccess": "♻️ Backup restored",
+  "cacheCleared": "🧹 Cache cleared",
+  "settingsReset": "♻️ Settings reset",
+  
+  "call": "Call",
+  "videoCall": "Video Call",
+  "groupVideoCall": "Group Video Call",
+  "groupVoiceCall": "Group Voice Call",
+  "participants": "participants",
+  "noParticipants": "No participants",
+  
+  "summary": "Conversation Summary",
+  "smartReplies": "Smart Replies",
+  "pinnedMessages": "Pinned Messages",
+  
+  "encrypted": "Fully Encrypted",
+  "quantumResistant": "Quantum Resistant",
+  "sealedSender": "Sealed Sender"
+  ,
+  "lockApp": "Lock app (biometric/password)",
+  "lockAppEnabled": "App lock enabled",
+  "lockAppDisabled": "App lock disabled",
+
+  "hideLastSeen": "Hide Last Seen",
+  "hideLastSeenEnabled": "Last seen hidden",
+  "hideLastSeenDisabled": "Last seen visible",
+
+  "hideOnlineStatus": "Hide Online Status",
+  "hideOnlineStatusEnabled": "Online status hidden",
+  "hideOnlineStatusDisabled": "Online status visible",
+
+  "manageAllowedSenders": "Manage Who Can Message Me",
+  "manageHiddenChats": "Manage Hidden Chats",
+  "blockedUsers": "Blocked Users",
+  "blockedUsersSubtitle": "Manage block list",
+
+  "notificationsTitle": "Notifications",
+  "enableNotifications": "Enable Notifications",
+  "vibration": "Enable Vibration",
+  "notificationSound": "Notification Sound",
+  "silentNotifications": "Silent Notifications",
+
+  "accountManagement": "Account Management",
+  "changeName": "Change Name",
+  "changeAvatar": "Change Avatar",
+  "changeCredentials": "Change Email & Password",
+  "linkProviders": "Link Google / Apple",
+  "deleteAccount": "Delete Account Permanently",
+  "confirmDeleteTitle": "Confirm Account Deletion",
+  "confirmDeleteContent": "Are you sure you want to delete your account permanently?",
+  "cancel": "Cancel",
+  "delete": "Delete",
+
+  "chatSettings": "Chat Settings",
+  "changeChatWallpaper": "Change Chat Wallpaper",
+  "chatFontSize": "Chat Font Size",
+  "readReceipts": "Show Read Receipts",
+  "readReceiptsEnabled": "Read receipts enabled",
+  "readReceiptsDisabled": "Read receipts disabled",
+  "autoDownloadMedia": "Auto-download Media",
+
+  "advancedSettings": "Advanced Settings",
+  "clearCache": "Clear Cache",
+  "cacheCleared": "Cache cleared",
+  "resetSettings": "Reset Settings",
+  "settingsReset": "Settings reset",
+  "dataSaver": "Data Saver Mode",
+  "dataSaverEnabled": "Data saver enabled",
+  "dataSaverDisabled": "Data saver disabled",
+
+  "adminPanelTitle": "Admin Panel",
+  "supportTicketsTitle": "Support Tickets",
+  "supportTicketsSubtitle": "View and reply to user messages",
+  "manageUsersTitle": "Manage Users",
+  "manageUsersSubtitle": "View, ban, grant subscriptions",
+  "manageAdminsTitle": "Manage Admins",
+  "manageAdminsSubtitle": "Add, edit, remove admins",
+  "manageOffersTitle": "Manage Offers & Coupons",
+  "manageOffersSubtitle": "Add and edit promo codes",
+  "sendNotificationTitle": "Send Bulk Notification",
+  "sendNotificationSubtitle": "Notify all users",
+  "workInProgress": "Work in progress",
+
+  "complianceTitle": "Legal Compliance",
+  "complianceSubtitle": "GDPR • CCPA • PDPL • PIPL • and more (13 countries)",
+  "scientificAchievementsTitle": "Scientific Achievements",
+  "scientificAchievementsSubtitle": "Quantum-resistant encryption • AI • advanced protocols",
+
+  "downloadApp": "Download App",
+  "openingWeb": "Opening {file}"
+}
+================== app_es.arb ==================
+{
+  "@@locale": "es",
+  
+  "appName": "Privoo",
+  "welcome": "Bienvenido a Privoo",
+  "login": "Iniciar sesión",
+  "logout": "Cerrar sesión",
+    "appName": "Privoo",
+    "welcome": "Bienvenido a Privoo",
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "send": "Enviar",
+    "settings": "Ajustes",
+    "language": "Idioma",
+    "theme": "Tema",
+    "backup": "Copia de seguridad",
+    "darkMode": "Modo oscuro",
+    "lightMode": "Modo claro",
+    "about": "Acerca de",
+    "version": "Versión",
+    "appDescription": "Privoo es una aplicación de chat segura e inteligente.",
+    "chatWithDeveloper": "Chatear con el desarrollador",
+    "privacyPolicy": "Política de privacidad",
+    "terms": "Términos de uso",
+    "rateApp": "Valorar la app",
+    "allRightsReserved": "Todos los derechos reservados.",
+    "aiModelLicenseNotice": "Esta aplicación utiliza el modelo Qwen3-8B-GGUF de Alibaba Cloud bajo la licencia Apache 2.0.",
+
+    "pro": "Pro",
+    "free": "Gratis",
+    "upgrade": "Actualizar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "search": "Buscar",
+    "loading": "Cargando...",
+    "error": "Ocurrió un error",
+    "retry": "Reintentar",
+    "noData": "Sin datos",
+    "online": "En línea",
+    "offline": "Sin conexión",
+    "typing": "escribiendo...",
+    "copied": "Copiado",
+    "pinned": "Fijado",
+    "unpinned": "Desfijado",
+    "deleted": "Eliminado",
+    "blocked": "Bloqueado",
+    "unblocked": "Desbloqueado",
+
+    "adminPanel": "Panel de administración",
+    "supportTickets": "Tickets de soporte",
+    "manageUsers": "Administrar usuarios",
+    "manageAdmins": "Administrar administradores",
+    "sendNotification": "Enviar notificación",
+    "scientificAchievements": "Logros científicos",
+    "compliance": "Cumplimiento legal",
+
+    "themeFreeCount": "8 temas básicos",
+    "themeProCount": "25 temas disponibles",
+    "themeLockedCount": "Temas exclusivos para suscriptores",
+
+    "backupSuccess": "✅ Copia de seguridad completada",
+    "restoreSuccess": "♻️ Copia restaurada",
+    "cacheCleared": "🧹 Caché limpiada",
+    "settingsReset": "♻️ Configuración restablecida",
+
+    "call": "Llamada",
+    "videoCall": "Videollamada",
+    "groupVideoCall": "Videollamada grupal",
+    "groupVoiceCall": "Llamada de voz grupal",
+    "participants": "participantes",
+    "noParticipants": "Sin participantes",
+
+    "summary": "Resumen de la conversación",
+    "smartReplies": "Respuestas inteligentes",
+    "pinnedMessages": "Mensajes fijados",
+
+    "encrypted": "Totalmente cifrado",
+    "quantumResistant": "Resistente a la computación cuántica",
+    "sealedSender": "Remitente sellado",
+
+    "lockApp": "Bloquear app (biometría/contraseña)",
+    "lockAppEnabled": "Bloqueo de app activado",
+    "lockAppDisabled": "Bloqueo de app desactivado",
+
+    "hideLastSeen": "Ocultar última conexión",
+    "hideLastSeenEnabled": "Última conexión oculta",
+    "hideLastSeenDisabled": "Última conexión visible",
+
+    "hideOnlineStatus": "Ocultar estado en línea",
+    "hideOnlineStatusEnabled": "Estado en línea oculto",
+    "hideOnlineStatusDisabled": "Estado en línea visible",
+
+    "manageAllowedSenders": "Administrar quién puede escribirme",
+    "manageHiddenChats": "Administrar chats ocultos",
+    "blockedUsers": "Usuarios bloqueados",
+    "blockedUsersSubtitle": "Administrar lista de bloqueos",
+
+    "notificationsTitle": "Notificaciones",
+    "enableNotifications": "Habilitar notificaciones",
+    "vibration": "Vibración",
+    "notificationSound": "Sonido de notificación",
+    "silentNotifications": "Notificaciones silenciosas",
+
+    "accountManagement": "Administración de cuenta",
+    "changeName": "Cambiar nombre",
+    "changeAvatar": "Cambiar avatar",
+    "changeCredentials": "Cambiar email y contraseña",
+    "linkProviders": "Vincular Google / Apple",
+    "deleteAccount": "Eliminar cuenta permanentemente",
+    "confirmDeleteTitle": "Confirmar eliminación de cuenta",
+    "confirmDeleteContent": "¿Estás seguro de que deseas eliminar permanentemente tu cuenta?",
+    "delete": "Eliminar",
+
+    "chatSettings": "Configuración de chat",
+    "changeChatWallpaper": "Cambiar fondo de chat",
+    "chatFontSize": "Tamaño de fuente del chat",
+    "readReceipts": "Mostrar confirmaciones de lectura",
+    "readReceiptsEnabled": "Confirmaciones de lectura activadas",
+    "readReceiptsDisabled": "Confirmaciones de lectura desactivadas",
+    "autoDownloadMedia": "Descarga automática de medios",
+
+    "advancedSettings": "Configuración avanzada",
+    "clearCache": "Limpiar caché",
+    "cacheCleared": "Caché limpiada",
+    "resetSettings": "Restablecer ajustes",
+    "settingsReset": "Ajustes restablecidos",
+    "dataSaver": "Modo ahorro de datos",
+    "dataSaverEnabled": "Ahorro de datos activado",
+    "dataSaverDisabled": "Ahorro de datos desactivado",
+
+    "adminPanelTitle": "Panel de administración",
+    "supportTicketsTitle": "Tickets de soporte",
+    "supportTicketsSubtitle": "Ver y responder mensajes de usuarios",
+    "manageUsersTitle": "Administrar usuarios",
+    "manageUsersSubtitle": "Ver, bloquear, otorgar suscripciones",
+    "manageAdminsTitle": "Administrar administradores",
+    "manageAdminsSubtitle": "Agregar, editar, eliminar administradores",
+    "manageOffersTitle": "Administrar ofertas y cupones",
+    "manageOffersSubtitle": "Agregar y editar códigos promocionales",
+    "sendNotificationTitle": "Enviar notificación masiva",
+    "sendNotificationSubtitle": "Notificar a todos los usuarios",
+    "workInProgress": "En desarrollo",
+
+    "complianceTitle": "Cumplimiento legal",
+    "complianceSubtitle": "GDPR • CCPA • PDPL • PIPL • etc. (13 países)",
+    "scientificAchievementsTitle": "Logros científicos",
+    "scientificAchievementsSubtitle": "Cifrado resistente a quantum • IA • protocolos avanzados",
+
+    "downloadApp": "Descargar la app",
+    "openingWeb": "Abriendo {file} en el navegador"
+  }
+================== app_fr.arb ==================
+{
+  "@@locale": "fr",
+  
+  "appName": "Privoo",
+  "welcome": "Bienvenue sur Privoo",
+  "login": "Connexion",
+  "logout": "Déconnexion",
+  "send": "Envoyer",
+  "settings": "Paramètres",
+  "language": "Langue",
+  "theme": "Thème",
+  "backup": "Sauvegarde",
+  "darkMode": "Mode sombre",
+  "lightMode": "Mode clair",
+  "about": "À propos",
+  "version": "Version",
+  "appDescription": "Privoo est une application de chat sécurisée et intelligente.",
+  "chatWithDeveloper": "Discuter avec le développeur",
+  "privacyPolicy": "Politique de confidentialité",
+  "terms": "Conditions d'utilisation",
+  "rateApp": "Évaluer l'application",
+  "allRightsReserved": "Tous droits réservés.",
+  "aiModelLicenseNotice": "Cette application utilise le modèle Qwen3-8B-GGUF d'Alibaba Cloud, sous licence Apache 2.0.",
+  
+  "pro": "Pro",
+  "free": "Gratuit",
+  "upgrade": "Mettre à niveau",
+  "cancel": "Annuler",
+  "save": "Enregistrer",
+  "delete": "Supprimer",
+  "edit": "Modifier",
+  "search": "Rechercher",
+  "loading": "Chargement...",
+  "error": "Une erreur est survenue",
+  "retry": "Réessayer",
+  "noData": "Aucune donnée",
+    "appName": "Privoo",
+    "welcome": "Bienvenue sur Privoo",
+    "login": "Se connecter",
+    "logout": "Se déconnecter",
+    "send": "Envoyer",
+    "settings": "Paramètres",
+    "language": "Langue",
+    "theme": "Thème",
+    "backup": "Sauvegarde",
+    "darkMode": "Mode sombre",
+    "lightMode": "Mode clair",
+    "about": "À propos",
+    "version": "Version",
+    "appDescription": "Privoo est une application de chat sécurisée et intelligente.",
+    "chatWithDeveloper": "Discuter avec le développeur",
+    "privacyPolicy": "Politique de confidentialité",
+    "terms": "Conditions d'utilisation",
+    "rateApp": "Noter l'application",
+    "allRightsReserved": "Tous droits réservés.",
+    "aiModelLicenseNotice": "Cette application utilise le modèle Qwen3-8B-GGUF d'Alibaba Cloud sous licence Apache 2.0.",
+
+    "pro": "Pro",
+    "free": "Gratuit",
+    "upgrade": "Mettre à niveau",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "search": "Rechercher",
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "retry": "Réessayer",
+    "noData": "Aucune donnée",
+    "online": "En ligne",
+    "offline": "Hors ligne",
+    "typing": "en train d'écrire...",
+    "copied": "Copié",
+    "pinned": "Épinglé",
+    "unpinned": "Désépinglé",
+    "deleted": "Supprimé",
+    "blocked": "Bloqué",
+    "unblocked": "Débloqué",
+
+    "adminPanel": "Panneau admin",
+    "supportTickets": "Tickets de support",
+    "manageUsers": "Gérer les utilisateurs",
+    "manageAdmins": "Gérer les administrateurs",
+    "sendNotification": "Envoyer une notification",
+    "scientificAchievements": "Réalisations scientifiques",
+    "compliance": "Conformité légale",
+
+    "themeFreeCount": "8 thèmes de base",
+    "themeProCount": "25 thèmes disponibles",
+    "themeLockedCount": "Thèmes exclusifs pour les abonnés",
+
+    "backupSuccess": "✅ Sauvegarde terminée",
+    "restoreSuccess": "♻️ Sauvegarde restaurée",
+    "cacheCleared": "🧹 Cache effacé",
+    "settingsReset": "♻️ Paramètres réinitialisés",
+
+    "call": "Appel",
+    "videoCall": "Appel vidéo",
+    "groupVideoCall": "Appel vidéo de groupe",
+    "groupVoiceCall": "Appel vocal de groupe",
+    "participants": "participants",
+    "noParticipants": "Aucun participant",
+
+    "summary": "Résumé de la conversation",
+    "smartReplies": "Réponses intelligentes",
+    "pinnedMessages": "Messages épinglés",
+
+    "encrypted": "Complètement chiffré",
+    "quantumResistant": "Résistant au quantum",
+    "sealedSender": "Expéditeur scellé",
+
+    "lockApp": "Verrouiller l'application (biométrie/mot de passe)",
+    "lockAppEnabled": "Verrouillage de l'application activé",
+    "lockAppDisabled": "Verrouillage de l'application désactivé",
+
+    "hideLastSeen": "Masquer la dernière connexion",
+    "hideLastSeenEnabled": "Dernière connexion masquée",
+    "hideLastSeenDisabled": "Dernière connexion visible",
+
+    "hideOnlineStatus": "Masquer le statut en ligne",
+    "hideOnlineStatusEnabled": "Statut en ligne masqué",
+    "hideOnlineStatusDisabled": "Statut en ligne visible",
+
+    "manageAllowedSenders": "Gérer qui peut m'envoyer des messages",
+    "manageHiddenChats": "Gérer les discussions cachées",
+    "blockedUsers": "Utilisateurs bloqués",
+    "blockedUsersSubtitle": "Gérer la liste de blocage",
+
+    "notificationsTitle": "Notifications",
+    "enableNotifications": "Activer les notifications",
+    "vibration": "Vibration",
+    "notificationSound": "Son de notification",
+    "silentNotifications": "Notifications silencieuses",
+
+    "accountManagement": "Gestion du compte",
+    "changeName": "Changer le nom",
+    "changeAvatar": "Changer l'avatar",
+    "changeCredentials": "Changer l'email et le mot de passe",
+    "linkProviders": "Lier Google / Apple",
+    "deleteAccount": "Supprimer le compte définitivement",
+    "confirmDeleteTitle": "Confirmer la suppression du compte",
+    "confirmDeleteContent": "Êtes-vous sûr de vouloir supprimer définitivement votre compte ?",
+    "delete": "Supprimer",
+
+    "chatSettings": "Paramètres de chat",
+    "changeChatWallpaper": "Changer le fond de chat",
+    "chatFontSize": "Taille de police du chat",
+    "readReceipts": "Afficher les accusés de lecture",
+    "readReceiptsEnabled": "Accusés de lecture activés",
+    "readReceiptsDisabled": "Accusés de lecture désactivés",
+    "autoDownloadMedia": "Téléchargement automatique des médias",
+
+    "advancedSettings": "Paramètres avancés",
+    "clearCache": "Vider le cache",
+    "cacheCleared": "Cache vidé",
+    "resetSettings": "Réinitialiser les paramètres",
+    "settingsReset": "Paramètres réinitialisés",
+    "dataSaver": "Mode économie de données",
+    "dataSaverEnabled": "Économie de données activée",
+    "dataSaverDisabled": "Économie de données désactivée",
+
+    "adminPanelTitle": "Panneau admin",
+    "supportTicketsTitle": "Tickets de support",
+    "supportTicketsSubtitle": "Voir et répondre aux messages des utilisateurs",
+    "manageUsersTitle": "Gérer les utilisateurs",
+    "manageUsersSubtitle": "Voir, bloquer, attribuer des abonnements",
+    "manageAdminsTitle": "Gérer les administrateurs",
+    "manageAdminsSubtitle": "Ajouter, modifier, supprimer des administrateurs",
+    "manageOffersTitle": "Gérer les offres et coupons",
+    "manageOffersSubtitle": "Ajouter et modifier des codes promo",
+    "sendNotificationTitle": "Envoyer une notification de masse",
+    "sendNotificationSubtitle": "Notifier tous les utilisateurs",
+    "workInProgress": "En cours de développement",
+
+    "complianceTitle": "Conformité légale",
+    "complianceSubtitle": "GDPR • CCPA • PDPL • PIPL • etc. (13 pays)",
+    "scientificAchievementsTitle": "Réalisations scientifiques",
+    "scientificAchievementsSubtitle": "Chiffrement résistant au quantum • IA • protocoles avancés",
+
+    "downloadApp": "Télécharger l'application",
+    "openingWeb": "Ouverture de {file} dans le navigateur"
+  }
+================== app_hi.arb ==================
+{
+  "@@locale": "hi",
+  
+  "appName": "Privoo",
+  "welcome": "Privoo में आपका स्वागत है",
+    "appName": "Privoo",
+    "welcome": "Privoo में आपका स्वागत है",
+    "login": "लॉग इन करें",
+    "logout": "लॉग आउट",
+    "send": "भेजें",
+    "settings": "सेटिंग्स",
+    "language": "भाषा",
+    "theme": "थीम",
+    "backup": "बैकअप",
+    "darkMode": "डार्क मोड",
+    "lightMode": "लाइट मोड",
+    "about": "हमारे बारे में",
+    "version": "संस्करण",
+    "appDescription": "Privoo एक सुरक्षित और स्मार्ट चैट एप्लीकेशन है।",
+    "chatWithDeveloper": "डेवलपर से चैट करें",
+    "privacyPolicy": "गोपनीयता नीति",
+    "terms": "उपयोग की शर्तें",
+    "rateApp": "ऐप रेट करें",
+    "allRightsReserved": "सर्वाधिकार सुरक्षित।",
+    "aiModelLicenseNotice": "यह ऐप Alibaba Cloud के Qwen3-8B-GGUF मॉडल का उपयोग करता है, Apache 2.0 लाइसेंस के अंतर्गत।",
+
+    "pro": "प्रो",
+    "free": "नि:शुल्क",
+    "upgrade": "अपग्रेड करें",
+    "cancel": "रद्द करें",
+    "save": "सहेजें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "search": "खोजें",
+    "loading": "लोड हो रहा है...",
+    "error": "कोई त्रुटि हुई",
+    "retry": "पुन: प्रयास",
+    "noData": "कोई डेटा नहीं",
+    "online": "ऑनलाइन",
+    "offline": "ऑफलाइन",
+    "typing": "लिख रहा है...",
+    "copied": "नकल किया गया",
+    "pinned": "पिन किया गया",
+    "unpinned": "पिन हटाया गया",
+    "deleted": "हटाया गया",
+    "blocked": "ब्लॉक किया गया",
+    "unblocked": "अनब्लॉक किया गया",
+
+    "adminPanel": "एडमिन पैनल",
+    "supportTickets": "सपोर्ट टिकट",
+    "manageUsers": "उपयोगकर्ताओं का प्रबंधन करें",
+    "manageAdmins": "एडमिन्स का प्रबंधन",
+    "sendNotification": "सूचना भेजें",
+    "scientificAchievements": "वैज्ञानिक उपलब्धियाँ",
+    "compliance": "कानूनी अनुपालन",
+
+    "themeFreeCount": "8 बुनियादी थीम",
+    "themeProCount": "25 उपलब्ध थीम",
+    "themeLockedCount": "सदस्यों के लिए विशेष थीम",
+
+    "backupSuccess": "✅ बैकअप पूरा हुआ",
+    "restoreSuccess": "♻️ बैकअप पुनर्स्थापित हुआ",
+    "cacheCleared": "🧹 कैश साफ़ किया गया",
+    "settingsReset": "♻️ सेटिंग्स रीसेट की गईं",
+
+    "call": "कॉल",
+    "videoCall": "वीडियो कॉल",
+    "groupVideoCall": "ग्रुप वीडियो कॉल",
+    "groupVoiceCall": "ग्रुप वॉइस कॉल",
+    "participants": "प्रतिभागी",
+    "noParticipants": "कोई प्रतिभागी नहीं",
+
+    "summary": "बातचीत सारांश",
+    "smartReplies": "स्मार्ट उत्तर",
+    "pinnedMessages": "पिन किए गए संदेश",
+
+    "encrypted": "पूरी तरह से एन्क्रिप्टेड",
+    "quantumResistant": "क्वांटम-रेसिस्टेंट",
+    "sealedSender": "सील्ड भेजने वाला",
+
+    "lockApp": "ऐप लॉक करें (बायोमेट्रिक/पासवर्ड)",
+    "lockAppEnabled": "ऐप लॉक सक्षम है",
+    "lockAppDisabled": "ऐप लॉक अक्षम है",
+
+    "hideLastSeen": "अंतिम बार देखा गया छिपाएँ",
+    "hideLastSeenEnabled": "अंतिम बार देखा गया छिपा दिया गया",
+    "hideLastSeenDisabled": "अंतिम बार देखा गया दिखाई दे रहा है",
+
+    "hideOnlineStatus": "ऑनलाइन स्थिति छिपाएँ",
+    "hideOnlineStatusEnabled": "ऑनलाइन स्थिति छिपी हुई है",
+    "hideOnlineStatusDisabled": "ऑनलाइन स्थिति दिखाई दे रही है",
+
+    "manageAllowedSenders": "कौन मुझे संदेश भेज सकता प्रबंधित करें",
+    "manageHiddenChats": "छुपी हुई चैट्स का प्रबंधन करें",
+    "blockedUsers": "ब्लॉक किए गए उपयोगकर्ता",
+    "blockedUsersSubtitle": "ब्लॉक सूची प्रबंधित करें",
+
+    "notificationsTitle": "सूचनाएँ",
+    "enableNotifications": "सूचनाएँ सक्षम करें",
+    "vibration": "कंपन",
+    "notificationSound": "सूचना ध्वनि",
+    "silentNotifications": "मौन सूचनाएँ",
+
+    "accountManagement": "खाता प्रबंधन",
+    "changeName": "नाम बदलें",
+    "changeAvatar": "अवतार बदलें",
+    "changeCredentials": "ईमेल और पासवर्ड बदलें",
+    "linkProviders": "Google / Apple लिंक करें",
+    "deleteAccount": "खाते को स्थायी रूप से हटाएँ",
+    "confirmDeleteTitle": "खाता हटाने की पुष्टि करें",
+    "confirmDeleteContent": "क्या आप वाकई अपना खाता स्थायी रूप से हटाना चाहते हैं?",
+    "delete": "हटाएं",
+
+    "chatSettings": "चैट सेटिंग्स",
+    "changeChatWallpaper": "चैट वॉलपेपर बदलें",
+    "chatFontSize": "चैट फ़ॉन्ट आकार",
+    "readReceipts": "रीड रिसीट दिखाएँ",
+    "readReceiptsEnabled": "रीड रिसीट सक्षम हैं",
+    "readReceiptsDisabled": "रीड रिसीट अक्षम हैं",
+    "autoDownloadMedia": "मीडिया स्वचालित डाउनलोड",
+
+    "advancedSettings": "उन्नत सेटिंग्स",
+    "clearCache": "कैश साफ़ करें",
+    "cacheCleared": "कैश साफ़ किया गया",
+    "resetSettings": "सेटिंग्स रीसेट करें",
+    "settingsReset": "सेटिंग्स रीसेट की गईं",
+    "dataSaver": "डेटा सेवर मोड",
+    "dataSaverEnabled": "डेटा सेवर सक्षम है",
+    "dataSaverDisabled": "डेटा सेवर अक्षम है",
+
+    "adminPanelTitle": "एडमिन पैनल",
+    "supportTicketsTitle": "सपोर्ट टिकट",
+    "supportTicketsSubtitle": "उपयोगकर्ता संदेश देखें और उत्तर दें",
+    "manageUsersTitle": "उपयोगकर्ताओं کا प्रबंध",
+    "manageUsersSubtitle": "देखें, ब्लॉक करें, सब्सक्रिप्शन दें",
+    "manageAdminsTitle": "एडमिन्स का प्रबंध",
+    "manageAdminsSubtitle": "एडमिन जोड़ें, संपादित करें, हटाएँ",
+    "manageOffersTitle": "ऑफ़र और कूपन प्रबंध",
+    "manageOffersSubtitle": "प्रोमो कोड जोड़ें और संपादित करें",
+    "sendNotificationTitle": "बैच नोटिफिकेशन भेजें",
+    "sendNotificationSubtitle": "सभी उपयोगकर्ताओं को सूचित करें",
+    "workInProgress": "काम प्रगति पर है",
+
+    "complianceTitle": "कानूनी अनुपालन",
+    "complianceSubtitle": "GDPR • CCPA • PDPL • PIPL • आदि (13 देश)",
+    "scientificAchievementsTitle": "वैज्ञानिक उपलब्धियाँ",
+    "scientificAchievementsSubtitle": "क्वांटम-रेसिस्टेंट एन्क्रिप्शन • AI • उन्नत प्रोटोकॉल",
+
+    "downloadApp": "ऐप डाउनलोड करें",
+    "openingWeb": "{file} ब्राउज़र में खुल रहा है"
+  }
+================== app_it.arb ==================
+{
+  "@@locale": "it",
+  
+  "appName": "Privoo",
+  "welcome": "Benvenuto su Privoo",
+  "login": "Accedi",
+  "logout": "Esci",
+  "send": "Invia",
+  "settings": "Impostazioni",
+  "language": "Lingua",
+  "theme": "Tema",
+  "backup": "Backup",
+    "appName": "Privoo",
+    "welcome": "Benvenuto in Privoo",
+    "login": "Accedi",
+    "logout": "Esci",
+    "send": "Invia",
+    "settings": "Impostazioni",
+    "language": "Lingua",
+    "theme": "Tema",
+    "backup": "Backup",
+    "darkMode": "Tema scuro",
+    "lightMode": "Tema chiaro",
+    "about": "Informazioni",
+    "version": "Versione",
+    "appDescription": "Privoo è un'app di chat sicura e intelligente.",
+    "chatWithDeveloper": "Chatta con lo sviluppatore",
+    "privacyPolicy": "Informativa sulla privacy",
+    "terms": "Termini di servizio",
+    "rateApp": "Valuta l'app",
+    "allRightsReserved": "Tutti i diritti riservati.",
+    "aiModelLicenseNotice": "Questa app utilizza il modello Qwen3-8B-GGUF di Alibaba Cloud sotto licenza Apache 2.0.",
+
+    "pro": "Pro",
+    "free": "Gratuito",
+    "upgrade": "Aggiorna",
+    "cancel": "Annulla",
+    "save": "Salva",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "search": "Cerca",
+    "loading": "Caricamento...",
+    "error": "Si è verificato un errore",
+    "retry": "Riprova",
+    "noData": "Nessun dato",
+    "online": "Online",
+    "offline": "Offline",
+    "typing": "sta scrivendo...",
+    "copied": "Copiato",
+    "pinned": "Fissato",
+    "unpinned": "Rimosso dal fissaggio",
+    "deleted": "Eliminato",
+    "blocked": "Bloccato",
+    "unblocked": "Sbloccato",
+
+    "adminPanel": "Pannello amministratore",
+    "supportTickets": "Ticket di supporto",
+    "manageUsers": "Gestisci utenti",
+    "manageAdmins": "Gestisci amministratori",
+    "sendNotification": "Invia notifica",
+    "scientificAchievements": "Risultati scientifici",
+    "compliance": "Conformità legale",
+
+    "themeFreeCount": "8 temi base",
+    "themeProCount": "25 temi disponibili",
+    "themeLockedCount": "Temi esclusivi per abbonati",
+
+    "backupSuccess": "✅ Backup completato",
+    "restoreSuccess": "♻️ Backup ripristinato",
+    "cacheCleared": "🧹 Cache pulita",
+    "settingsReset": "♻️ Impostazioni ripristinate",
+
+    "call": "Chiamata",
+    "videoCall": "Videochiamata",
+    "groupVideoCall": "Videochiamata di gruppo",
+    "groupVoiceCall": "Chiamata vocale di gruppo",
+    "participants": "partecipanti",
+    "noParticipants": "Nessun partecipante",
+
+    "summary": "Riepilogo della conversazione",
+    "smartReplies": "Risposte intelligenti",
+    "pinnedMessages": "Messaggi fissati",
+
+    "encrypted": "Completamente crittografato",
+    "quantumResistant": "Resistente al quantum",
+    "sealedSender": "Mittente sigillato",
+
+    "lockApp": "Blocca l'app (biometria/password)",
+    "lockAppEnabled": "Blocco app abilitato",
+    "lockAppDisabled": "Blocco app disabilitato",
+
+    "hideLastSeen": "Nascondi ultimo accesso",
+    "hideLastSeenEnabled": "Ultimo accesso nascosto",
+    "hideLastSeenDisabled": "Ultimo accesso visibile",
+
+    "hideOnlineStatus": "Nascondi stato online",
+    "hideOnlineStatusEnabled": "Stato online nascosto",
+    "hideOnlineStatusDisabled": "Stato online visibile",
+
+    "manageAllowedSenders": "Gestisci chi può scrivermi",
+    "manageHiddenChats": "Gestisci chat nascoste",
+    "blockedUsers": "Utenti bloccati",
+    "blockedUsersSubtitle": "Gestisci la lista di blocco",
+
+    "notificationsTitle": "Notifiche",
+    "enableNotifications": "Abilita notifiche",
+    "vibration": "Vibrazione",
+    "notificationSound": "Suono notifica",
+    "silentNotifications": "Notifiche silenziose",
+
+    "accountManagement": "Gestione account",
+    "changeName": "Cambia nome",
+    "changeAvatar": "Cambia avatar",
+    "changeCredentials": "Cambia email e password",
+    "linkProviders": "Collega Google / Apple",
+    "deleteAccount": "Elimina account definitivamente",
+    "confirmDeleteTitle": "Conferma eliminazione account",
+    "confirmDeleteContent": "Sei sicuro di voler eliminare definitivamente il tuo account?",
+    "delete": "Elimina",
+
+    "chatSettings": "Impostazioni chat",
+    "changeChatWallpaper": "Cambia sfondo chat",
+    "chatFontSize": "Dimensione font chat",
+    "readReceipts": "Mostra ricevute di lettura",
+    "readReceiptsEnabled": "Ricevute di lettura abilitate",
+    "readReceiptsDisabled": "Ricevute di lettura disabilitate",
+    "autoDownloadMedia": "Scarica media automaticamente",
+
+    "advancedSettings": "Impostazioni avanzate",
+    "clearCache": "Svuota cache",
+    "cacheCleared": "Cache svuotata",
+    "resetSettings": "Ripristina impostazioni",
+    "settingsReset": "Impostazioni ripristinate",
+    "dataSaver": "Modalità risparmio dati",
+    "dataSaverEnabled": "Risparmio dati abilitato",
+    "dataSaverDisabled": "Risparmio dati disabilitato",
+
+    "adminPanelTitle": "Pannello amministratore",
+    "supportTicketsTitle": "Ticket di supporto",
+    "supportTicketsSubtitle": "Visualizza e rispondi ai messaggi degli utenti",
+    "manageUsersTitle": "Gestisci utenti",
+    "manageUsersSubtitle": "Visualizza, blocca, concedi abbonamenti",
+    "manageAdminsTitle": "Gestisci amministratori",
+    "manageAdminsSubtitle": "Aggiungi, modifica, rimuovi amministratori",
+    "manageOffersTitle": "Gestisci offerte e coupon",
+    "manageOffersSubtitle": "Aggiungi e modifica codici promozionali",
+    "sendNotificationTitle": "Invia notifica di massa",
+    "sendNotificationSubtitle": "Notifica tutti gli utenti",
+    "workInProgress": "Lavori in corso",
+
+    "complianceTitle": "Conformità legale",
+    "complianceSubtitle": "GDPR • CCPA • PDPL • PIPL • ecc. (13 paesi)",
+    "scientificAchievementsTitle": "Risultati scientifici",
+    "scientificAchievementsSubtitle": "Crittografia resistente al quantum • AI • protocolli avanzati",
+
+    "downloadApp": "Scarica l'app",
+    "openingWeb": "Apertura di {file} nel browser"
+  }
+================== app_ru.arb ==================
+{
+  "@@locale": "ru",
+  
+  "appName": "Privoo",
+  "welcome": "Добро пожаловать в Privoo",
+    "appName": "Privoo",
+    "welcome": "Добро пожаловать в Privoo",
+    "login": "Войти",
+    "logout": "Выйти",
+    "send": "Отправить",
+    "settings": "Настройки",
+    "language": "Язык",
+    "theme": "Тема",
+    "backup": "Резервное копирование",
+    "darkMode": "Тёмный режим",
+    "lightMode": "Светлый режим",
+    "about": "О приложении",
+    "version": "Версия",
+    "appDescription": "Privoo — безопасное и умное приложение для чата.",
+    "chatWithDeveloper": "Чат с разработчиком",
+    "privacyPolicy": "Политика конфиденциальности",
+    "terms": "Условия использования",
+    "rateApp": "Оценить приложение",
+    "allRightsReserved": "Все права защищены.",
+    "aiModelLicenseNotice": "Это приложение использует модель Qwen3-8B-GGUF от Alibaba Cloud по лицензии Apache 2.0.",
+
+    "pro": "Pro",
+    "free": "Бесплатно",
+    "upgrade": "Обновить",
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "search": "Поиск",
+    "loading": "Загрузка...",
+    "error": "Произошла ошибка",
+    "retry": "Повторить",
+    "noData": "Нет данных",
+    "online": "В сети",
+    "offline": "Не в сети",
+    "typing": "печатает...",
+    "copied": "Скопировано",
+    "pinned": "Закреплено",
+    "unpinned": "Откреплено",
+    "deleted": "Удалено",
+    "blocked": "Заблокирован",
+    "unblocked": "Разблокирован",
+
+    "adminPanel": "Панель администратора",
+    "supportTickets": "Заявки в поддержку",
+    "manageUsers": "Управление пользователями",
+    "manageAdmins": "Управление администраторами",
+    "sendNotification": "Отправить уведомление",
+    "scientificAchievements": "Научные достижения",
+    "compliance": "Юридическое соответствие",
+
+    "themeFreeCount": "8 основных тем",
+    "themeProCount": "25 доступных тем",
+    "themeLockedCount": "Эксклюзивные темы для подписчиков",
+
+    "backupSuccess": "✅ Резервное копирование завершено",
+    "restoreSuccess": "♻️ Резервная копия восстановлена",
+    "cacheCleared": "🧹 Кэш очищен",
+    "settingsReset": "♻️ Настройки сброшены",
+
+    "call": "Звонок",
+    "videoCall": "Видеозвонок",
+    "groupVideoCall": "Групповой видеозвонок",
+    "groupVoiceCall": "Групповой голосовой звонок",
+    "participants": "участников",
+    "noParticipants": "Нет участников",
+
+    "summary": "Сводка разговора",
+    "smartReplies": "Умные ответы",
+    "pinnedMessages": "Закреплённые сообщения",
+
+    "encrypted": "Полностью зашифровано",
+    "quantumResistant": "Квантово-устойчивый",
+    "sealedSender": "Запечатанный отправитель",
+
+    "lockApp": "Заблокировать приложение (биометрия/пароль)",
+    "lockAppEnabled": "Блокировка приложения включена",
+    "lockAppDisabled": "Блокировка приложения отключена",
+
+    "hideLastSeen": "Скрыть последнее посещение",
+    "hideLastSeenEnabled": "Последнее посещение скрыто",
+    "hideLastSeenDisabled": "Последнее посещение видно",
+
+    "hideOnlineStatus": "Скрыть статус в сети",
+    "hideOnlineStatusEnabled": "Статус в сети скрыт",
+    "hideOnlineStatusDisabled": "Статус в сети видим",
+
+    "manageAllowedSenders": "Управлять тем, кто может мне писать",
+    "manageHiddenChats": "Управление скрытыми чатами",
+    "blockedUsers": "Заблокированные пользователи",
+    "blockedUsersSubtitle": "Управление списком блокировок",
+
+    "notificationsTitle": "Уведомления",
+    "enableNotifications": "Включить уведомления",
+    "vibration": "Вибрация",
+    "notificationSound": "Звук уведомления",
+    "silentNotifications": "Тихие уведомления",
+
+    "accountManagement": "Управление аккаунтом",
+    "changeName": "Изменить имя",
+    "changeAvatar": "Изменить аватар",
+    "changeCredentials": "Изменить email и пароль",
+    "linkProviders": "Привязать Google / Apple",
+    "deleteAccount": "Удалить аккаунт навсегда",
+    "confirmDeleteTitle": "Подтвердите удаление аккаунта",
+    "confirmDeleteContent": "Вы уверены, что хотите навсегда удалить аккаунт?",
+    "delete": "Удалить",
+
+    "chatSettings": "Настройки чата",
+    "changeChatWallpaper": "Изменить фон чата",
+    "chatFontSize": "Размер шрифта в чате",
+    "readReceipts": "Показывать подтверждения прочтения",
+    "readReceiptsEnabled": "Подтверждения прочтения включены",
+    "readReceiptsDisabled": "Подтверждения прочтения отключены",
+    "autoDownloadMedia": "Автозагрузка медиа",
+
+    "advancedSettings": "Дополнительные настройки",
+    "clearCache": "Очистить кэш",
+    "cacheCleared": "Кэш очищен",
+    "resetSettings": "Сброс настроек",
+    "settingsReset": "Настройки сброшены",
+    "dataSaver": "Режим экономии данных",
+    "dataSaverEnabled": "Экономия данных включена",
+    "dataSaverDisabled": "Экономия данных отключена",
+
+    "adminPanelTitle": "Панель администратора",
+    "supportTicketsTitle": "Заявки в поддержку",
+    "supportTicketsSubtitle": "Просмотр и ответ на сообщения пользователей",
+    "manageUsersTitle": "Управление пользователями",
+    "manageUsersSubtitle": "Просмотр, блокировка, предоставление подписок",
+    "manageAdminsTitle": "Управление администраторами",
+    "manageAdminsSubtitle": "Добавление, редактирование, удаление администраторов",
+    "manageOffersTitle": "Управление предложениями и купонами",
+    "manageOffersSubtitle": "Добавление и редактирование промокодов",
+    "sendNotificationTitle": "Отправить массовое уведомление",
+    "sendNotificationSubtitle": "Уведомить всех пользователей",
+    "workInProgress": "В разработке",
+
+    "complianceTitle": "Юридическое соответствие",
+    "complianceSubtitle": "GDPR • CCPA • PDPL • PIPL • и др. (13 стран)",
+    "scientificAchievementsTitle": "Научные достижения",
+    "scientificAchievementsSubtitle": "Квантово-устойчивое шифрование • ИИ • продвинутые протоколы",
+
+    "downloadApp": "Скачать приложение",
+    "openingWeb": "Открытие {file} в браузере"
+  }
+================== app_tr.arb ==================
+{
+  "@@locale": "tr",
+  
+  "appName": "Privoo",
+  "welcome": "Privoo'ya Hoş Geldiniz",
+  "login": "Giriş Yap",
+  "logout": "Çıkış Yap",
+  "send": "Gönder",
+  "settings": "Ayarlar",
+  "language": "Dil",
+  "theme": "Tema",
+  "backup": "Yedekleme",
+    "appName": "Privoo",
+    "welcome": "Privoo'ya Hoş Geldiniz",
+    "login": "Giriş Yap",
+    "logout": "Çıkış Yap",
+    "send": "Gönder",
+    "settings": "Ayarlar",
+    "language": "Dil",
+    "theme": "Tema",
+    "backup": "Yedekleme",
+    "darkMode": "Karanlık Mod",
+    "lightMode": "Aydınlık Mod",
+    "about": "Hakkında",
+    "version": "Sürüm",
+    "appDescription": "Privoo güvenli ve akıllı bir sohbet uygulamasıdır.",
+    "chatWithDeveloper": "Geliştiriciyle Sohbet Et",
+    "privacyPolicy": "Gizlilik Politikası",
+    "terms": "Kullanım Şartları",
+    "rateApp": "Uygulamayı Değerlendir",
+    "allRightsReserved": "Tüm hakları saklıdır.",
+    "aiModelLicenseNotice": "Bu uygulama, Alibaba Cloud'un Qwen3-8B-GGUF modelini Apache 2.0 lisansı altında kullanmaktadır.",
+
+    "pro": "Pro",
+    "free": "Ücretsiz",
+    "upgrade": "Yükselt",
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "search": "Ara",
+    "loading": "Yükleniyor...",
+    "error": "Bir hata oluştu",
+    "retry": "Yeniden Dene",
+    "noData": "Veri yok",
+    "online": "Çevrimiçi",
+    "offline": "Çevrimdışı",
+    "typing": "yazıyor...",
+    "copied": "Kopyalandı",
+    "pinned": "Sabitlendi",
+    "unpinned": "Sabitlik kaldırıldı",
+    "deleted": "Silindi",
+    "blocked": "Engellendi",
+    "unblocked": "Engel kaldırıldı",
+
+    "adminPanel": "Yönetici Paneli",
+    "supportTickets": "Destek Talepleri",
+    "manageUsers": "Kullanıcıları Yönet",
+    "manageAdmins": "Yöneticileri Yönet",
+    "sendNotification": "Bildirim Gönder",
+    "scientificAchievements": "Bilimsel Başarılar",
+    "compliance": "Yasal Uyumluluk",
+
+    "themeFreeCount": "8 temel tema",
+    "themeProCount": "25 tema mevcut",
+    "themeLockedCount": "Aboneler için özel temalar",
+
+    "backupSuccess": "✅ Yedekleme tamamlandı",
+    "restoreSuccess": "♻️ Yedek geri yüklendi",
+    "cacheCleared": "🧹 Önbellek temizlendi",
+    "settingsReset": "♻️ Ayarlar sıfırlandı",
+
+    "call": "Arama",
+    "videoCall": "Görüntülü Arama",
+    "groupVideoCall": "Grup Görüntülü Arama",
+    "groupVoiceCall": "Grup Sesli Arama",
+    "participants": "katılımcılar",
+    "noParticipants": "Katılımcı yok",
+
+    "summary": "Sohbet Özeti",
+    "smartReplies": "Akıllı Yanıtlar",
+    "pinnedMessages": "Sabitlenmiş Mesajlar",
+
+    "encrypted": "Tamamen Şifreli",
+    "quantumResistant": "Kuantum Dirençli",
+    "sealedSender": "Mühürlü Gönderici",
+
+    "lockApp": "Uygulamayı kilitle (biyometrik/şifre)",
+    "lockAppEnabled": "Uygulama kilidi etkin",
+    "lockAppDisabled": "Uygulama kilidi devre dışı",
+
+    "hideLastSeen": "Son görülmeyi gizle",
+    "hideLastSeenEnabled": "Son görülme gizlendi",
+    "hideLastSeenDisabled": "Son görülme görünür",
+
+    "hideOnlineStatus": "Çevrimiçi durumunu gizle",
+    "hideOnlineStatusEnabled": "Çevrimiçi durum gizlendi",
+    "hideOnlineStatusDisabled": "Çevrimiçi durum görünür",
+
+    "manageAllowedSenders": "Bana kim mesaj atabilir yönet",
+    "manageHiddenChats": "Gizli sohbetleri yönet",
+    "blockedUsers": "Engellenen kullanıcılar",
+    "blockedUsersSubtitle": "Engelleme listesini yönet",
+
+    "notificationsTitle": "Bildirimler",
+    "enableNotifications": "Bildirimleri etkinleştir",
+    "vibration": "Titreşimi etkinleştir",
+    "notificationSound": "Bildirim sesi",
+    "silentNotifications": "Sessiz bildirimler",
+
+    "accountManagement": "Hesap yönetimi",
+    "changeName": "Adı değiştir",
+    "changeAvatar": "Avatarı değiştir",
+    "changeCredentials": "E-posta ve parola değiştir",
+    "linkProviders": "Google / Apple bağla",
+    "deleteAccount": "Hesabı kalıcı olarak sil",
+    "confirmDeleteTitle": "Hesap silme onayı",
+    "confirmDeleteContent": "Hesabınızı kalıcı olarak silmek istediğinizden emin misiniz?",
+    "delete": "Sil",
+
+    "chatSettings": "Sohbet ayarları",
+    "changeChatWallpaper": "Sohbet duvar kağıdını değiştir",
+    "chatFontSize": "Sohbet yazı tipi boyutu",
+    "readReceipts": "Okundu bilgilerini göster",
+    "readReceiptsEnabled": "Okundu bilgileri etkin",
+    "readReceiptsDisabled": "Okundu bilgileri devre dışı",
+    "autoDownloadMedia": "Medya otomatik indir",
+
+    "advancedSettings": "Gelişmiş ayarlar",
+    "clearCache": "Önbelleği temizle",
+    "cacheCleared": "Önbellek temizlendi",
+    "resetSettings": "Ayarları sıfırla",
+    "settingsReset": "Ayarları sıfırlandı",
+    "dataSaver": "Veri tasarruf modu",
+    "dataSaverEnabled": "Veri tasarrufu etkin",
+    "dataSaverDisabled": "Veri tasarrufu devre dışı",
+
+    "adminPanelTitle": "Yönetici Paneli",
+    "supportTicketsTitle": "Destek Talepleri",
+    "supportTicketsSubtitle": "Kullanıcı mesajlarını görüntüle ve yanıtla",
+    "manageUsersTitle": "Kullanıcıları Yönet",
+    "manageUsersSubtitle": "Görüntüle, engelle, abonelik ver",
+    "manageAdminsTitle": "Yöneticileri Yönet",
+    "manageAdminsSubtitle": "Yöneticileri ekle, düzenle, kaldır",
+    "manageOffersTitle": "Teklifleri ve kuponları yönet",
+    "manageOffersSubtitle": "Promosyon kodu ekle ve düzenle",
+    "sendNotificationTitle": "Toplu bildirim gönder",
+    "sendNotificationSubtitle": "Tüm kullanıcılara bildirim gönder",
+    "workInProgress": "Çalışma devam ediyor",
+
+    "complianceTitle": "Yasal uygunluk",
+    "complianceSubtitle": "GDPR • CCPA • PDPL • PIPL • ve daha fazlası (13 ülke)",
+    "scientificAchievementsTitle": "Bilimsel Başarılar",
+    "scientificAchievementsSubtitle": "Kuantuma dayanıklı şifreleme • AI • gelişmiş protokoller",
+
+    "downloadApp": "Uygulamayı indir",
+    "openingWeb": "Tarayıcıda {file} açılıyor"
+  }
+================== app_zh.arb ==================
+{
+  "@@locale": "zh",
+  
+  "appName": "Privoo",
+  "welcome": "欢迎使用 Privoo",
+    "appName": "Privoo",
+    "welcome": "欢迎使用 Privoo",
+    "login": "登录",
+    "logout": "登出",
+    "send": "发送",
+    "settings": "设置",
+    "language": "语言",
+    "theme": "主题",
+    "backup": "备份",
+    "darkMode": "深色模式",
+    "lightMode": "浅色模式",
+    "about": "关于",
+    "version": "版本",
+    "appDescription": "Privoo 是一个安全智能的聊天应用。",
+    "chatWithDeveloper": "与开发者聊天",
+    "privacyPolicy": "隐私政策",
+    "terms": "使用条款",
+    "rateApp": "评价应用",
+    "allRightsReserved": "版权所有。",
+    "aiModelLicenseNotice": "本应用使用阿里云的 Qwen3-8B-GGUF 模型，遵循 Apache 2.0 许可证。",
+
+    "pro": "专业版",
+    "free": "免费",
+    "upgrade": "升级",
+    "cancel": "取消",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "search": "搜索",
+    "loading": "加载中...",
+    "error": "发生错误",
+    "retry": "重试",
+    "noData": "无数据",
+    "online": "在线",
+    "offline": "离线",
+    "typing": "正在输入...",
+    "copied": "已复制",
+    "pinned": "已置顶",
+    "unpinned": "已取消置顶",
+    "deleted": "已删除",
+    "blocked": "已屏蔽",
+    "unblocked": "已解除屏蔽",
+
+    "adminPanel": "管理面板",
+    "supportTickets": "支持工单",
+    "manageUsers": "管理用户",
+    "manageAdmins": "管理管理员",
+    "sendNotification": "发送通知",
+    "scientificAchievements": "科学成就",
+    "compliance": "法律合规",
+
+    "themeFreeCount": "8 个基础主题",
+    "themeProCount": "25 个可用主题",
+    "themeLockedCount": "订阅者专属主题",
+
+    "backupSuccess": "✅ 备份完成",
+    "restoreSuccess": "♻️ 备份已恢复",
+    "cacheCleared": "🧹 缓存已清除",
+    "settingsReset": "♻️ 设置已重置",
+
+    "call": "通话",
+    "videoCall": "视频通话",
+    "groupVideoCall": "群组视频通话",
+    "groupVoiceCall": "群组语音通话",
+    "participants": "参与者",
+    "noParticipants": "无参与者",
+
+    "summary": "对话摘要",
+    "smartReplies": "智能回复",
+    "pinnedMessages": "置顶消息",
+
+    "encrypted": "完全加密",
+    "quantumResistant": "抗量子",
+    "sealedSender": "密封发送者",
+
+    "lockApp": "锁定应用（生物识别/密码）",
+    "lockAppEnabled": "应用锁已启用",
+    "lockAppDisabled": "应用锁已禁用",
+
+    "hideLastSeen": "隐藏最后上线",
+    "hideLastSeenEnabled": "最后上线已隐藏",
+    "hideLastSeenDisabled": "最后上线可见",
+
+    "hideOnlineStatus": "隐藏在线状态",
+    "hideOnlineStatusEnabled": "在线状态已隐藏",
+    "hideOnlineStatusDisabled": "在线状态可见",
+
+    "manageAllowedSenders": "管理谁可以给我发消息",
+    "manageHiddenChats": "管理隐藏聊天",
+    "blockedUsers": "已屏蔽用户",
+    "blockedUsersSubtitle": "管理屏蔽列表",
+
+    "notificationsTitle": "通知",
+    "enableNotifications": "启用通知",
+    "vibration": "启用振动",
+    "notificationSound": "通知声音",
+    "silentNotifications": "静默通知",
+
+    "accountManagement": "账户管理",
+    "changeName": "更改名称",
+    "changeAvatar": "更改头像",
+    "changeCredentials": "更改邮箱和密码",
+    "linkProviders": "绑定 Google / Apple",
+    "deleteAccount": "永久删除账户",
+    "confirmDeleteTitle": "确认删除账户",
+    "confirmDeleteContent": "您确定要永久删除您的账户吗？",
+    "delete": "删除",
+
+    "chatSettings": "聊天设置",
+    "changeChatWallpaper": "更改聊天壁纸",
+    "chatFontSize": "聊天字体大小",
+    "readReceipts": "显示已读回执",
+    "readReceiptsEnabled": "已读回执已启用",
+    "readReceiptsDisabled": "已读回执已禁用",
+    "autoDownloadMedia": "自动下载媒体",
+
+    "advancedSettings": "高级设置",
+    "clearCache": "清理缓存",
+    "cacheCleared": "缓存已清理",
+    "resetSettings": "重置设置",
+    "settingsReset": "设置已重置",
+    "dataSaver": "省流量模式",
+    "dataSaverEnabled": "省流量已启用",
+    "dataSaverDisabled": "省流量已禁用",
+
+    "adminPanelTitle": "管理面板",
+    "supportTicketsTitle": "支持工单",
+    "supportTicketsSubtitle": "查看并回复用户消息",
+    "manageUsersTitle": "管理用户",
+    "manageUsersSubtitle": "查看、封禁、授予订阅",
+    "manageAdminsTitle": "管理管理员",
+    "manageAdminsSubtitle": "添加、编辑、移除管理员",
+    "manageOffersTitle": "管理优惠与优惠券",
+    "manageOffersSubtitle": "添加和编辑促销代码",
+    "sendNotificationTitle": "发送批量通知",
+    "sendNotificationSubtitle": "通知所有用户",
+    "workInProgress": "开发中",
+
+    "complianceTitle": "法律合规",
+    "complianceSubtitle": "GDPR • CCPA • PDPL • PIPL • 等（13 个国家）",
+    "scientificAchievementsTitle": "科学成就",
+    "scientificAchievementsSubtitle": "抗量子加密 • AI • 高级协议",
+
+    "downloadApp": "下载应用",
+    "openingWeb": "正在在浏览器中打开{file}"
+  }

@@ -1,0 +1,281 @@
+privoo/
+│
+├── 📄 README.md
+├── 📄 pubspec.yaml
+├── 📄 pubspec.lock
+├── 📄 l10n.yaml
+├── 📄 firebase.json
+├── 📄 database.rules.json
+├── 📄 storage.rules
+├── 📄 .env
+├── 📄 analysis_options.yaml
+│
+├── 📁 lib/
+│   ├── 📄 main.dart
+│   ├── 📄 app.dart
+│   │
+│   ├── 📁 config/
+│   │   ├── app_theme.dart
+│   │   ├── app_theme_fixes.dart
+│   │   └── privoo_theme_extension.dart
+│   │
+│   ├── 📁 controllers/
+│   │   ├── app_controller.dart
+│   │   ├── auth_controller.dart
+│   │   ├── call_controller.dart
+│   │   ├── chat_controller.dart
+│   │   └── lifetime_users.dart
+│   │
+│   ├── 📁 core/
+│   │   ├── app_state_manager.dart
+│   │   ├── connectivity_monitor.dart
+│   │   ├── constants.dart
+│   │   ├── device_helper.dart
+│   │   ├── device_identifier.dart
+│   │   ├── error_handler.dart
+│   │   ├── helpers.dart
+│   │   ├── logger.dart
+│   │   ├── permission_helper.dart
+│   │   ├── permission_manager.dart
+│   │   ├── privoo_dev_page.dart
+│   │   └── resource_monitor.dart
+│   │
+│   ├── 📁 firebase/
+│   │   └── firebase_options.dart
+│   │
+│   ├── 📁 l10n/
+│   │   ├── app_en.arb
+│   │   ├── app_ar.arb
+│   │   ├── app_fr.arb
+│   │   ├── app_es.arb
+│   │   ├── app_de.arb
+│   │   ├── app_zh.arb
+│   │   ├── app_ru.arb
+│   │   ├── app_hi.arb
+│   │   ├── app_tr.arb
+│   │   ├── app_it.arb
+│   │   └── app_localizations*.dart
+│   │
+│   ├── 📁 models/
+│   │   ├── user_model.dart
+│   │   ├── message_model.dart
+│   │   ├── group_model.dart
+│   │   ├── channel_model.dart
+│   │   ├── call_model.dart
+│   │   └── verification_model.dart
+│   │
+│   ├── 📁 repositories/
+│   │   ├── chat_repository.dart
+│   │   └── firebase_chat_repository.dart
+│   │
+│   ├── 📁 routes/
+│   │   └── app_routes.dart
+│   │
+│   ├── 📁 services/
+│   │   ├── 📁 ai/
+│   │   │   ├── ai_service.dart
+│   │   │   ├── gemini_service.dart
+│   │   │   ├── emoji_service.dart
+│   │   │   ├── sticker_ai_service.dart
+│   │   │   └── sticker_maker_service.dart
+│   │   ├── 📁 api/
+│   │   │   ├── auth_service.dart
+│   │   │   └── chat_service.dart
+│   │   ├── 📁 firebase/
+│   │   │   └── notification_service.dart
+│   │   ├── 📁 helpers/
+│   │   ├── 📁 settings/
+│   │   ├── advanced_notifications.dart
+│   │   ├── advanced_search_service.dart
+│   │   ├── audit_log_service.dart
+│   │   ├── backup_services.dart
+│   │   ├── block_service.dart
+│   │   ├── call_service.dart
+│   │   ├── channel_service.dart
+│   │   ├── conversation_memory_service.dart
+│   │   ├── encryption_service.dart
+│   │   ├── export_chat_service.dart
+│   │   ├── gif_service.dart
+│   │   ├── group_service.dart
+│   │   ├── group_video_call_service.dart
+│   │   ├── hive_storage_service.dart
+│   │   ├── http_client.dart
+│   │   ├── key_exchange_service.dart
+│   │   ├── link_preview_service.dart
+│   │   ├── parental_control_service.dart
+│   │   ├── payment_service.dart
+│   │   ├── performance_monitor.dart
+│   │   ├── prompt_builder.dart
+│   │   ├── quantum_resistant_service.dart
+│   │   ├── ratchet_service.dart
+│   │   ├── reaction_service.dart
+│   │   ├── region_compliance_service.dart
+│   │   ├── sealed_sender.dart
+│   │   ├── security_checker.dart
+│   │   ├── sticker_service.dart
+│   │   ├── subscription_service.dart
+│   │   ├── text_formatter.dart
+│   │   ├── tts_service.dart
+│   │   ├── typing_service.dart
+│   │   ├── user_safety_service.dart
+│   │   ├── user_search_service.dart
+│   │   ├── verification_service.dart
+│   │   └── web_search_service.dart
+│   │
+│   ├── 📁 utils/
+│   │   └── security_utils.dart
+│   │
+│   ├── 📁 views/
+│   │   ├── 📁 auth/
+│   │   │   ├── login_screen.dart
+│   │   │   ├── otp_login_screen.dart
+│   │   │   ├── verify_screen.dart
+│   │   │   ├── profile_setup_screen.dart
+│   │   │   ├── age_verification_screen.dart
+│   │   │   └── terms_acceptance_screen.dart
+│   │   ├── 📁 call/
+│   │   │   ├── call_screen.dart
+│   │   │   ├── call_controls.dart
+│   │   │   ├── group_call_screen.dart
+│   │   │   └── group_call_controls.dart
+│   │   ├── 📁 chat/
+│   │   │   ├── smart_chat_screen.dart
+│   │   │   ├── message_bubble.dart
+│   │   │   ├── create_group_screen.dart
+│   │   │   ├── group_details_screen.dart
+│   │   │   ├── pinned_messages_screen.dart
+│   │   │   ├── reply_preview_widget.dart
+│   │   │   └── disappearing_options_sheet.dart
+│   │   ├── 📁 settings/
+│   │   │   ├── setting_screen.dart
+│   │   │   ├── privacy_settings_screen.dart
+│   │   │   ├── encryption_info_screen.dart
+│   │   │   ├── about_screen.dart
+│   │   │   ├── upgrade_pro_view.dart
+│   │   │   ├── compliance_screen.dart
+│   │   │   ├── export_data_screen.dart
+│   │   │   ├── delete_account_screen.dart
+│   │   │   ├── chat_with_developer_screen.dart
+│   │   │   ├── animated_splash_screen.dart
+│   │   │   └── splash_screen.dart
+│   │   ├── 📁 sticker/
+│   │   │   └── sticker_maker_screen.dart
+│   │   ├── block_list_screen.dart
+│   │   ├── channel_list_screen.dart
+│   │   ├── channel_screen.dart
+│   │   ├── create_channel_screen.dart
+│   │   ├── incoming_call_screen.dart
+│   │   └── search_screen.dart
+│   │
+│   └── 📁 widgets/
+│       ├── chat_input_bar.dart
+│       ├── poll_widget.dart
+│       ├── privoo_reply_signature.dart
+│       ├── voice_message_bubble.dart
+│       ├── voice_message_recorder.dart
+│       ├── 📁 chat/
+│       ├── 📁 common/
+│       │   ├── input_field.dart
+│       │   ├── loading_indicator.dart
+│       │   ├── privoo_button.dart
+│       │   └── toast.dart
+│       └── 📁 settings/
+│
+├── 📁 android/
+│   ├── 📁 app/
+│   │   ├── 📄 build.gradle
+│   │   ├── 📄 google-services.json
+│   │   ├── 📄 proguard-rules.pro
+│   │   └── 📁 src/
+│   │       ├── 📁 main/
+│   │       │   ├── 📄 AndroidManifest.xml
+│   │       │   ├── 📁 kotlin/.../MainActivity.kt
+│   │       │   └── 📁 res/
+│   │       └── 📁 debug/
+│   ├── 📄 build.gradle
+│   ├── 📄 gradle.properties
+│   ├── 📄 settings.gradle
+│   ├── 📄 key.properties
+│   ├── 📄 privoo-key.jks
+│   ├── 📄 gradlew
+│   ├── 📄 gradlew.bat
+│   └── 📁 gradle/
+│
+├── 📁 ios/
+│   ├── 📁 Flutter/
+│   │   └── 📄 AppFrameworkInfo.plist
+│   ├── 📁 Runner/
+│   │   ├── 📄 AppDelegate.swift
+│   │   ├── 📄 Info.plist
+│   │   ├── 📄 GoogleService-Info.plist
+│   │   ├── 📁 Assets.xcassets/
+│   │   └── 📁 Base.lproj/
+│   ├── 📄 Podfile
+│   ├── 📁 Runner.xcodeproj/
+│   └── 📁 Runner.xcworkspace/
+│
+├── 📁 windows/
+│   ├── 📁 flutter/
+│   └── 📁 runner/
+│
+├── 📁 linux/
+│   ├── 📁 flutter/
+│   └── 📁 runner/
+│
+├── 📁 macos/
+│   ├── 📁 Flutter/
+│   └── 📁 Runner/
+│
+├── 📁 web/
+│   ├── 📄 index_privoo_landing.html
+│   ├── 📄 privoo_features_page.html
+│   ├── 📄 compliance.html
+│   ├── 📄 about_us.html
+│   ├── 📄 privacy_policy.html
+│   ├── 📄 terms_of_use.html
+│   ├── 📄 support.html
+│   ├── 📄 download_wait.html
+│   ├── 📄 thankyou.html
+│   ├── 📄 404.html
+│   ├── 📄 style_privoo_landing.css
+│   ├── 📁 admin/
+│   │   ├── 📄 login.html
+│   │   ├── 📄 dashboard.html
+│   │   ├── 📄 support_admin.html
+│   │   └── 📄 firebase.js
+│   ├── 📁 img/
+│   │   ├── 📄 app_icon.jpeg
+│   │   └── 📄 bot.png
+│   └── 📁 apk/
+│       └── 📄 privoo.apk
+│
+├── 📁 assets/
+│   ├── 📁 audio/
+│   │   ├── 📄 privoo_call.wav
+│   │   ├── 📄 privoo_message.wav
+│   │   ├── 📄 privoo_notification.wav
+│   │   ├── 📄 privoo_ringing.wav
+│   │   ├── 📄 privoo_busy.wav
+│   │   └── 📄 privoo_offline.wav
+│   ├── 📁 fonts/
+│   │   ├── 📄 Cairo-Regular.ttf
+│   │   └── 📄 Cairo-Bold.ttf
+│   └── 📁 images/
+│       ├── 📄 app_icon.jpeg
+│       ├── 📄 bot.png
+│       ├── 📄 privoo_intro.jpeg
+│       ├── 📁 light_mode/
+│       └── 📁 dark_mode/
+│
+├── 📁 test/
+│   ├── encryption_service_test.dart
+│   ├── ratchet_service_test.dart
+│   └── widget_test.dart
+│
+├── 📁 functions/
+│   ├── index.js
+│   └── package.json
+│
+└── 📁 nginx/
+    └── 📁 conf.d/
+        └── privoo.conf

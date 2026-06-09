@@ -1,0 +1,22 @@
+workflows:
+  flutter-workflow:
+    name: Flutter Build
+    instance_type: mac_mini_m1
+
+    environment:
+      flutter: 3.29.0
+
+    scripts:
+      - name: Clean and build
+        script: |
+          flutter clean
+          flutter pub get
+          
+          # بناء APK
+          flutter build apk --release
+          
+          echo "📁 Listing build outputs..."
+          ls -la build/app/outputs/flutter-apk/
+
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk

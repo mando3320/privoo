@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تسجيل دخول الإدارة - Privoo</title>
+  <link rel="icon" href="../img/app_icon.jpeg" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --privoo-blue: #0066FF;
+      --privoo-red: #FF3B30;
+      --privoo-purple: #9C27B0;
+    }
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: linear-gradient(135deg, var(--privoo-blue), var(--privoo-red), var(--privoo-purple));
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      direction: rtl;
+    }
+    .login-container {
+      max-width: 450px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(12px);
+      border-radius: 28px;
+      padding: 40px 32px;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .logo { width: 90px; height: 90px; display: block; margin: 0 auto 20px; border-radius: 50%; object-fit: cover; }
+    h1 { text-align: center; background: linear-gradient(90deg, #0066ff, #9C27B0); -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 30px; }
+    .input-group { margin-bottom: 24px; }
+    .input-group label { display: block; margin-bottom: 8px; color: #0066ff; font-weight: bold; }
+    .input-field { width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); border-radius: 14px; color: #fff; font-size: 1em; }
+    .input-field:focus { border-color: #0066ff; outline: none; }
+    .login-btn { width: 100%; padding: 14px; background: linear-gradient(90deg, #0066ff, #9C27B0); border: none; border-radius: 40px; color: white; font-size: 1.1em; font-weight: bold; cursor: pointer; }
+    .login-btn:hover { transform: translateY(-2px); }
+    .error-message { background: rgba(255,59,48,0.2); border: 1px solid #ff3b30; border-radius: 12px; padding: 12px; margin: 10px 0; text-align: center; color: #ffaa88; display: none; }
+    .back-link { display: block; text-align: center; margin-top: 20px; color: #0066ff; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; color: white; }
+    .hint { text-align: center; margin-top: 15px; font-size: 0.7em; color: rgba(255,255,255,0.4); }
+    @media (max-width: 500px) { .login-container { padding: 30px 20px; } }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <img src="../img/app_icon.jpeg" alt="Privoo Logo" class="logo" />
+    <h1>🔐 بوابة الإدارة</h1>
+    
+    <div class="input-group">
+      <label>🔑 رمز الدخول</label>
+      <input type="password" id="secretKey" class="input-field" placeholder="أدخل رمز الإدارة السري">
+    </div>
+    
+    <button class="login-btn" id="loginBtn">🚀 دخول</button>
+    <div id="errorMessage" class="error-message"></div>
+    
+    <a href="../index_privoo_landing.html" class="back-link">⬅️ العودة للصفحة الرئيسية</a>
+    <div class="hint">🔒 هذه الصفحة مشفرة وآمنة</div>
+  </div>
+
+  <script>
+    // ✅ الكود بدون import (يعمل مباشرة)
+    const ADMIN_SECRET_KEY = "Mando332011";
+    
+    const keyInput = document.getElementById("secretKey");
+    const loginBtn = document.getElementById("loginBtn");
+    const errorDiv = document.getElementById("errorMessage");
+
+    function showError(msg) {
+      errorDiv.textContent = msg;
+      errorDiv.style.display = "block";
+      setTimeout(() => {
+        errorDiv.style.display = "none";
+      }, 3000);
+    }
+
+    function handleLogin() {
+      const key = keyInput.value.trim();
+      
+      if (!key) {
+        showError("⚠️ يرجى إدخال رمز الدخول");
+        return;
+      }
+      
+      loginBtn.disabled = true;
+      loginBtn.textContent = "⏳ جاري التحقق...";
+      
+      // ✅ التحقق من الرمز
+      if (key === ADMIN_SECRET_KEY) {
+        sessionStorage.setItem("privoo_admin", "true");
+        sessionStorage.setItem("privoo_admin_time", Date.now());
+        
+        loginBtn.textContent = "✅ تم التحقق... جاري التوجيه";
+        
+        setTimeout(() => {
+          window.location.href = "dashboard.html";
+        }, 500);
+      } else {
+        showError("❌ رمز الدخول غير صحيح");
+        keyInput.value = "";
+        keyInput.focus();
+        loginBtn.disabled = false;
+        loginBtn.textContent = "🚀 دخول";
+      }
+    }
+    
+    loginBtn.addEventListener("click", handleLogin);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        handleLogin();
+      }
+    });
+  </script>
+</body>
+</html>

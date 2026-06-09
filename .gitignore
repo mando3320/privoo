@@ -1,0 +1,237 @@
+# ============================================
+# Privoo - .gitignore الكامل والمحسن
+# ============================================
+
+# ------------------------------
+# الملفات والمجلدات العامة
+# ------------------------------
+*.class
+*.log
+*.pyc
+*.swp
+*.lock
+*.pid
+*.seed
+*.properties
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.directory
+*.directory
+*.code-workspace
+
+# ------------------------------
+# بيئات التطوير
+# ------------------------------
+.atom/
+.build/
+.buildlog/
+.history/
+.svn/
+.swiftpm/
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# ------------------------------
+# Flutter / Dart
+# ------------------------------
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+**/test/.test_coverage/
+pubspec.lock
+pubspec.yaml.bak
+
+# ------------------------------
+# ملفات Symbolication و Obfuscation
+# ------------------------------
+app.*.symbols
+app.*.map.json
+
+# ------------------------------
+# Android
+# ------------------------------
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/app/google-services.json
+/android/app/*.jks
+/android/key.properties
+/android/local.properties
+/android/gradle.properties
+/android/.gradle/
+/android/app/build/
+/android/build/
+/captures/
+*.apk
+*.aab
+
+# ------------------------------
+# iOS / macOS
+# ------------------------------
+/ios/.symlinks/
+/ios/Pods/
+/ios/Podfile.lock
+/ios/.generated/
+/ios/Flutter/App.framework
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/ephemeral/
+/ios/Flutter/flutter_export_environment.sh
+/ios/ServiceDefinitions.json
+/ios/Runner/GeneratedPluginRegistrant.*
+/ios/Runner/Info.plist
+/ios/Runner.xcodeproj/project.pbxproj
+/ios/Runner.xcworkspace/xcuserdata/
+/ios/Flutter/flutter_assets/
+/macos/Flutter/Flutter.framework/
+/macos/Flutter/GeneratedPluginRegistrant.swift
+/macos/Runner.xcodeproj/project.pbxproj
+/macos/Runner.xcworkspace/xcuserdata/
+
+# ------------------------------
+# Windows / Linux
+# ------------------------------
+/windows/flutter/
+/windows/Runner/Debug/
+/windows/Runner/Release/
+/windows/Runner/x64/
+/windows/Runner/GeneratedPluginRegistrant.*
+/linux/flutter/
+/linux/Runner/Debug/
+/linux/Runner/Release/
+/linux/Runner/GeneratedPluginRegistrant.*
+
+# ------------------------------
+# Firebase
+# ------------------------------
+**/firebase-debug.log
+**/.firebase/
+**/firebase.json.local
+**/functions/node_modules/
+**/functions/.runtimeconfig.json
+**/functions/*.local.json
+**/functions/lib/
+**/functions/*.log
+
+# ------------------------------
+# Docker
+# ------------------------------
+*.pid
+docker-compose.override.yml
+.docker/
+Dockerfile.local
+.dockerignore
+
+# ------------------------------
+# الملفات الحساسة (API Keys, Secrets)
+# ------------------------------
+.env
+.env.local
+.env.production
+.env.development
+*.key
+*.pem
+*.cert
+*.p12
+secrets/
+keys/
+**/google-services.json
+**/GoogleService-Info.plist
+
+# ------------------------------
+# ملفات خاصة بمشروع Privoo
+# ------------------------------
+analysis_report.json
+cleanup_report.json
+final_cleanup_report.json
+privoo.iml
+migrate_working_dir/
+*.bak
+*.tmp
+logs/
+log.txt
+performance.json
+trace.json
+coverage/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/metadata.json
+
+# ------------------------------
+# ملفات الوسائط المؤقتة
+# ------------------------------
+*.m4a.tmp
+*.mp4.tmp
+*.wav.tmp
+*.jpg.tmp
+*.png.tmp
+calls/*.m4a
+calls/*.mp4
+recordings/
+temp_audio/
+temp_video/
+
+# ------------------------------
+# ملفات التشفير المؤقتة
+# ------------------------------
+*.enc
+*.dec
+*.gpg
+keys_backup/
+
+# ------------------------------
+# ملفات التطبيق أثناء التشغيل
+# ------------------------------
+**/cache/
+**/tmp/
+**/temp/
+**/downloads/
+**/exports/
+**/backups/
+
+# ------------------------------
+# ملفات التقرير والاختبارات
+# ------------------------------
+**/test/reports/
+**/test/html/
+**/test/junit/
+**/screenshots/
+**/goldens/
+
+# ------------------------------
+# ملفات الأدوات الإضافية
+# ------------------------------
+node_modules/
+package-lock.json
+yarn.lock
+.terraform/
+.terraform.lock.hcl
+.kube/
+.helm/
+
+# ------------------------------
+# ملفات المستخدم المحلية
+# ------------------------------
+.vscode/templates/
+.idea/templates/
+.vs/
+.clangd/
+.clang-format
+.cache/
+
+# ------------------------------
+# نهاية الملف
+# ------------------------------

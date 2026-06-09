@@ -1,0 +1,92 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "support_messages": {
+      ".read": "auth != null && auth.token.admin == true",
+      ".write": true,
+      "$message_id": {
+        ".validate": "newData.hasChildren(['name', 'message', 'time'])"
+      }
+    },
+
+    "visitors": {
+      ".read": "auth != null && auth.token.admin == true",
+      ".write": "auth != null && auth.token.admin == true"
+    },
+    "downloads": {
+      ".read": "auth != null && auth.token.admin == true",
+      ".write": "auth != null && auth.token.admin == true"
+    },
+    "log": {
+      ".read": "auth != null && auth.token.admin == true",
+      ".write": "auth != null && auth.token.admin == true"
+    },
+
+    "test": {
+      ".read": true,
+      ".write": true
+    },
+
+    "keys": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+
+    "chats": {
+      "$chatId": {
+        ".read": "auth != null && data.child('participants').hasChild(auth.uid)",
+        ".write": "auth != null && (!data.exists() || data.child('participants').hasChild(auth.uid))",
+        "messages": {
+          "$msgId": {
+            ".read": "auth != null && root.child('chats').child($chatId).child('participants').hasChild(auth.uid)",
+            ".write": "auth != null && root.child('chats').child($chatId).child('participants').hasChild(auth.uid)"
+          }
+        }
+      }
+    },
+
+    "calls": {
+      "$callId": {
+        ".read": "auth != null && (data.child('callerId').val() == auth.uid || data.child('receiverId').val() == auth.uid)",
+        ".write": "auth != null && (!data.exists() || data.child('callerId').val() == auth.uid || data.child('receiverId').val() == auth.uid)",
+        "callerCandidates": {
+          "$candId": {
+            ".read": "auth != null && (root.child('calls').child($callId).child('callerId').val() == auth.uid || root.child('calls').child($callId).child('receiverId').val() == auth.uid)",
+            ".write": "auth != null"
+          }
+        },
+        "calleeCandidates": {
+          "$candId": {
+            ".read": "auth != null && (root.child('calls').child($callId).child('callerId').val() == auth.uid || root.child('calls').child($callId).child('receiverId').val() == auth.uid)",
+            ".write": "auth != null"
+          }
+        }
+      }
+    },
+
+    "users": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+
+    "live_locations": {
+      "$docId": {
+        ".read": "auth != null && data.child('userId').val() == auth.uid",
+        ".write": "auth != null && newData.child('userId').val() == auth.uid"
+      }
+    },
+
+    "backups": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    }
+  }
+}

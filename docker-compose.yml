@@ -1,0 +1,28 @@
+
+version: "3.8"
+services:
+  app:
+    build: ./ai_backend
+    restart: unless-stopped
+    environment:
+      - PRIVOO_GEN_MODEL=google/flan-t5-small
+      - PRIVOO_EMBED_MODEL=sentence-transformers/all-MiniLM-L6-v2
+    volumes:
+      - ./ai_backend/privoo_data:/app/privoo_data
+    networks:
+      - privoo-net
+  nginx:
+    image: nginx:stable-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/letsencrypt:ro
+    depends_on:
+      - app
+    networks:
+      - privoo-net
+networks:
+  privoo-net:
+    driver: bridge

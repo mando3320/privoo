@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privoo Pro | مميزات حصرية</title>
+  <link rel="icon" href="img/app_icon.jpeg" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Cairo', 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0066FF, #FF3B30, #9C27B0);
+      color: white;
+      direction: rtl;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 40px auto;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(10px);
+      border-radius: 28px;
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .logo-image { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; }
+    h1 { font-size: 2em; margin-bottom: 10px; }
+    .price { font-size: 2.5em; color: #FFC107; margin: 20px 0; }
+    .features-list {
+      text-align: right;
+      display: inline-block;
+      margin: 20px auto;
+      list-style: none;
+    }
+    .features-list li {
+      margin: 12px 0;
+      font-size: 1.1em;
+    }
+    .features-list li::before {
+      content: "✅ ";
+      color: #4CAF50;
+    }
+    .btn {
+      display: inline-block;
+      padding: 14px 40px;
+      background: linear-gradient(90deg, #FFC107, #FF9800);
+      color: #1a1a2e;
+      border-radius: 40px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 1.2em;
+      margin: 20px 0;
+      transition: all 0.3s;
+      cursor: pointer;
+      border: none;
+    }
+    .btn:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(255,193,7,0.4); }
+    .instruction {
+      background: rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 16px;
+      margin: 20px 0;
+      font-size: 1em;
+    }
+    .instruction code {
+      background: rgba(0,0,0,0.5);
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-family: monospace;
+    }
+    .back-link {
+      color: #00c3ff;
+      text-decoration: none;
+      display: inline-block;
+      margin-top: 20px;
+    }
+    .btn-secondary {
+      display: inline-block;
+      padding: 12px 24px;
+      background: transparent;
+      border: 2px solid #00c3ff;
+      color: #00c3ff;
+      border-radius: 40px;
+      text-decoration: none;
+      margin-top: 10px;
+      transition: all 0.3s;
+    }
+    .btn-secondary:hover {
+      background: #00c3ff;
+      color: #1a1a2e;
+    }
+    footer {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.2);
+      font-size: 0.8em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="img/app_icon.jpeg" alt="Privoo" class="logo-image" />
+    <h1>💎 Privoo Pro</h1>
+    <p>افتح تجربة التواصل الكاملة مع الميزات الحصرية</p>
+
+    <div class="price">199 ج.م / شهرياً</div>
+
+    <ul class="features-list">
+      <li>🚀 رسائل ذكاء اصطناعي غير محدودة (بدون حدود يومية)</li>
+      <li>🎨 25 ثيماً كاملة (بما فيها ثيم نيون)</li>
+      <li>📹 مكالمات فيديو جماعية حتى 50 مشاركاً</li>
+      <li>📞 مكالمات صوتية جماعية حتى 1050 مشاركاً (رقم قياسي)</li>
+      <li>💾 نسخ احتياطي سحابي مشفر بالكامل</li>
+      <li>🔐 قفل التطبيق بالبصمة أو Face ID</li>
+      <li>🎨 توليد ستيكرات بالذكاء الاصطناعي غير محدود</li>
+      <li>📦 رفع ملفات حتى 2GB (بدلاً من 10MB)</li>
+      <li>🔬 تشفير كمومي (Quantum Resistance)</li>
+      <li>🎁 7 أيام تجربة مجانية عند الاشتراك لأول مرة</li>
+    </ul>
+
+    <div class="instruction">
+      <strong>📱 كيف تشترك في Privoo Pro؟</strong><br /><br />
+      1️⃣ تأكد من تثبيت تطبيق <strong>Privoo</strong> على هاتفك<br />
+      2️⃣ افتح التطبيق<br />
+      3️⃣ اذهب إلى <strong>الإعدادات (Settings)</strong><br />
+      4️⃣ اضغط على <strong>"الترقية إلى Pro"</strong><br />
+      5️⃣ اختر الخطة المناسبة وأكمل الدفع
+    </div>
+
+    <button class="btn" onclick="openPrivooApp()">📱 افتح التطبيق للاشتراك</button><br />
+    
+    <a href="download_wait.html" class="btn-secondary">📦 تحميل Privoo (إذا لم يكن مثبتاً)</a><br />
+    <a href="index_privoo_landing.html" class="back-link">← العودة للرئيسية</a>
+
+    <footer>
+      &copy; 2026 Privoo. جميع الحقوق محفوظة.<br />
+      الدفع عبر PayMob وفوري • دعم بالجنيه المصري
+    </footer>
+  </div>
+
+  <script>
+    function openPrivooApp() {
+      // محاولة فتح التطبيق عبر deep link
+      window.location.href = "privoo://upgrade";
+      
+      // بعد 2.5 ثانية، لو التطبيق ما فتحش (المستخدم لسه محملوش)
+      setTimeout(function() {
+        // ننقل المستخدم لصفحة التحميل
+        window.location.href = "download_wait.html";
+      }, 2500);
+    }
+  </script>
+</body>
+</html>
