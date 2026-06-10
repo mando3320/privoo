@@ -1,37 +1,14 @@
 workflows:
   flutter-workflow:
     name: Flutter Build
-    instance_type: mac_mini_m1
-
+    instance_type: mac_mini_m2
     environment:
       flutter: 3.29.0
-
     scripts:
-      - name: 🔍 Scan for sensitive files
-        script: |
-          echo "🔍 Scanning for sensitive files..."
-          find . -name "*.jks" -o -name "key.properties" -o -name ".env" 2>/dev/null | grep -v ".git" | while read file; do
-            echo "✅ Found: $file"
-          done
-
-      - name: 🔐 Setup signing keystore
-        script: |
-          if [ -f "android/key.properties" ]; then
-            echo "✅ key.properties found"
-            cat android/key.properties
-          fi
-          if [ -f "android/privoo-key.jks" ]; then
-            echo "✅ Keystore found"
-          fi
-
-      - name: Clean and build Debug
+      - name: Build APK
         script: |
           flutter clean
           flutter pub get
-          flutter build apk --debug --verbose
-          
-          echo "📁 Build outputs:"
-          ls -la build/app/outputs/flutter-apk/
-
+          flutter build apk --debug
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
