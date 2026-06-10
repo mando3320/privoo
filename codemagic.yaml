@@ -7,72 +7,123 @@ workflows:
       flutter: 3.29.0
 
     scripts:
-      - name: Clean and build
-        script: |
-          flutter clean
-          flutter pub get
-          
-          # بناء APK
-          flutter build apk --release
-          
-          echo "📁 Listing build outputs..."
-          ls -la build/app/outputs/flutter-apk/
-
       - name: 🔍 Scan for sensitive files
         script: |
           echo "========================================="
           echo "🔍 Scanning for sensitive files..."
           echo "========================================="
           
-          # البحث عن الملفات الحساسة
+          # تعريف الملفات الحساسة
           SENSITIVE_FILES=(
             "*.jks"
             "*.keystore"
             "key.properties"
             ".env"
             ".env.*"
-            "*.p12"
-            "*.pem"
-            "*.key"
-            "private_key.pem"
             "google-services.json"
-            "GoogleService-Info.plist"
             "firebase_options.dart"
-            ".firebaserc"
-            "secrets.json"
-            "secrets.yaml"
-            ".secret"
-            "credentials.json"
-            "*.pfx"
-            "id_rsa"
-            "id_dsa"
-            "*.cer"
-            "keystore.properties"
-            "debug.keystore"
-            "upload-keystore.jks"
           )
           
           FOUND_SENSITIVE=()
           
+          # البحث عن الملفات الحساسة
           for pattern in "${SENSITIVE_FILES[@]}"; do
             while IFS= read -r file; do
               if [ -f "$file" ]; then
-                echo "⚠️  Found: $file"
+                echo "✅ Found: $file"
                 FOUND_SENSITIVE+=("$file")
               fi
             done < <(find . -name "$pattern" -type f 2>/dev/null | grep -v ".git" | grep -v "build")
           done
           
+          # عرض النتائج
           if [ ${#FOUND_SENSITIVE[@]} -gt 0 ]; then
             echo ""
-            echo "❌ CRITICAL: Sensitive files detected in repository!"
+            echo "📁 Sensitive files found:"
             echo "========================================="
-            printf '%s\n' "${FOUND_SENSITIVE[@]}"
+            printf '   • %s\n' "${FOUND_SENSITIVE[@]}"
             echo "========================================="
-            echo "🚨 Build will continue but you should remove these files!"
           else
-            echo "✅ No sensitive files found in repository"
+            echo "⚠️  No sensitive files found in repository"
+            echo "💡 Make sure you have:"
+            echo "   - privoo-key.jks"
+            echo "   - key.properties"
+            echo "   - google-services.json"
           fi
+
+      - name: 🔐 Setup signing keystore
+        script: |
+          echo "========================================="
+          echo "🔐 Setting up signing keystore..."
+          echo "========================================="
+          
+          # التحقق من وجود key.properties
+          if [ -f "android/key.properties" ]; then
+            echo "✅ key.properties found in repository"
+            cat android/key.properties
+          else
+            echo "⚠️  key.properties not found in repository"
+            
+            # محاولة استخدام Secrets إذا كانت موجودة
+            if [ -n "$CM_KEYSTORE" ] && [ -n "$CM_KEYSTORE_PASSWORD" ]; then
+              echo "📦 Using keystore from CodeMagic Secrets"
+              echo "$CM_KEYSTORE" | base64 --decode > android/privoo-key.jks
+              
+              cat > android/key.properties << EOF
+              storePassword=$CM_KEYSTORE_PASSWORD
+              keyPassword=$CM_KEY_PASSWORD
+              keyAlias=$CM_KEY_ALIAS
+              storeFile=privoo-key.jks
+              EOF
+              echo "✅ key.properties created from secrets"
+            else
+              echo "⚠️  No signing credentials found, will use debug signing"
+            fi
+          fi
+          
+          # التحقق من وجود الـ keystore
+          if [ -f "android/privoo-key.jks" ]; then
+            echo "✅ Keystore found: android/privoo-key.jks"
+            ls -la android/privoo-key.jks
+          else
+            echo "⚠️  No keystore found, APK will be signed with debug key"
+          fi
+
+      - name: 🔍 Verify Firebase config
+        script: |
+          echo "========================================="
+          echo "🔥 Checking Firebase configuration..."
+          echo "========================================="
+          
+          if [ -f "android/app/google-services.json" ]; then
+            echo "✅ google-services.json found"
+          else
+            echo "⚠️  google-services.json not found in android/app/"
+          fi
+          
+          if [ -f "ios/Runner/GoogleService-Info.plist" ]; then
+            echo "✅ GoogleService-Info.plist found"
+          else
+            echo "⚠️  GoogleService-Info.plist not found in ios/Runner/"
+          fi
+
+      - name: Clean and build
+        script: |
+          echo "========================================="
+          echo "🚀 Starting Flutter build..."
+          echo "========================================="
+          
+          flutter clean
+          flutter pub get
+          
+          # بناء APK
+          flutter build apk --release
+          
+          echo ""
+          echo "========================================="
+          echo "📁 Build outputs:"
+          echo "========================================="
+          ls -la build/app/outputs/flutter-apk/
 
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
