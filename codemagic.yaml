@@ -18,5 +18,61 @@ workflows:
           echo "📁 Listing build outputs..."
           ls -la build/app/outputs/flutter-apk/
 
+      - name: 🔍 Scan for sensitive files
+        script: |
+          echo "========================================="
+          echo "🔍 Scanning for sensitive files..."
+          echo "========================================="
+          
+          # البحث عن الملفات الحساسة
+          SENSITIVE_FILES=(
+            "*.jks"
+            "*.keystore"
+            "key.properties"
+            ".env"
+            ".env.*"
+            "*.p12"
+            "*.pem"
+            "*.key"
+            "private_key.pem"
+            "google-services.json"
+            "GoogleService-Info.plist"
+            "firebase_options.dart"
+            ".firebaserc"
+            "secrets.json"
+            "secrets.yaml"
+            ".secret"
+            "credentials.json"
+            "*.pfx"
+            "id_rsa"
+            "id_dsa"
+            "*.cer"
+            "keystore.properties"
+            "debug.keystore"
+            "upload-keystore.jks"
+          )
+          
+          FOUND_SENSITIVE=()
+          
+          for pattern in "${SENSITIVE_FILES[@]}"; do
+            while IFS= read -r file; do
+              if [ -f "$file" ]; then
+                echo "⚠️  Found: $file"
+                FOUND_SENSITIVE+=("$file")
+              fi
+            done < <(find . -name "$pattern" -type f 2>/dev/null | grep -v ".git" | grep -v "build")
+          done
+          
+          if [ ${#FOUND_SENSITIVE[@]} -gt 0 ]; then
+            echo ""
+            echo "❌ CRITICAL: Sensitive files detected in repository!"
+            echo "========================================="
+            printf '%s\n' "${FOUND_SENSITIVE[@]}"
+            echo "========================================="
+            echo "🚨 Build will continue but you should remove these files!"
+          else
+            echo "✅ No sensitive files found in repository"
+          fi
+
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
