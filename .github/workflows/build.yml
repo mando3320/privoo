@@ -1,0 +1,59 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Setup signing keystore from secrets
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          mkdir -p android
+          echo "$SIGNING_KEY" | base64 --decode > android/privoo-key.jks
+          cat > android/key.properties << EOF
+          storePassword=$STORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=privoo-key.jks
+          EOF
+          echo "✅ Keystore configured successfully"
+      
+      - name: Fix Gradle wrapper
+        run: |
+          mkdir -p android/gradle/wrapper
+          cat > android/gradle/wrapper/gradle-wrapper.properties << EOF
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.13-all.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+      
+      - run: flutter clean
+      - run: flutter pub get
+      - run: flutter build apk --release
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: privoo-release-apk
+          path: build/app/outputs/flutter-apk/*.apk
