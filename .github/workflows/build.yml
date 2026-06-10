@@ -17,6 +17,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       
+      - name: Fix Gradle wrapper version
+        run: |
+          cd android
+          ./gradlew wrapper --gradle-version=8.13 --distribution-type=bin
+          cd ..
+      
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.29.0'
