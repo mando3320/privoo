@@ -28,7 +28,7 @@ workflows:
         script: |
           flutter clean
           flutter pub get
-          flutter build apk --debug
+          flutter build apk --debug --verbose
           
           echo "📁 Build outputs:"
           ls -la build/app/outputs/flutter-apk/
