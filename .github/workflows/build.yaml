@@ -17,6 +17,41 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       
+      - name: Setup signing keystore
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          # إنشاء مجلد android إذا لم يوجد
+          mkdir -p android
+          
+          # فك تشفير الـ keystore
+          echo "$SIGNING_KEY" | base64 --decode > android/privoo-key.jks
+          
+          # إنشاء key.properties
+          cat > android/key.properties << EOF
+          storePassword=$STORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=privoo-key.jks
+          EOF
+          
+          # التحقق
+          ls -la android/privoo-key.jks
+      
+      - name: Fix Gradle wrapper
+        run: |
+          mkdir -p android/gradle/wrapper
+          cat > android/gradle/wrapper/gradle-wrapper.properties << EOF
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.13-all.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+      
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.29.0'
