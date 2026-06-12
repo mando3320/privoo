@@ -7,10 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 import 'services/firebase/notification_service.dart';
+import 'config/app_theme.dart';
 
 // 📁 استيراد جميع شاشات التطبيق
-import 'views/auth/otp_login_screen.dart';  // ✅ أصبحت الأساسية
-import 'views/auth/login_screen.dart';      // 📦 احتياطي (يمكن حذفه أو الاحتفاظ به)
+import 'views/auth/otp_login_screen.dart';
+import 'views/auth/login_screen.dart';
 import 'views/auth/profile_setup_screen.dart';
 import 'views/auth/age_verification_screen.dart';
 import 'views/auth/terms_acceptance_screen.dart';
@@ -30,6 +31,7 @@ import 'views/settings/chat_with_developer_screen.dart';
 import 'views/settings/encryption_info_screen.dart';
 import 'views/settings/export_data_screen.dart';
 import 'views/settings/delete_account_screen.dart';
+import 'views/settings/parental_control_screen.dart';
 
 import 'views/chat/smart_chat_screen.dart';
 import 'views/chat/create_group_screen.dart';
@@ -118,10 +120,7 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
     }
 
     return WillPopScope(
-      onWillPop: () async {
-        final shouldPop = await _onWillPop();
-        return shouldPop;
-      },
+      onWillPop: _onWillPop,
       child: Navigator(
         key: UniqueKey(),
         initialRoute: _nextRoute,
@@ -130,13 +129,44 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
     );
   }
 
+  // ✅ دالة معالجة زر الرجوع المحسنة
   Future<bool> _onWillPop() async {
     final navigator = Navigator.of(context);
+    
+    // ✅ إذا كان هناك شاشات سابقة، ارجع للشاشة السابقة
     if (navigator.canPop()) {
       navigator.pop();
       return false;
     }
-    return true;
+    
+    // ✅ إذا كانت هذه هي الشاشة الرئيسية، اسأل قبل الخروج
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد الخروج'),
+        content: const Text('هل تريد الخروج من التطبيق؟'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: AppTheme.privooCardDark,
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20),
+        contentTextStyle: const TextStyle(color: Colors.white70),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.privooError,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('خروج'),
+          ),
+        ],
+      ),
+    ) ?? false;
+    
+    return shouldExit;
   }
 
   Route<dynamic> _generateRoute(RouteSettings settings) {
@@ -148,7 +178,6 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
         return MaterialPageRoute(builder: (_) => const SplashScreen());
       
       case '/login':
-        // ✅ استخدام OTPLoginScreen بدلاً من LoginScreen
         return MaterialPageRoute(builder: (_) => const OTPLoginScreen());
       
       case '/otp-login':
@@ -162,6 +191,9 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
       
       case '/settings':
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
+      
+      case '/parental-control':
+        return MaterialPageRoute(builder: (_) => const ParentalControlScreen());
       
       case '/users':
         return MaterialPageRoute(builder: (_) => const UsersListScreen());

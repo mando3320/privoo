@@ -28,6 +28,7 @@ import 'silent_notifications_screen.dart';
 import 'auto_download_media_screen.dart';
 import 'manage_allowed_senders_screen.dart';
 import 'hidden_chats_screen.dart';
+import 'parental_control_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -221,6 +222,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ],
           ),
+
+          // ---------- الرقابة الأبوية ----------
+          ListTile(
+            leading: Icon(Icons.family_restroom, color: AppTheme.privooDeepPurple),
+            title: const Text('الرقابة الأبوية'),
+            subtitle: const Text('تقييد المحتوى وإدارة وقت الاستخدام'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ParentalControlScreen()),
+            ),
+          ),
+          const Divider(),
 
           // ---------- الإشعارات ----------
           ExpansionTile(
