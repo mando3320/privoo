@@ -31,7 +31,7 @@ dependencies:
   cloud_functions: ^5.1.0
   firebase_performance: ^0.10.0+1
   firebase_storage: ^12.3.0
-  firebase_database: ^11.4.0
+  firebase_database: ^11.3.10
 
   # 💾 التخزين
   shared_preferences: ^2.2.0
@@ -74,7 +74,7 @@ dependencies:
   permission_handler: ^11.3.0
   url_launcher: ^6.3.0
   geolocator: ^14.0.2
-  flutter_contacts: ^2.0.2
+  flutter_contacts: ^1.1.9+2
 
   # 🔐 المصادقات الاجتماعية
   google_sign_in: ^6.2.2
