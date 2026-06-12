@@ -3,6 +3,21 @@
     ".read": false,
     ".write": false,
 
+    "lifetime_phons": {
+      ".read": true,
+      ".write": "auth != null && auth.token.admin == true"
+    },
+
+    "admin_phons": {
+      ".read": true,
+      ".write": "auth != null && auth.token.admin == true"
+    },
+
+    "lifetime_phones": {
+      ".read": true,
+      ".write": "auth != null && auth.token.admin == true"
+    },
+
     "support_messages": {
       ".read": "auth != null && auth.token.admin == true",
       ".write": true,

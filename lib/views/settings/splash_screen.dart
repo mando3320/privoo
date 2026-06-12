@@ -1,10 +1,9 @@
-// lib/views/splash_screen.dart
+// lib/views/settings/splash_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../../core/logger.dart';
 import '../../services/firebase/notification_service.dart';
-import '../../services/security_checker.dart';
 import '../../config/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -45,6 +44,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     
     _controller.forward();
     
+    // ✅ انتظر 3 ثواني ثم انتقل
     Future.delayed(const Duration(seconds: 3), () {
       if (!_navigated && mounted) _navigateNext();
     });
@@ -63,13 +63,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _logger.debug('SplashScreen _navigateNext called');
     
     try {
-      final securityChecker = SecurityChecker();
-      final isSecure = await securityChecker.isDeviceSecure();
-      
-      if (!isSecure && mounted) {
-        await securityChecker.showSecurityAlert(context);
-      }
-      
       final user = FirebaseAuth.instance.currentUser;
       final isLoggedIn = user != null;
       
@@ -110,7 +103,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // شعار Privoo
                   Container(
                     width: 120,
                     height: 120,

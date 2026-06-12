@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
+import '../../config/app_theme.dart';
 
 final _logger = Logger();
 
@@ -21,229 +22,304 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
   bool _privacyAccepted = false;
   bool _ageConfirmed = false;
   bool _isLoading = false;
+  bool _navigated = false;
   
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الموافقة على الشروط'), 
-        centerTitle: true, 
-        automaticallyImplyLeading: false
+        title: const Text('الموافقة على الشروط'),
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Icon(Icons.security_outlined, size: 64, color: Colors.blue),
-            const SizedBox(height: 16),
-            Text(
-              'مرحباً بك في Privoo',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'قبل أن نبدأ، يرجى قراءة والموافقة على الشروط التالية',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            
-            // ========== شروط الاستخدام ==========
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: ExpansionTile(
-                leading: const Icon(Icons.description, color: Colors.blue),
-                title: const Text('شروط الاستخدام', style: TextStyle(fontWeight: FontWeight.bold)),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: _buildTermsContent(),
-                  ),
-                ],
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).scaffoldBackgroundColor,
+              Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.95),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // ✅ رأس الصفحة المتطور
+              Container(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppTheme.privooLightPurple, AppTheme.privooDeepPurple],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.privooLightPurple.withValues(alpha: 0.3),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.security_rounded, size: 40, color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'مرحباً بك في Privoo',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.privooGold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'تطبيق تواصل آمن وخاص',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            
-            // ========== سياسة الخصوصية ==========
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: ExpansionTile(
-                leading: const Icon(Icons.privacy_tip, color: Colors.green),
-                title: const Text('سياسة الخصوصية', style: TextStyle(fontWeight: FontWeight.bold)),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: _buildPrivacyContent(),
-                  ),
-                ],
+              
+              // ✅ قائمة الشروط المتطورة
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    _buildModernCheckCard(
+                      title: 'شروط الاستخدام',
+                      subtitle: 'اقرأ الشروط والأحكام',
+                      icon: Icons.description_outlined,
+                      iconColor: Colors.blue,
+                      isChecked: _termsAccepted,
+                      onChanged: (value) => setState(() => _termsAccepted = value),
+                      content: _buildTermsContent(),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    _buildModernCheckCard(
+                      title: 'سياسة الخصوصية',
+                      subtitle: 'كيف نحمي بياناتك',
+                      icon: Icons.privacy_tip_outlined,
+                      iconColor: Colors.green,
+                      isChecked: _privacyAccepted,
+                      onChanged: (value) => setState(() => _privacyAccepted = value),
+                      content: _buildPrivacyContent(),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    _buildModernCheckCard(
+                      title: 'تأكيد العمر',
+                      subtitle: 'يجب أن يكون عمرك 13 سنة أو أكثر',
+                      icon: Icons.verified_outlined,
+                      iconColor: Colors.orange,
+                      isChecked: _ageConfirmed,
+                      onChanged: (value) => setState(() => _ageConfirmed = value),
+                      content: null,
+                      simpleMode: true,
+                    ),
+                    const SizedBox(height: 32),
+                    
+                    // ✅ زر الموافقة المتطور
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.only(bottom: 30),
+                      child: ElevatedButton(
+                        onPressed: (_termsAccepted && _privacyAccepted && _ageConfirmed && !_isLoading)
+                            ? _acceptTerms
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.privooLightPurple,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          elevation: 5,
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text('أوافق وأستمر', style: TextStyle(fontSize: 18)),
+                                  SizedBox(width: 10),
+                                  Icon(Icons.arrow_forward_rounded),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            
-            // ========== خانات الموافقة ==========
-            Container(
-              decoration: BoxDecoration(
-                color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  CheckboxListTile(
-                    value: _termsAccepted,
-                    onChanged: (v) => setState(() => _termsAccepted = v ?? false),
-                    title: const Text('أوافق على شروط الاستخدام'),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    activeColor: Colors.blue,
-                  ),
-                  const Divider(),
-                  CheckboxListTile(
-                    value: _privacyAccepted,
-                    onChanged: (v) => setState(() => _privacyAccepted = v ?? false),
-                    title: const Text('أوافق على سياسة الخصوصية'),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    activeColor: Colors.blue,
-                  ),
-                  const Divider(),
-                  CheckboxListTile(
-                    value: _ageConfirmed,
-                    onChanged: (v) => setState(() => _ageConfirmed = v ?? false),
-                    title: const Text('أؤكد أن عمري 13 سنة أو أكثر'),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    activeColor: Colors.blue,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-            
-            ElevatedButton(
-              onPressed: (_termsAccepted && _privacyAccepted && _ageConfirmed && !_isLoading) ? _acceptTerms : null,
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-              child: _isLoading 
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)) 
-                : const Text('أوافق وأستمر', style: TextStyle(fontSize: 16)),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
   
+  Widget _buildModernCheckCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required bool isChecked,
+    required Function(bool) onChanged,
+    Widget? content,
+    bool simpleMode = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          CheckboxListTile(
+            value: isChecked,
+            onChanged: onChanged,
+            controlAffinity: ListTileControlAffinity.leading,
+            activeColor: iconColor,
+            checkboxShape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (!simpleMode && isChecked && content != null)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: content,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+  
   Widget _buildTermsContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 1. مبادئ الاستخدام
-        _buildSectionTitle('1. مبادئ الاستخدام'),
-        const SizedBox(height: 4),
-        const Text('باستخدامك لتطبيق Privoo، فإنك توافق على الالتزام بمبادئ التواصل الآمن، واحترام خصوصية الآخرين، والامتناع عن أي استخدام غير قانوني.'),
-        const SizedBox(height: 16),
-        
-        // 2. حقوق المستخدم
-        _buildSectionTitle('2. حقوق المستخدم'),
-        const SizedBox(height: 4),
-        const Text('• الخصوصية: استخدام التطبيق دون تتبع'),
-        const Text('• التحكم الكامل: حذف حسابك وبياناتك نهائياً'),
-        const Text('• تشفير E2EE: جميع رسائلك مشفرة'),
-        const SizedBox(height: 16),
-        
-        // 3. الاشتراكات المدفوعة
-        _buildSectionTitle('3. الاشتراكات المدفوعة (Privoo Pro)'),
-        const SizedBox(height: 4),
-        const Text('• يومي: 25 ج.م'),
-        const Text('• شهري: 199 ج.م'),
-        const Text('• سنوي: 1,200 ج.م'),
-        const Text('• عائلي: 399 ج.م/شهر'),
-        const Text('• طلابي: 99 ج.م/شهر'),
-        const SizedBox(height: 16),
-        
-        // 4. الامتثال القانوني
-        _buildSectionTitle('4. الامتثال القانوني'),
-        const SizedBox(height: 4),
-        const Text('Privoo متوافق مع 13 قانوناً عالمياً: GDPR، CCPA، PDPL، PIPL، LGPD، POPIA، KVKK وغيرها.'),
-        const SizedBox(height: 16),
-        
-        // 5. التراخيص
-        _buildSectionTitle('5. التراخيص'),
-        const SizedBox(height: 4),
-        const Text('• Gemini AI من Google'),
-        const Text('• Firebase من Google'),
-        const Text('• Flutter Framework - BSD 3-Clause'),
-      ],
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildInfoRow(Icons.check_circle_outline, 'مبادئ الاستخدام', 'باستخدامك لتطبيق Privoo، فإنك توافق على الالتزام بمبادئ التواصل الآمن.'),
+          const SizedBox(height: 12),
+          _buildInfoRow(Icons.people_outline, 'حقوق المستخدم', 'الخصوصية، التحكم الكامل بحسابك، تشفير E2EE لجميع الرسائل.'),
+          const SizedBox(height: 12),
+          _buildInfoRow(Icons.workspace_premium_outlined, 'الاشتراكات المدفوعة', 'يومي، شهري، سنوي، عائلي، وطلابي.'),
+          const SizedBox(height: 12),
+          _buildInfoRow(Icons.gavel_outlined, 'الامتثال القانوني', 'متوافق مع 13 قانوناً عالمياً للخصوصية.'),
+        ],
+      ),
     );
   }
   
   Widget _buildPrivacyContent() {
-    return Column(
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildInfoRow(Icons.privacy_tip_outlined, 'فلسفة الخصوصية', 'لا نحلل سلوكك، ولا نبيع معلوماتك.'),
+          const SizedBox(height: 12),
+          _buildInfoRow(Icons.data_usage_outlined, 'البيانات التي نجمعها', 'رقم الهاتف، الاسم (يمكن أن يكون مستعار)، الصورة الشخصية.'),
+          const SizedBox(height: 12),
+          _buildInfoRow(Icons.security_outlined, 'الأمان', 'تشفير Double Ratchet، X3DH Key Exchange، AES-GCM 256-bit.'),
+          const SizedBox(height: 12),
+          _buildInfoRow(Icons.delete_outline, 'التحكم في البيانات', 'يمكنك حذف حسابك وجميع بياناتك نهائياً.'),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildInfoRow(IconData icon, String title, String subtitle) {
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. فلسفة الخصوصية
-        _buildSectionTitle('1. فلسفة الخصوصية'),
-        const SizedBox(height: 4),
-        const Text('في Privoo، لا نعتبر الخصوصية مجرد بند قانوني، بل مبدأ وجودي. نحن لا نحلل سلوكك، ولا نبيع معلوماتك لأي جهة كانت. كل تواصل يتم عبر تشفير متقدم من طرف إلى طرف (Double Ratchet Protocol).'),
-        const SizedBox(height: 16),
-        
-        // 2. البيانات التي نجمعها
-        _buildSectionTitle('2. البيانات التي نجمعها'),
-        const SizedBox(height: 4),
-        const Text('• رقم الهاتف (للتسجيل فقط)'),
-        const Text('• الاسم (يمكن أن يكون اسم مستعار)'),
-        const Text('• الصورة الشخصية (اختياري)'),
-        const Text('• مفاتيح التشفير (تخزن محلياً على جهازك فقط)'),
-        const SizedBox(height: 16),
-        
-        // 3. الامتثال القانوني
-        _buildSectionTitle('3. الامتثال القانوني'),
-        const SizedBox(height: 4),
-        const Text('Privoo متوافق مع 13 قانوناً عالمياً: GDPR (أوروبا)، CCPA (أمريكا)، PDPL (مصر، السعودية)، PIPL (الصين)، LGPD (البرازيل)، POPIA (جنوب أفريقيا)، KVKK (تركيا)، UK GDPR، Privacy Act (أستراليا)، APPI (اليابان)، PDPB (الهند)، PDPO (هونغ كونغ)، Law 25 (كيبيك، كندا).'),
-        const SizedBox(height: 16),
-        
-        // 4. حقوقك
-        _buildSectionTitle('4. حقوقك'),
-        const SizedBox(height: 4),
-        const Text('• الحق في الوصول: يمكنك طلب نسخة من بياناتك'),
-        const Text('• الحق في التصحيح: يمكنك تصحيح بياناتك'),
-        const Text('• الحق في الحذف: يمكنك حذف حسابك نهائياً'),
-        const Text('• الحق في نقل البيانات: تصدير بياناتك بصيغة JSON'),
-        const SizedBox(height: 16),
-        
-        // 5. الأمان
-        _buildSectionTitle('5. الأمان'),
-        const SizedBox(height: 4),
-        const Text('• 🔐 تشفير Double Ratchet'),
-        const Text('• 🔒 X3DH Key Exchange'),
-        const Text('• 🛡️ تشفير AES-GCM 256-bit'),
-        const Text('• 📱 كشف الأجهزة المخترقة'),
-        const SizedBox(height: 16),
-        
-        // 6. التحكم في البيانات
-        _buildSectionTitle('6. التحكم في البيانات'),
-        const SizedBox(height: 4),
-        const Text('يمكنك حذف حسابك وجميع بياناتك نهائياً في أي وقت من داخل التطبيق (الإعدادات → حذف الحساب).'),
-        const SizedBox(height: 16),
-        
-        // ✅ Banner التوافق مع 13 قانوناً
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.green.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.green),
-          ),
-          child: const Row(
+        Icon(icon, size: 20, color: AppTheme.privooGold),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.verified, color: Colors.green, size: 20),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '✅ متوافق مع 13 قانوناً عالمياً: GDPR • CCPA • PDPL • PIPL • LGPD • POPIA • KVKK • UK GDPR • Privacy Act • APPI • PDPB • PDPO • Law 25',
-                  style: TextStyle(fontSize: 11),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
                 ),
               ),
             ],
@@ -253,33 +329,38 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
     );
   }
   
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 16,
-      ),
-    );
-  }
-  
   Future<void> _acceptTerms() async {
+    if (_isLoading || _navigated) return;
+    _navigated = true;
     setState(() => _isLoading = true);
+    
     try {
-      final userId = FirebaseAuth.instance.currentUser?.uid;
-      if (userId == null) throw Exception('User not logged in');
-      
-      await FirebaseFirestore.instance.collection('users').doc(userId).set({
-        'termsAccepted': true,
-        'privacyAccepted': true,
-        'ageConfirmed': true,
-        'termsAcceptedAt': FieldValue.serverTimestamp(),
-        'termsVersion': '1.0',
-      }, SetOptions(merge: true));
-      
+      // ✅ حفظ في SharedPreferences أولاً
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('terms_accepted', true);
+      _logger.i('✅ Terms saved to SharedPreferences');
       
+      // ✅ محاولة حفظ في Firestore (خلفية، لا ننتظرها)
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        unawaited(
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set({
+                'termsAccepted': true,
+                'privacyAccepted': true,
+                'ageConfirmed': true,
+                'termsAcceptedAt': FieldValue.serverTimestamp(),
+                'termsVersion': '1.0',
+              }, SetOptions(merge: true))
+              .timeout(const Duration(seconds: 5))
+              .then((_) => _logger.i('✅ Terms saved to Firestore'))
+              .catchError((e) => _logger.w('⚠️ Firestore save failed: $e'))
+        );
+      }
+      
+      // ✅ التنقل فوراً
       if (mounted) {
         if (widget.onAccepted != null) {
           widget.onAccepted!();
@@ -289,10 +370,18 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
       }
     } catch (e) {
       _logger.e('❌ Failed to save terms acceptance: $e');
+      
+      // ✅ حتى مع الخطأ، حاول التنقل
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('حدث خطأ. يرجى المحاولة مرة أخرى.')),
-        );
+        if (widget.onAccepted != null) {
+          widget.onAccepted!();
+        } else {
+          try {
+            Navigator.pushReplacementNamed(context, '/profile');
+          } catch (navError) {
+            Navigator.pushReplacementNamed(context, '/login');
+          }
+        }
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

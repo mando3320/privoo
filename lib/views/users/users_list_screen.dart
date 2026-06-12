@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import '../../main.dart';
 import '../../services/contact_service.dart';
+import '../../config/app_theme.dart';
 
 class UsersListScreen extends StatefulWidget {
   const UsersListScreen({super.key});
@@ -15,7 +16,7 @@ class UsersListScreen extends StatefulWidget {
   State<UsersListScreen> createState() => _UsersListScreenState();
 }
 
-class _UsersListScreenState extends State<UsersListScreen> {
+class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _filteredUsers = [];
@@ -24,12 +25,22 @@ class _UsersListScreenState extends State<UsersListScreen> {
   bool _isContactsLoading = false;
   bool _hasPhonePermission = false;
   String? _currentUserPhone;
+  String? _currentUserId;
+  late TabController _tabController;
+  int _selectedTab = 0;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        _selectedTab = _tabController.index;
+      });
+    });
     final user = FirebaseAuth.instance.currentUser;
     _currentUserPhone = user?.phoneNumber;
+    _currentUserId = user?.uid;
     _loadUsers();
     _loadContacts();
   }
@@ -37,8 +48,6 @@ class _UsersListScreenState extends State<UsersListScreen> {
   Future<void> _loadUsers() async {
     setState(() => _isLoading = true);
     try {
-      final currentUserPhone = _currentUserPhone;
-      
       final usersSnapshot = await FirebaseFirestore.instance
           .collection('users')
           .limit(100)
@@ -48,15 +57,18 @@ class _UsersListScreenState extends State<UsersListScreen> {
       for (var doc in usersSnapshot.docs) {
         final data = doc.data();
         final userPhone = data['phoneNumber'] ?? data['phone'] ?? '';
+        final userUid = data['uid'] ?? doc.id;
         
-        if (userPhone != currentUserPhone) {
+        if (userPhone != _currentUserPhone) {
           users.add({
             'id': doc.id,
+            'uid': userUid,
             'name': data['name'] ?? 'مستخدم',
             'phone': userPhone,
             'avatarUrl': data['avatarUrl'],
             'isActive': data['isActive'] ?? true,
-            'source': 'firebase',
+            'lastSeen': data['lastSeen'],
+            'about': data['about'] ?? 'مرحباً، أنا أستخدم Privoo',
           });
         }
       }
@@ -100,39 +112,47 @@ class _UsersListScreenState extends State<UsersListScreen> {
     });
   }
 
-  Future<void> _startChat(String userId, String name) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final currentUserId = currentUser?.uid;
-    if (currentUserId == null) return;
-
-    final chatId = currentUserId.compareTo(userId) < 0
-        ? '${currentUserId}_$userId'
-        : '${userId}_$currentUserId';
-
-    final chatDoc = await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(chatId)
-        .get();
-
-    if (!chatDoc.exists) {
-      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
-        'participants': [currentUserId, userId],
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastMessage': '',
-        'lastMessageTime': FieldValue.serverTimestamp(),
-      });
+  Future<void> _startChat(String targetUid, String name, String avatarUrl) async {
+    final currentUserId = _currentUserId;
+    if (currentUserId == null) {
+      _showSnackbar('الرجاء تسجيل الدخول أولاً');
+      return;
     }
 
-    if (mounted) {
-      Navigator.pushReplacementNamed(
-        context,
-        '/chat',
-        arguments: {
-          'chatId': chatId,
-          'receiverId': userId,
-          'name': name,
-        },
-      );
+    final chatId = currentUserId.compareTo(targetUid) < 0
+        ? '${currentUserId}_$targetUid'
+        : '${targetUid}_$currentUserId';
+
+    try {
+      final chatDoc = await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(chatId)
+          .get();
+
+      if (!chatDoc.exists) {
+        await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+          'participants': [currentUserId, targetUid],
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastMessage': '',
+          'lastMessageTime': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (mounted) {
+        Navigator.pushNamed(
+          context,
+          '/chat',
+          arguments: {
+            'chatId': chatId,
+            'receiverId': targetUid,
+            'name': name,
+            'avatarUrl': avatarUrl,
+          },
+        );
+      }
+    } catch (e) {
+      logger.e('❌ خطأ في بدء المحادثة: $e');
+      _showSnackbar('حدث خطأ: ${e.toString()}');
     }
   }
 
@@ -145,47 +165,64 @@ class _UsersListScreenState extends State<UsersListScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'دعوة جهة الاتصال',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'دعوة جهة الاتصال',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: AppTheme.privooLightPurple.withValues(alpha: 0.2),
+              child: Text(
+                contact.displayName.substring(0, 1).toUpperCase(),
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 16),
-              Text('ادعُ ${contact.displayName} إلى Privoo عبر:', textAlign: TextAlign.center),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
+            ),
+            const SizedBox(height: 12),
+            Text(
+              contact.displayName,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+            ),
+            if (phone != null)
+              Text(
+                phone,
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildInviteButton(
+                  icon: Icons.share,
+                  label: 'مشاركة',
+                  color: Colors.blue,
+                  onTap: () {
+                    Share.share(message);
+                    Navigator.pop(context);
+                  },
+                ),
+                if (phone != null)
                   _buildInviteButton(
-                    icon: Icons.share,
-                    label: 'مشاركة',
-                    onTap: () {
-                      Share.share(message);
+                    icon: Icons.message,
+                    label: 'رسالة نصية',
+                    color: Colors.green,
+                    onTap: () async {
+                      final smsUri = Uri.parse('sms:$phone?body=$message');
+                      if (await canLaunchUrl(smsUri)) {
+                        await launchUrl(smsUri);
+                      }
                       Navigator.pop(context);
                     },
                   ),
-                  if (phone != null)
-                    _buildInviteButton(
-                      icon: Icons.message,
-                      label: 'رسالة نصية',
-                      onTap: () async {
-                        final smsUri = Uri.parse('sms:$phone?body=$message');
-                        if (await canLaunchUrl(smsUri)) {
-                          await launchUrl(smsUri);
-                        }
-                        Navigator.pop(context);
-                      },
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );
@@ -194,15 +231,16 @@ class _UsersListScreenState extends State<UsersListScreen> {
   Widget _buildInviteButton({
     required IconData icon,
     required String label,
+    required Color color,
     required VoidCallback onTap,
   }) {
     return Column(
       children: [
         CircleAvatar(
-          radius: 30,
-          backgroundColor: Colors.blue.shade100,
+          radius: 35,
+          backgroundColor: color.withValues(alpha: 0.1),
           child: IconButton(
-            icon: Icon(icon, color: Colors.blue),
+            icon: Icon(icon, color: color, size: 28),
             onPressed: onTap,
           ),
         ),
@@ -212,79 +250,171 @@ class _UsersListScreenState extends State<UsersListScreen> {
     );
   }
 
-  Widget _buildContactsSection() {
-    if (_isContactsLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    
-    if (!_hasPhonePermission) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const Icon(Icons.contacts, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text('يحتاج التطبيق إلى إذن قراءة جهات الاتصال'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadContacts,
-              child: const Text('منح الإذن'),
-            ),
-          ],
-        ),
-      );
-    }
-    
-    if (_phoneContacts.isEmpty) {
-      return const Center(child: Text('لا توجد جهات اتصال في هاتفك'));
-    }
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(16),
-          child: Text(
-            '📱 جهات الاتصال',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  void _showSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
+  }
+
+  Widget _buildUserCard(Map<String, dynamic> user) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-        ),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _phoneContacts.length,
-          itemBuilder: (context, index) {
-            final contact = _phoneContacts[index];
-            final phone = contact.phones.isNotEmpty ? contact.phones.first.number : null;
-            final isRegistered = _users.any((u) => u['phone'] == phone);
-            
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.blue.shade100,
-                child: Text(
-                  contact.displayName.substring(0, 1).toUpperCase(),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Stack(
+          children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: AppTheme.privooLightPurple.withValues(alpha: 0.2),
+              backgroundImage: user['avatarUrl'] != null ? NetworkImage(user['avatarUrl']) : null,
+              child: user['avatarUrl'] == null
+                  ? Text(
+                      (user['name']?.substring(0, 1) ?? 'U'),
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    )
+                  : null,
+            ),
+            if (user['isActive'] == true)
+              Positioned(
+                right: 2,
+                bottom: 2,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.privooSuccess,
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ),
-              title: Text(contact.displayName),
-              subtitle: Text(phone ?? 'لا يوجد رقم'),
-              trailing: isRegistered
-                  ? const Icon(Icons.check_circle, color: Colors.green)
-                  : OutlinedButton(
-                      onPressed: () => _inviteContact(contact),
-                      child: const Text('دعوة'),
-                    ),
-            );
-          },
+          ],
         ),
-        const Divider(),
-      ],
+        title: Text(
+          user['name'],
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              user['phone'] ?? '',
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            if (user['about'] != null)
+              Text(
+                user['about'],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+          ],
+        ),
+        trailing: ElevatedButton(
+          onPressed: () => _startChat(user['uid'], user['name'], user['avatarUrl']),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.privooLightPurple,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(25),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          ),
+          child: const Text('مراسلة', style: TextStyle(fontSize: 14)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactCard(Contact contact) {
+    final phone = contact.phones.isNotEmpty ? contact.phones.first.number : null;
+    final isRegistered = _users.any((u) => u['phone'] == phone);
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          radius: 28,
+          backgroundColor: AppTheme.privooLightPurple.withValues(alpha: 0.2),
+          child: Text(
+            contact.displayName.substring(0, 1).toUpperCase(),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+        ),
+        title: Text(
+          contact.displayName,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          phone ?? 'لا يوجد رقم',
+          style: const TextStyle(fontSize: 13, color: Colors.grey),
+        ),
+        trailing: isRegistered
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.privooSuccess.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle, size: 16, color: AppTheme.privooSuccess),
+                    const SizedBox(width: 4),
+                    Text(
+                      'مسجل',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.privooSuccess,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : OutlinedButton(
+                onPressed: () => _inviteContact(contact),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: AppTheme.privooGold),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                ),
+                child: Text(
+                  'دعوة',
+                  style: TextStyle(color: AppTheme.privooGold),
+                ),
+              ),
+      ),
     );
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -294,6 +424,16 @@ class _UsersListScreenState extends State<UsersListScreen> {
       appBar: AppBar(
         title: const Text('المستخدمين'),
         centerTitle: true,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppTheme.privooGold,
+          labelColor: AppTheme.privooGold,
+          unselectedLabelColor: Colors.white70,
+          tabs: const [
+            Tab(icon: Icon(Icons.people), text: 'المستخدمين'),
+            Tab(icon: Icon(Icons.contacts), text: 'جهات الاتصال'),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -301,7 +441,6 @@ class _UsersListScreenState extends State<UsersListScreen> {
               _loadUsers();
               _loadContacts();
             },
-            tooltip: 'تحديث',
           ),
         ],
       ),
@@ -314,80 +453,111 @@ class _UsersListScreenState extends State<UsersListScreen> {
               decoration: InputDecoration(
                 hintText: 'ابحث عن مستخدم...',
                 prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide.none,
+                ),
                 filled: true,
+                fillColor: Theme.of(context).cardColor,
               ),
               onChanged: _filterUsers,
             ),
           ),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ✅ قسم جهات الاتصال
-                        _buildContactsSection(),
-                        
-                        // ✅ قسم المستخدمين المسجلين
-                        if (_filteredUsers.isNotEmpty) ...[
-                          const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Text(
-                              '✅ مستخدمين Privoo',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // تبويب المستخدمين
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _filteredUsers.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.people_outline,
+                                  size: 80,
+                                  color: AppTheme.privooDeepPurple.withValues(alpha: 0.3),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'لا يوجد مستخدمون',
+                                  style: TextStyle(fontSize: 18),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'شارك التطبيق مع أصدقائك',
+                                  style: TextStyle(color: Colors.grey.shade600),
+                                ),
+                              ],
                             ),
-                          ),
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
+                          )
+                        : ListView.builder(
                             itemCount: _filteredUsers.length,
-                            itemBuilder: (context, index) {
-                              final user = _filteredUsers[index];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.green.shade100,
-                                  child: Text(
-                                    (user['name']?.substring(0, 1) ?? 'U'),
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                  ),
+                            itemBuilder: (context, index) => _buildUserCard(_filteredUsers[index]),
+                          ),
+                
+                // تبويب جهات الاتصال
+                _isContactsLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : !_hasPhonePermission
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.contacts_outlined,
+                                  size: 80,
+                                  color: AppTheme.privooDeepPurple.withValues(alpha: 0.3),
                                 ),
-                                title: Text(
-                                  user['name'],
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'يحتاج التطبيق إلى إذن قراءة جهات الاتصال',
+                                  style: TextStyle(fontSize: 16),
                                 ),
-                                subtitle: Text(user['phone'] ?? ''),
-                                trailing: ElevatedButton(
-                                  onPressed: () => _startChat(user['id'], user['name']),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: _loadContacts,
                                   style: ElevatedButton.styleFrom(
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
+                                      borderRadius: BorderRadius.circular(30),
                                     ),
                                   ),
-                                  child: const Text('محادثة'),
+                                  child: const Text('منح الإذن'),
                                 ),
-                              );
-                            },
-                          ),
-                        ],
-                        
-                        if (_filteredUsers.isEmpty && _phoneContacts.isEmpty)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(32),
-                              child: Column(
-                                children: [
-                                  Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                                  SizedBox(height: 16),
-                                  Text('لا يوجد مستخدمون أو جهات اتصال'),
-                                ],
-                              ),
+                              ],
                             ),
-                          ),
-                      ],
-                    ),
-                  ),
+                          )
+                        : _phoneContacts.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.contact_phone_outlined,
+                                      size: 80,
+                                      color: AppTheme.privooDeepPurple.withValues(alpha: 0.3),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      'لا توجد جهات اتصال',
+                                      style: TextStyle(fontSize: 18),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'أضف جهات اتصال إلى هاتفك',
+                                      style: TextStyle(color: Colors.grey.shade600),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                itemCount: _phoneContacts.length,
+                                itemBuilder: (context, index) => _buildContactCard(_phoneContacts[index]),
+                              ),
+              ],
+            ),
           ),
         ],
       ),

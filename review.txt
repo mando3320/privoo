@@ -1,0 +1,2057 @@
+// lib/main.dart
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:logger/logger.dart';
+import 'package:firebase_performance/firebase_performance.dart';
+
+import 'app.dart';
+// ❌ تم إزالة import 'core/device_helper.dart';
+import 'firebase/firebase_options.dart';
+import 'config/app_theme.dart';
+import 'controllers/app_controller.dart';
+import 'l10n/app_localizations.dart';
+import 'services/hive_storage_service.dart';
+
+final logger = Logger();
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await dotenv.load(fileName: ".env");
+    logger.i('✅ تم تحميل ملف .env بنجاح');
+
+    // ❌ تم إزالة كود DeviceHelper بالكامل
+    // if (Platform.isAndroid) {
+    //   final isProblematic = await DeviceHelper.isProblematicDevice();
+    //   if (isProblematic) {
+    //     logger.w('⚠️ تم اكتشاف جهاز OPPO / Realme / OnePlus / Vivo — تفعيل الحماية الخاصة.');
+    //   }
+    // }
+
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    logger.i('✅ تم تهيئة Firebase بنجاح');
+
+    await HiveStorageService.init();
+    logger.i('✅ تم تهيئة Hive Storage بنجاح');
+
+    const isReleaseMode = bool.fromEnvironment('dart.vm.product');
+    if (isReleaseMode) {
+      await FirebasePerformance.instance.setPerformanceCollectionEnabled(true);
+      logger.i('📊 Firebase Performance Monitoring enabled');
+    }
+
+    runApp(
+      const ProviderScope(
+        child: PrivooMainApp(),
+      ),
+    );
+  } catch (e, s) {
+    logger.e('❌ خطأ أثناء التهيئة: $e');
+    logger.e('Stacktrace: $s');
+    
+    // عرض شاشة خطأ بديلة
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('خطأ في تهيئة التطبيق: $e'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => main(),
+                  child: const Text('إعادة المحاولة'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class PrivooMainApp extends ConsumerWidget {
+  const PrivooMainApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final app = ref.watch(appControllerProvider);
+    
+    // الحصول على الثيم الحالي
+    final theme = app.getCurrentTheme();
+
+    return MaterialApp(
+      title: 'Privoo',
+      theme: theme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: app.themeMode,
+      locale: app.locale,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ar'), Locale('en'), Locale('fr'), Locale('es'),
+        Locale('de'), Locale('zh'), Locale('ru'), Locale('hi'),
+        Locale('tr'), Locale('ja'),
+      ],
+      home: const PrivooApp(),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}\n\n========== app_controller.dart ==========\n\n
+// controllers/app_controller.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../services/subscription_service.dart';
+import '../config/app_theme.dart';
+import '../main.dart';
+
+// 🔑 حالة التوكن
+final userAuthTokenProvider = StateProvider<String>((ref) => 'UNINITIALIZED_AUTH_TOKEN');
+
+// 🧠 الكنترولر الرئيسي
+final appControllerProvider = ChangeNotifierProvider<AppController>((ref) {
+  return AppController(ref);
+});
+
+class AppController extends ChangeNotifier {
+  final Ref _ref;
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
+  // 🌐 اللغة والثيم
+  Locale _locale = const Locale('ar');
+  ThemeMode _themeMode = ThemeMode.system;
+  
+  // ✅ إضافة دعم الثيمات المتعددة
+  String _themeName = 'Blue Light';
+  ThemeData? _cachedTheme;
+
+  // 👑 الاشتراك
+  bool _isPro = false;
+  bool _isLifetime = false;
+
+  // 🔒 إعدادات الخصوصية
+  bool _lockApp = false;
+  bool _hideLastSeen = false;
+  bool _hideOnlineStatus = false;
+  bool _notificationsEnabled = true;
+  bool _vibrationEnabled = true;
+  bool _readReceipts = true;
+
+  // 💬 إعدادات الدردشة
+  String _chatWallpaper = "default";
+  double _chatFontSize = 14.0;
+
+  // ⚙️ توفير البيانات
+  bool _dataSaverEnabled = false;
+
+  // 📊 التقييد اليومي للمستخدم المجاني
+  int _messagesToday = 0;
+  String _lastMessageDate = "";
+  int get dailyFreeLimit => 30;
+
+  // 🔐 إعدادات الأمان (Privoo v2)
+  String _myFingerprint = "";
+  String _peerFingerprint = "";
+  int _protocolVersion = 2;
+  String _defaultAlgorithm = "AES-GCM-256";
+
+  // ✅ المهمة 51: إعدادات المصادقة البيومترية
+  bool _biometricEnabled = false;
+
+  // =======================
+  //       GETTERS
+  // =======================
+  Locale get locale => _locale;
+  ThemeMode get themeMode => _themeMode;
+  String get themeName => _themeName;
+  bool get isPro => _isPro;
+  bool get isLifetime => _isLifetime;
+  bool get lockApp => _lockApp;
+  bool get hideLastSeen => _hideLastSeen;
+  bool get hideOnlineStatus => _hideOnlineStatus;
+  bool get notificationsEnabled => _notificationsEnabled;
+  bool get vibrationEnabled => _vibrationEnabled;
+  bool get readReceipts => _readReceipts;
+  String get chatWallpaper => _chatWallpaper;
+  double get chatFontSize => _chatFontSize;
+  bool get dataSaverEnabled => _dataSaverEnabled;
+  int get messagesToday => _messagesToday;
+  bool get canSendMessage => (_isPro || _isLifetime) || (_messagesToday < dailyFreeLimit);
+  String get myFingerprint => _myFingerprint;
+  String get peerFingerprint => _peerFingerprint;
+  int get protocolVersion => _protocolVersion;
+  String get defaultAlgorithm => _defaultAlgorithm;
+  bool get biometricEnabled => _biometricEnabled;
+
+  AppController(this._ref) {
+    _loadPreferences();
+  }
+
+  // ✅ دوال التخزين الآمن
+  Future<void> _saveSecureBool(String key, bool value) async {
+    await _secureStorage.write(key: key, value: value.toString());
+  }
+  
+  Future<bool> _loadSecureBool(String key, {bool defaultValue = false}) async {
+    final value = await _secureStorage.read(key: key);
+    if (value == null) return defaultValue;
+    return value == 'true';
+  }
+  
+  // Note: string secure storage helpers were removed because they're unused.
+
+  // =======================
+  //   تحميل الإعدادات
+  // =======================
+  Future<void> _loadPreferences() async {
+    try {
+      _isPro = await _loadSecureBool('isPro_cached');
+      _isLifetime = await _loadSecureBool('isLifetime_cached');
+      _lockApp = await _loadSecureBool('lockApp');
+      _hideLastSeen = await _loadSecureBool('hideLastSeen');
+      _hideOnlineStatus = await _loadSecureBool('hideOnlineStatus');
+      _notificationsEnabled = await _loadSecureBool('notificationsEnabled');
+      _vibrationEnabled = await _loadSecureBool('vibrationEnabled');
+      _readReceipts = await _loadSecureBool('readReceipts');
+      _dataSaverEnabled = await _loadSecureBool('dataSaverEnabled');
+      _biometricEnabled = await _loadSecureBool('biometricEnabled');
+
+      final prefs = await SharedPreferences.getInstance();
+      _locale = Locale(prefs.getString('language') ?? 'ar');
+      
+      // ✅ تحميل الثيم المختار مع التحقق من وجوده
+      String savedTheme = prefs.getString('theme_name') ?? 'Blue Light';
+      // التأكد أن الثيم المحفوظ متاح للمستخدم (إذا كان Pro سابقاً وأصبح Free)
+      if (!AppTheme.isThemeAvailable(savedTheme, _isPro)) {
+        savedTheme = 'Blue Light';
+      }
+      _themeName = AppTheme.allThemes.containsKey(savedTheme) ? savedTheme : 'Blue Light';
+      
+      _themeMode = (prefs.getBool('darkMode') ?? false) ? ThemeMode.dark : ThemeMode.light;
+      
+      _chatWallpaper = prefs.getString('chatWallpaper') ?? "default";
+      _chatFontSize = prefs.getDouble('chatFontSize') ?? 14.0;
+      _protocolVersion = prefs.getInt('protocolVersion') ?? 2;
+      _defaultAlgorithm = prefs.getString('defaultAlgorithm') ?? "AES-GCM-256";
+      _myFingerprint = prefs.getString('myFingerprint') ?? "";
+      _peerFingerprint = prefs.getString('peerFingerprint') ?? "";
+
+      await _loadMessageCount();
+
+      notifyListeners();
+      logger.d("✅ إعدادات التطبيق تم تحميلها بنجاح. الثيم الحالي: $_themeName (isPro: $_isPro)");
+
+      final token = _ref.read(userAuthTokenProvider);
+      if (token != 'UNINITIALIZED_AUTH_TOKEN') {
+        await fetchAndVerifyUserStatus(token);
+      }
+    } catch (e) {
+      logger.e("❌ خطأ أثناء تحميل الإعدادات: $e");
+    }
+  }
+
+  // =======================
+  //   عداد الرسائل اليومية
+  // =======================
+  Future<void> _loadMessageCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    _lastMessageDate = prefs.getString('lastMessageDate') ?? '';
+
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+
+    if (_lastMessageDate != today) {
+      _messagesToday = 0;
+      _lastMessageDate = today;
+      await prefs.setString('lastMessageDate', today);
+      await prefs.setInt('messagesToday', 0);
+    } else {
+      _messagesToday = prefs.getInt('messagesToday') ?? 0;
+    }
+  }
+
+  Future<void> incrementMessageCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+
+    if (_lastMessageDate != today) {
+      _messagesToday = 1;
+      _lastMessageDate = today;
+      await prefs.setString('lastMessageDate', today);
+    } else {
+      _messagesToday++;
+    }
+
+    await prefs.setInt('messagesToday', _messagesToday);
+    notifyListeners();
+  }
+
+  // =======================
+  //   الاشتراك / التحقق
+  // =======================
+  Future<void> fetchAndVerifyUserStatus(String token) async {
+    logger.i("🔄 التحقق من حالة اشتراك المستخدم...");
+
+    if (token == 'UNINITIALIZED_AUTH_TOKEN') {
+      logger.w("⚠️ لا يمكن التحقق: رمز المصادقة غير جاهز.");
+      return;
+    }
+
+    try {
+      final subService = SubscriptionService(userAuthToken: token);
+      final response = await subService.checkUserSubscriptionStatus();
+
+      await _updateSubscriptionStatus(
+        isPro: response['isPro'] ?? false,
+        isLifetime: response['isLifetime'] ?? false,
+      );
+    } catch (e) {
+      logger.e("❌ فشل التحقق من الاشتراك: $e");
+    }
+  }
+
+  Future<void> _updateSubscriptionStatus({
+    required bool isPro,
+    required bool isLifetime,
+  }) async {
+    final wasPro = _isPro;
+    _isPro = isPro;
+    _isLifetime = isLifetime;
+
+    await _saveSecureBool('isPro_cached', isPro);
+    await _saveSecureBool('isLifetime_cached', isLifetime);
+
+    // ✅ إذا تغيرت حالة Pro وأصبح المستخدم مجانياً، تحقق من الثيم الحالي
+    if (wasPro && !isPro) {
+      if (!AppTheme.isThemeAvailable(_themeName, false)) {
+        _themeName = 'Blue Light';
+        _cachedTheme = null;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('theme_name', _themeName);
+        logger.w("⚠️ تم تغيير الثيم إلى الافتراضي لأن المستخدم أصبح مجانياً");
+      }
+    }
+
+    notifyListeners();
+    logger.d("🔐 تحديث الاشتراك: Pro=$isPro, Lifetime=$isLifetime");
+  }
+
+  /// Public wrapper so other controllers can update subscription state.
+  Future<void> updateSubscriptionStatus({
+    required bool isPro,
+    required bool isLifetime,
+  }) async {
+    await _updateSubscriptionStatus(isPro: isPro, isLifetime: isLifetime);
+  }
+
+  // =======================
+  //       الأمان
+  // =======================
+  Future<void> updateMyFingerprint(String fp) async {
+    _myFingerprint = fp;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('myFingerprint', fp);
+    notifyListeners();
+    logger.d("🔐 بصمة المستخدم تم تحديثها.");
+  }
+
+  Future<void> updatePeerFingerprint(String fp) async {
+    _peerFingerprint = fp;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('peerFingerprint', fp);
+    notifyListeners();
+    logger.d("🔐 بصمة الطرف الآخر تم تحديثها.");
+  }
+
+  Future<void> setProtocolVersion(int v) async {
+    _protocolVersion = v;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('protocolVersion', v);
+    notifyListeners();
+  }
+
+  Future<void> setDefaultAlgorithm(String alg) async {
+    _defaultAlgorithm = alg;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('defaultAlgorithm', alg);
+    notifyListeners();
+  }
+
+  // ✅ المهمة 51: تفعيل/تعطيل المصادقة البيومترية
+  Future<void> toggleBiometricLock(bool value) async {
+    _biometricEnabled = value;
+    await _saveSecureBool('biometricEnabled', value);
+    notifyListeners();
+    logger.d("🔐 المصادقة البيومترية: ${value ? 'مفعّلة' : 'معطلة'}");
+  }
+
+  // ============================================================
+  // 🎨 إدارة الثيمات المتعددة
+  // ============================================================
+  
+  Future<void> setTheme(String themeName) async {
+    // ✅ التحقق من صلاحية المستخدم للثيم (مجاني vs Pro)
+    if (!AppTheme.isThemeAvailable(themeName, _isPro)) {
+      logger.w("⚠️ محاولة تغيير ثيم غير متاح للمستخدم: $themeName (isPro: $_isPro)");
+      return;
+    }
+    
+    if (AppTheme.allThemes.containsKey(themeName)) {
+      _themeName = themeName;
+      _cachedTheme = null;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('theme_name', themeName);
+      notifyListeners();
+      logger.d("🎨 تم تغيير الثيم إلى: $themeName");
+    } else {
+      logger.w("⚠️ محاولة تغيير ثيم غير موجود: $themeName");
+    }
+  }
+  
+  // ✅ الحصول على الثيم الحالي مع التخزين المؤقت
+  ThemeData getCurrentTheme() {
+    _cachedTheme ??= AppTheme.getTheme(_themeName);
+    return _cachedTheme!;
+  }
+  
+  // ✅ الحصول على الثيمات المتاحة للمستخدم الحالي
+  List<String> getAvailableThemes() {
+    return AppTheme.getAvailableThemesForUser(_isPro);
+  }
+  
+  // ✅ عدد الثيمات المحظورة (التي تتطلب ترقية)
+  int getLockedThemesCount() {
+    return AppTheme.lockedThemesCount;
+  }
+
+  // =======================
+  //    الإعدادات العامة
+  // =======================
+  Future<void> updateLanguage(String langCode) async {
+    _locale = Locale(langCode);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('language', langCode);
+    notifyListeners();
+  }
+
+  Future<void> toggleTheme(bool isDark) async {
+    _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('darkMode', isDark);
+    notifyListeners();
+  }
+
+  Future<void> toggleLockApp(bool value) async {
+    _lockApp = value;
+    await _saveSecureBool('lockApp', value);
+    notifyListeners();
+  }
+
+  Future<void> toggleHideLastSeen(bool value) async {
+    _hideLastSeen = value;
+    await _saveSecureBool('hideLastSeen', value);
+    notifyListeners();
+  }
+
+  Future<void> toggleHideOnlineStatus(bool value) async {
+    _hideOnlineStatus = value;
+    await _saveSecureBool('hideOnlineStatus', value);
+    notifyListeners();
+  }
+
+  Future<void> toggleNotifications(bool value) async {
+    _notificationsEnabled = value;
+    await _saveSecureBool('notificationsEnabled', value);
+    notifyListeners();
+  }
+
+  Future<void> toggleVibration(bool value) async {
+    _vibrationEnabled = value;
+    await _saveSecureBool('vibrationEnabled', value);
+    notifyListeners();
+  }
+
+  Future<void> toggleReadReceipts(bool value) async {
+    _readReceipts = value;
+    await _saveSecureBool('readReceipts', value);
+    notifyListeners();
+  }
+
+  Future<void> setChatWallpaper(String value) async {
+    _chatWallpaper = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('chatWallpaper', value);
+    notifyListeners();
+  }
+
+  Future<void> setChatFontSize(double value) async {
+    _chatFontSize = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('chatFontSize', value);
+    notifyListeners();
+  }
+
+  Future<void> toggleDataSaver(bool value) async {
+    _dataSaverEnabled = value;
+    await _saveSecureBool('dataSaverEnabled', value);
+    notifyListeners();
+  }
+
+  // =======================
+  //      أدوات الإدارة
+  // =======================
+  Future<void> clearCache() async {
+    logger.i("🧹 جاري مسح كاش التطبيق...");
+  }
+
+  Future<void> resetSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final secureKeys = [
+      'isPro_cached',
+      'isLifetime_cached',
+      'lockApp',
+      'hideLastSeen',
+      'hideOnlineStatus',
+      'notificationsEnabled',
+      'vibrationEnabled',
+      'readReceipts',
+      'dataSaverEnabled',
+      'biometricEnabled',
+    ];
+    
+    final normalKeys = [
+      'language',
+      'darkMode',
+      'theme_name',
+      'chatWallpaper',
+      'chatFontSize',
+      'protocolVersion',
+      'defaultAlgorithm',
+      'myFingerprint',
+      'peerFingerprint',
+    ];
+
+    logger.i("♻️ إعادة ضبط جميع الإعدادات…");
+
+    for (var key in secureKeys) {
+      await _secureStorage.delete(key: key);
+    }
+    for (var key in normalKeys) {
+      await prefs.remove(key);
+    }
+
+    // ✅ إعادة تعيين القيم الافتراضية
+    _themeName = 'Blue Light';
+    _cachedTheme = null;
+    _themeMode = ThemeMode.system;
+    _locale = const Locale('ar');
+
+    await _loadPreferences();
+    logger.i("✅ تمت إعادة ضبط الإعدادات بنجاح.");
+  }
+}\n\n========== app_theme.dart ==========\n\n
+// lib/config/app_theme.dart
+import 'package:flutter/material.dart';
+
+class AppTheme {
+  // ============================================================
+  // 🎨 ألوان Privoo - مطابقة للوجو (أرجواني داكن + ذهبي)
+  // ============================================================
+  
+  // الألوان الأساسية من اللوجو
+  static const Color privooDeepPurple = Color(0xFF2D1B4E);
+  static const Color privooGold = Color(0xFFFFD700);
+  static const Color privooLightPurple = Color(0xFF7B2F9D);
+  static const Color privooDarkBg = Color(0xFF1A1A2E);
+  static const Color privooLightBg = Color(0xFFF8F9FA);
+  static const Color privooCardDark = Color(0xFF16213E);
+  static const Color privooCardLight = Color(0xFFFFFFFF);
+  
+  // ✅ ألوان إضافية مطلوبة للشاشات
+  static const Color privooSuccess = Color(0xFF4CAF50);
+  static const Color privooError = Color(0xFFE53935);
+  static const Color privooInfo = Color(0xFF2196F3);
+  
+  // ألوان إضافية للميزات (محتفظ بها من الكود الأصلي)
+  static const Color privooBlue = Color(0xFF0066FF);
+  static const Color privooRed = Color(0xFFFF3B30);
+  static const Color privooGreen = Color(0xFF4CAF50);
+  static const Color privooYellow = Color(0xFFFFC107);
+  static const Color privooOrange = Color(0xFFFF9800);
+  static const Color privooPink = Color(0xFFE91E63);
+  static const Color privooTeal = Color(0xFF009688);
+  static const Color privooCyan = Color(0xFF00BCD4);
+  static const Color privooIndigo = Color(0xFF3F51B5);
+  static const Color privooLime = Color(0xFFCDDC39);
+  static const Color privooBrown = Color(0xFF795548);
+  static const Color privooGrey = Color(0xFF9E9E9E);
+  static const Color privooDark = Color(0xFF121212);
+  static const Color privooPurple = Color(0xFF9C27B0);
+
+  // ============================================================
+  // 🎨 تدرجات لونية (Gradients)
+  // ============================================================
+  static const LinearGradient appBarGradient = LinearGradient(
+    colors: [privooDeepPurple, privooLightPurple],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient buttonGradient = LinearGradient(
+    colors: [privooDeepPurple, privooLightPurple],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
+  static const LinearGradient fabGradient = LinearGradient(
+    colors: [privooLightPurple, privooGold],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static final LinearGradient cardGradient = LinearGradient(
+    colors: [Colors.white.withValues(alpha: 0.10), Colors.white.withValues(alpha: 0.05)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient mainGradient = LinearGradient(
+    colors: [privooDeepPurple, privooLightPurple, privooGold],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static const LinearGradient goldGradient = LinearGradient(
+    colors: [privooGold, Color(0xFFFFA500)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // ============================================================
+  // 🎨 Helper Shadows
+  // ============================================================
+  static BoxShadow mainShadow(Color color) => BoxShadow(
+        color: color.withValues(alpha: 0.25),
+        blurRadius: 12,
+        offset: const Offset(0, 6),
+      );
+  
+  static BoxShadow goldShadow = BoxShadow(
+    color: privooGold.withValues(alpha: 0.3),
+    blurRadius: 12,
+    offset: const Offset(0, 6),
+  );
+
+  // ============================================================
+  // ✅ تصنيف الثيمات حسب نوع الاشتراك
+  // ============================================================
+  
+  static const Set<String> freeThemes = {
+    'Privoo Light',
+    'Privoo Dark',
+    'Blue Light',
+    'Blue Dark',
+    'Grey Light',
+    'Grey Dark',
+    'Purple Light',
+    'Purple Dark',
+  };
+  
+  static final Map<String, ThemeData> allThemes = {
+    'Privoo Light': privooLightTheme,
+    'Privoo Dark': privooDarkTheme,
+    'Blue Light': blueLightTheme,
+    'Blue Dark': blueDarkTheme,
+    'Grey Light': greyLightTheme,
+    'Grey Dark': greyDarkTheme,
+    'Purple Light': purpleLightTheme,
+    'Purple Dark': purpleDarkTheme,
+    'Red Light': redLightTheme,
+    'Red Dark': redDarkTheme,
+    'Green Light': greenLightTheme,
+    'Green Dark': greenDarkTheme,
+    'Yellow Light': yellowLightTheme,
+    'Yellow Dark': yellowDarkTheme,
+    'Orange Light': orangeLightTheme,
+    'Orange Dark': orangeDarkTheme,
+    'Pink Light': pinkLightTheme,
+    'Pink Dark': pinkDarkTheme,
+    'Teal Light': tealLightTheme,
+    'Teal Dark': tealDarkTheme,
+    'Cyan Light': cyanLightTheme,
+    'Cyan Dark': cyanDarkTheme,
+    'Indigo Light': indigoLightTheme,
+    'Indigo Dark': indigoDarkTheme,
+    'Neon Dark': neonDarkTheme,
+  };
+
+  static List<String> get allThemeNames => allThemes.keys.toList();
+  
+  static bool isThemeAvailable(String themeName, bool isPro) {
+    if (freeThemes.contains(themeName)) return true;
+    if (isPro && allThemes.containsKey(themeName)) return true;
+    return false;
+  }
+  
+  static List<String> getAvailableThemesForUser(bool isPro) {
+    if (isPro) {
+      return allThemeNames;
+    } else {
+      return allThemeNames.where((theme) => freeThemes.contains(theme)).toList();
+    }
+  }
+  
+  static int get lockedThemesCount => allThemeNames.length - freeThemes.length;
+
+  // ============================================================
+  // 🎨 تعريف الثيمات
+  // ============================================================
+
+  static final ThemeData privooLightTheme = _buildTheme(
+    brightness: Brightness.light,
+    primaryColor: privooDeepPurple,
+    secondaryColor: privooGold,
+    backgroundColor: privooLightBg,
+    scaffoldColor: privooLightBg,
+    appBarColor: privooDeepPurple,
+    cardColor: privooDeepPurple.withValues(alpha: 0.05),
+    name: 'Privoo Light',
+  );
+
+  static final ThemeData privooDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: privooLightPurple,
+    secondaryColor: privooGold,
+    backgroundColor: privooDarkBg,
+    scaffoldColor: privooDarkBg,
+    appBarColor: privooDarkBg,
+    cardColor: privooLightPurple.withValues(alpha: 0.1),
+    name: 'Privoo Dark',
+  );
+
+  static final ThemeData blueLightTheme = _buildTheme(
+    brightness: Brightness.light,
+    primaryColor: privooBlue,
+    secondaryColor: privooPurple,
+    backgroundColor: Colors.white,
+    scaffoldColor: Colors.white,
+    appBarColor: privooBlue,
+    cardColor: privooBlue.withValues(alpha: 0.05),
+    name: 'Blue Light',
+  );
+
+  static final ThemeData blueDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: privooBlue,
+    secondaryColor: privooPurple,
+    backgroundColor: privooDark,
+    scaffoldColor: privooDark,
+    appBarColor: privooDark,
+    cardColor: privooBlue.withValues(alpha: 0.1),
+    name: 'Blue Dark',
+  );
+
+  static final ThemeData greyLightTheme = _buildTheme(
+    brightness: Brightness.light,
+    primaryColor: privooGrey,
+    secondaryColor: privooBlue,
+    backgroundColor: Colors.white,
+    scaffoldColor: Colors.white,
+    appBarColor: privooGrey,
+    cardColor: privooGrey.withValues(alpha: 0.05),
+    name: 'Grey Light',
+  );
+
+  static final ThemeData greyDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: privooGrey,
+    secondaryColor: privooBlue,
+    backgroundColor: privooDark,
+    scaffoldColor: privooDark,
+    appBarColor: privooDark,
+    cardColor: privooGrey.withValues(alpha: 0.1),
+    name: 'Grey Dark',
+  );
+
+  static final ThemeData purpleLightTheme = _buildTheme(
+    brightness: Brightness.light,
+    primaryColor: privooPurple,
+    secondaryColor: privooPink,
+    backgroundColor: Colors.white,
+    scaffoldColor: Colors.white,
+    appBarColor: privooPurple,
+    cardColor: privooPurple.withValues(alpha: 0.05),
+    name: 'Purple Light',
+  );
+
+  static final ThemeData purpleDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: privooPurple,
+    secondaryColor: privooPink,
+    backgroundColor: privooDark,
+    scaffoldColor: privooDark,
+    appBarColor: privooDark,
+    cardColor: privooPurple.withValues(alpha: 0.1),
+    name: 'Purple Dark',
+  );
+
+  static final ThemeData redLightTheme = _buildTheme(
+    brightness: Brightness.light,
+    primaryColor: privooRed,
+    secondaryColor: privooOrange,
+    backgroundColor: Colors.white,
+    scaffoldColor: Colors.white,
+    appBarColor: privooRed,
+    cardColor: privooRed.withValues(alpha: 0.05),
+    name: 'Red Light',
+  );
+
+  static final ThemeData redDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: privooRed,
+    secondaryColor: privooOrange,
+    backgroundColor: privooDark,
+    scaffoldColor: privooDark,
+    appBarColor: privooDark,
+    cardColor: privooRed.withValues(alpha: 0.1),
+    name: 'Red Dark',
+  );
+
+  static final ThemeData greenLightTheme = _buildTheme(
+    brightness: Brightness.light,
+    primaryColor: privooGreen,
+    secondaryColor: privooTeal,
+    backgroundColor: Colors.white,
+    scaffoldColor: Colors.white,
+    appBarColor: privooGreen,
+    cardColor: privooGreen.withValues(alpha: 0.05),
+    name: 'Green Light',
+  );
+
+  static final ThemeData greenDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: privooGreen,
+    secondaryColor: privooTeal,
+    backgroundColor: privooDark,
+    scaffoldColor: privooDark,
+    appBarColor: privooDark,
+    cardColor: privooGreen.withValues(alpha: 0.1),
+    name: 'Green Dark',
+  );
+
+  static final ThemeData yellowLightTheme = _buildTheme(
+    brightness: Brightness.light,
+    primaryColor: privooYellow,
+    secondaryColor: privooOrange,
+    backgroundColor: Colors.white,
+    scaffoldColor: Colors.white,
+    appBarColor: privooYellow,
+    cardColor: privooYellow.withValues(alpha: 0.05),
+    name: 'Yellow Light',
+  );
+
+  static final ThemeData yellowDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: privooYellow,
+    secondaryColor: privooOrange,
+    backgroundColor: privooDark,
+    scaffoldColor: privooDark,
+    appBarColor: privooDark,
+    cardColor: privooYellow.withValues(alpha: 0.1),
+    name: 'Yellow Dark',
+  );
+
+  static final ThemeData orangeLightTheme = _buildTheme(
+    brightness: Brightness.light,
+    primaryColor: privooOrange,
+    secondaryColor: privooRed,
+    backgroundColor: Colors.white,
+    scaffoldColor: Colors.white,
+    appBarColor: privooOrange,
+    cardColor: privooOrange.withValues(alpha: 0.05),
+    name: 'Orange Light',
+  );
+
+  static final ThemeData orangeDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: privooOrange,
+    secondaryColor: privooRed,
+    backgroundColor: privooDark,
+    scaffoldColor: privooDark,
+    appBarColor: privooDark,
+    cardColor: privooOrange.withValues(alpha: 0.1),
+    name: 'Orange Dark',
+  );
+
+  static final ThemeData pinkLightTheme = _buildTheme(
+    brightness: Brightness.light,
+    primaryColor: privooPink,
+    secondaryColor: privooPurple,
+    backgroundColor: Colors.white,
+    scaffoldColor: Colors.white,
+    appBarColor: privooPink,
+    cardColor: privooPink.withValues(alpha: 0.05),
+    name: 'Pink Light',
+  );
+
+  static final ThemeData pinkDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: privooPink,
+    secondaryColor: privooPurple,
+    backgroundColor: privooDark,
+    scaffoldColor: privooDark,
+    appBarColor: privooDark,
+    cardColor: privooPink.withValues(alpha: 0.1),
+    name: 'Pink Dark',
+  );
+
+  static final ThemeData tealLightTheme = _buildTheme(
+    brightness: Brightness.light,
+    primaryColor: privooTeal,
+    secondaryColor: privooCyan,
+    backgroundColor: Colors.white,
+    scaffoldColor: Colors.white,
+    appBarColor: privooTeal,
+    cardColor: privooTeal.withValues(alpha: 0.05),
+    name: 'Teal Light',
+  );
+
+  static final ThemeData tealDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: privooTeal,
+    secondaryColor: privooCyan,
+    backgroundColor: privooDark,
+    scaffoldColor: privooDark,
+    appBarColor: privooDark,
+    cardColor: privooTeal.withValues(alpha: 0.1),
+    name: 'Teal Dark',
+  );
+
+  static final ThemeData cyanLightTheme = _buildTheme(
+    brightness: Brightness.light,
+    primaryColor: privooCyan,
+    secondaryColor: privooBlue,
+    backgroundColor: Colors.white,
+    scaffoldColor: Colors.white,
+    appBarColor: privooCyan,
+    cardColor: privooCyan.withValues(alpha: 0.05),
+    name: 'Cyan Light',
+  );
+
+  static final ThemeData cyanDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: privooCyan,
+    secondaryColor: privooBlue,
+    backgroundColor: privooDark,
+    scaffoldColor: privooDark,
+    appBarColor: privooDark,
+    cardColor: privooCyan.withValues(alpha: 0.1),
+    name: 'Cyan Dark',
+  );
+
+  static final ThemeData indigoLightTheme = _buildTheme(
+    brightness: Brightness.light,
+    primaryColor: privooIndigo,
+    secondaryColor: privooPurple,
+    backgroundColor: Colors.white,
+    scaffoldColor: Colors.white,
+    appBarColor: privooIndigo,
+    cardColor: privooIndigo.withValues(alpha: 0.05),
+    name: 'Indigo Light',
+  );
+
+  static final ThemeData indigoDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: privooIndigo,
+    secondaryColor: privooPurple,
+    backgroundColor: privooDark,
+    scaffoldColor: privooDark,
+    appBarColor: privooDark,
+    cardColor: privooIndigo.withValues(alpha: 0.1),
+    name: 'Indigo Dark',
+  );
+
+  static final ThemeData neonDarkTheme = _buildTheme(
+    brightness: Brightness.dark,
+    primaryColor: Colors.cyanAccent,
+    secondaryColor: Colors.pinkAccent,
+    backgroundColor: Colors.black,
+    scaffoldColor: Colors.black,
+    appBarColor: Colors.black,
+    cardColor: Colors.cyanAccent.withValues(alpha: 0.1),
+    name: 'Neon Dark',
+    customCardColor: Colors.cyanAccent.withValues(alpha: 0.15),
+    customButtonGradient: const LinearGradient(
+      colors: [Colors.cyanAccent, Colors.pinkAccent],
+    ),
+  );
+
+  // ============================================================
+  // 🎨 دالة بناء الثيم (المساعدة)
+  // ============================================================
+  static ThemeData _buildTheme({
+    required Brightness brightness,
+    required Color primaryColor,
+    required Color secondaryColor,
+    required Color backgroundColor,
+    required Color scaffoldColor,
+    required Color appBarColor,
+    required Color cardColor,
+    required String name,
+    Color? customCardColor,
+    LinearGradient? customButtonGradient,
+  }) {
+    final isDark = brightness == Brightness.dark;
+    
+    return ThemeData(
+      brightness: brightness,
+      useMaterial3: true,
+      fontFamily: 'Cairo',
+      
+      colorScheme: ColorScheme(
+        brightness: brightness,
+        primary: primaryColor,
+        onPrimary: Colors.white,
+        secondary: secondaryColor,
+        onSecondary: Colors.black,
+        error: privooRed,
+        onError: Colors.white,
+        surface: scaffoldColor,
+        onSurface: isDark ? Colors.white : Colors.black,
+      ),
+      
+      scaffoldBackgroundColor: scaffoldColor,
+      
+      appBarTheme: AppBarTheme(
+        backgroundColor: appBarColor,
+        foregroundColor: Colors.white,
+        elevation: isDark ? 0 : 6,
+        centerTitle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+        ),
+      ),
+      
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: secondaryColor,
+        foregroundColor: Colors.white,
+        elevation: 10,
+        shape: const CircleBorder(),
+      ),
+      
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(vertical: 16, horizontal: 28),
+          ),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          ),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return secondaryColor.withValues(alpha: 0.9);
+            }
+            return primaryColor;
+          }),
+          foregroundColor: WidgetStateProperty.all(Colors.white),
+          elevation: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return 14;
+            return 8;
+          }),
+        ),
+      ),
+      
+      cardTheme: CardThemeData(
+        color: customCardColor ?? cardColor,
+        shadowColor: primaryColor.withValues(alpha: isDark ? 0.5 : 0.35),
+        elevation: isDark ? 10 : 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        clipBehavior: Clip.antiAlias,
+      ),
+      
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: isDark 
+            ? scaffoldColor.withValues(alpha: 0.8)
+            : Colors.grey.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+      ),
+      
+      chipTheme: ChipThemeData(
+        backgroundColor: primaryColor.withValues(alpha: 0.1),
+        selectedColor: primaryColor,
+        secondarySelectedColor: secondaryColor,
+        labelStyle: TextStyle(color: isDark ? Colors.white : Colors.black),
+      ),
+      
+      dividerTheme: DividerThemeData(
+        color: isDark ? Colors.white24 : Colors.black12,
+        thickness: 1,
+      ),
+    );
+  }
+
+  // ============================================================
+  // 🎨 دوال المساعدة (Helper Functions)
+  // ============================================================
+  
+  static ThemeData getTheme(String themeName) {
+    return allThemes[themeName] ?? privooLightTheme;
+  }
+  
+  static String getThemeName(ThemeData theme) {
+    final entry = allThemes.entries.firstWhere(
+      (entry) => entry.value == theme,
+      orElse: () => MapEntry('Privoo Light', privooLightTheme),
+    );
+    return entry.key;
+  }
+  
+  static final ThemeData lightTheme = privooLightTheme;
+  static final ThemeData darkTheme = privooDarkTheme;
+}\n\n========== app.dart ==========\n\n
+// lib/app.dart
+// ============================================================
+// 🚀 جميع الـ imports في الأعلى أولاً
+// ============================================================
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:logger/logger.dart';
+import 'services/firebase/notification_service.dart';
+
+// 📁 استيراد جميع شاشات التطبيق
+import 'views/auth/otp_login_screen.dart';  // ✅ أصبحت الأساسية
+import 'views/auth/login_screen.dart';      // 📦 احتياطي (يمكن حذفه أو الاحتفاظ به)
+import 'views/auth/profile_setup_screen.dart';
+import 'views/auth/age_verification_screen.dart';
+import 'views/auth/terms_acceptance_screen.dart';
+import 'views/auth/verify_screen.dart';
+import 'views/auth/invite_screen.dart';
+
+import 'views/home_screen.dart';
+import 'views/settings/setting_screen.dart';
+import 'views/settings/splash_screen.dart';
+import 'views/settings/upgrade_pro_view.dart';
+import 'views/settings/compliance_screen.dart';
+import 'views/settings/theme_selector_screen.dart';
+import 'views/settings/privacy_settings_screen.dart';
+import 'views/settings/scientific_achievements_screen.dart';
+import 'views/settings/about_screen.dart';
+import 'views/settings/chat_with_developer_screen.dart';
+import 'views/settings/encryption_info_screen.dart';
+import 'views/settings/export_data_screen.dart';
+import 'views/settings/delete_account_screen.dart';
+
+import 'views/chat/smart_chat_screen.dart';
+import 'views/chat/create_group_screen.dart';
+import 'views/chat/group_details_screen.dart';
+import 'views/chat/pinned_messages_screen.dart';
+
+import 'views/call/call_screen.dart';
+import 'views/call/group_call_screen.dart';
+import 'views/incoming_call_screen.dart';
+
+import 'views/block_list_screen.dart';
+import 'views/channel_list_screen.dart';
+import 'views/channel_screen.dart';
+import 'views/create_channel_screen.dart';
+import 'views/search_screen.dart';
+import 'views/sticker/sticker_maker_screen.dart';
+import 'views/users/users_list_screen.dart';
+
+import 'views/admin/manage_admins_screen.dart';
+import 'views/admin/support_tickets_screen.dart';
+import 'views/admin/manage_users_screen.dart';
+import 'views/admin/manage_offers_screen.dart';
+
+// ============================================================
+// 📦 تعريف المتغيرات بعد الـ imports
+// ============================================================
+final _logger = Logger();
+
+final notificationServiceProvider = Provider((ref) {
+  final service = NotificationService();
+  _logger.i("🔔 تم تهيئة NotificationService باستخدام Riverpod.");
+  return service;
+});
+
+// ============================================================
+// 🏠 التطبيق الرئيسي
+// ============================================================
+class PrivooApp extends ConsumerStatefulWidget {
+  const PrivooApp({super.key});
+
+  @override
+  ConsumerState<PrivooApp> createState() => _PrivooAppState();
+}
+
+class _PrivooAppState extends ConsumerState<PrivooApp> {
+  bool _isInitialized = false;
+  String _nextRoute = '/splash';
+  Map<String, String>? _chatArgs;
+
+  @override
+  void initState() {
+    super.initState();
+    _initApp();
+  }
+
+  Future<void> _initApp() async {
+    try {
+      ref.read(notificationServiceProvider);
+      _logger.i("✅ تم تهيئة NotificationService");
+
+      final user = FirebaseAuth.instance.currentUser;
+      
+      if (user != null) {
+        _nextRoute = '/home';
+        _logger.i("✅ المستخدم مسجل: ${user.uid} - التوجيه إلى HomeScreen");
+      } else {
+        _nextRoute = '/login';
+        _logger.i("👤 المستخدم غير مسجل - التوجيه إلى شاشة تسجيل الدخول");
+      }
+
+      setState(() => _isInitialized = true);
+    } catch (e, s) {
+      _logger.e("❌ خطأ أثناء تهيئة التطبيق: $e");
+      _logger.e("Stacktrace: $s");
+      setState(() {
+        _isInitialized = true;
+        _nextRoute = '/login';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isInitialized) {
+      return const SplashScreen();
+    }
+
+    return WillPopScope(
+      onWillPop: () async {
+        final shouldPop = await _onWillPop();
+        return shouldPop;
+      },
+      child: Navigator(
+        key: UniqueKey(),
+        initialRoute: _nextRoute,
+        onGenerateRoute: _generateRoute,
+      ),
+    );
+  }
+
+  Future<bool> _onWillPop() async {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return false;
+    }
+    return true;
+  }
+
+  Route<dynamic> _generateRoute(RouteSettings settings) {
+    _logger.d("🚀 مسار جديد مطلوب: ${settings.name}");
+
+    switch (settings.name) {
+      case '/':
+      case '/splash':
+        return MaterialPageRoute(builder: (_) => const SplashScreen());
+      
+      case '/login':
+        // ✅ استخدام OTPLoginScreen بدلاً من LoginScreen
+        return MaterialPageRoute(builder: (_) => const OTPLoginScreen());
+      
+      case '/otp-login':
+        return MaterialPageRoute(builder: (_) => const OTPLoginScreen());
+      
+      case '/profile':
+        return MaterialPageRoute(builder: (_) => const ProfileSetupScreen());
+      
+      case '/home':
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+      
+      case '/settings':
+        return MaterialPageRoute(builder: (_) => const SettingsScreen());
+      
+      case '/users':
+        return MaterialPageRoute(builder: (_) => const UsersListScreen());
+      
+      case '/invite':
+        final args = settings.arguments as Map<String, String>?;
+        return MaterialPageRoute(builder: (_) => InviteScreen(
+          phoneNumber: args?['phone'] ?? '',
+          name: args?['name'] ?? '',
+        ));
+      
+      case '/upgrade-pro':
+        return MaterialPageRoute(builder: (_) => const UpgradeProView());
+      
+      case '/compliance':
+        return MaterialPageRoute(builder: (_) => const ComplianceScreen());
+      
+      case '/block-list':
+        return MaterialPageRoute(builder: (_) => const BlockListScreen());
+      
+      case '/theme-selector':
+        return MaterialPageRoute(builder: (_) => const ThemeSelectorScreen());
+      
+      case '/privacy-settings':
+        return MaterialPageRoute(builder: (_) => const PrivacySettingsScreen());
+      
+      case '/scientific-achievements':
+        return MaterialPageRoute(builder: (_) => const ScientificAchievementsScreen());
+      
+      case '/about':
+        return MaterialPageRoute(builder: (_) => const AboutScreen());
+      
+      case '/chat-with-developer':
+        return MaterialPageRoute(builder: (_) => const ChatWithDeveloperScreen());
+      
+      case '/encryption-info':
+        return MaterialPageRoute(builder: (_) => const EncryptionInfoScreen());
+      
+      case '/export-data':
+        return MaterialPageRoute(builder: (_) => const ExportDataScreen());
+      
+      case '/delete-account':
+        return MaterialPageRoute(builder: (_) => const DeleteAccountScreen());
+      
+      case '/chat-wallpaper':
+      case '/chat-font-size':
+      case '/notification-sound':
+      case '/silent-notifications':
+      case '/auto-download-media':
+      case '/manage-allowed-senders':
+      case '/hidden-chats':
+      case '/change-name':
+      case '/change-avatar':
+      case '/change-credentials':
+      case '/link-providers':
+        _logger.w("⚠️ شاشة '${settings.name}' غير موجودة بعد، مؤقتاً نعود للإعدادات.");
+        return MaterialPageRoute(builder: (_) => const SettingsScreen());
+
+      case '/chat':
+        final args = _chatArgs ?? (settings.arguments as Map<String, String>?);
+        if (args != null && args['chatId'] != null && args['receiverId'] != null) {
+          return MaterialPageRoute(
+            builder: (_) => SmartChatScreen(
+              chatId: args['chatId']!,
+              receiverId: args['receiverId']!,
+            ),
+          );
+        }
+        _logger.w("⚠️ لا توجد محادثة محددة، التوجيه إلى HomeScreen");
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+      
+      case '/create-group':
+        return MaterialPageRoute(builder: (_) => const CreateGroupScreen());
+      
+      case '/group-details':
+        final args = settings.arguments as Map<String, String>?;
+        if (args != null && args['groupId'] != null) {
+          return MaterialPageRoute(
+            builder: (_) => GroupDetailsScreen(groupId: args['groupId']!),
+          );
+        }
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+      
+      case '/pinned-messages':
+        final args = settings.arguments as Map<String, String>?;
+        if (args != null && args['chatId'] != null) {
+          return MaterialPageRoute(
+            builder: (_) => PinnedMessagesScreen(chatId: args['chatId']!),
+          );
+        }
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+
+      case '/call':
+        if (settings.arguments is Map<String, dynamic>) {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (_) => CallScreen(
+              isCaller: args['isCaller'] as bool? ?? false,
+              callerId: args['callerId'] as String? ?? '',
+              receiverId: args['receiverId'] as String? ?? '',
+              callIdWhenCallee: args['callIdWhenCallee'] as String?,
+              isVideo: args['isVideo'] as bool? ?? true,
+              title: args['title'] as String? ?? 'Privoo Call',
+            ),
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const CallScreen(isCaller: false, callerId: '', receiverId: ''),
+        );
+      
+      case '/group-call':
+        if (settings.arguments is Map<String, dynamic>) {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (_) => GroupCallScreen(
+              isInitiator: args['isInitiator'] as bool? ?? false,
+              groupId: args['groupId'] as String? ?? '',
+              callId: args['callId'] as String? ?? '',
+              participantIds: List<String>.from(args['participantIds'] ?? []),
+              currentUserId: args['currentUserId'] as String? ?? '',
+              isVideo: args['isVideo'] as bool? ?? true,
+            ),
+          );
+        }
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+      
+      case '/incoming-call':
+        final callId = DateTime.now().millisecondsSinceEpoch.toString();
+        return MaterialPageRoute(builder: (_) => IncomingCallScreen(
+          callId: callId,
+          callerName: 'مستخدم',
+          isVideo: false,
+          onAccept: () {
+            _logger.i("✅ تم قبول المكالمة: $callId");
+            Navigator.pop(context);
+            Navigator.pushNamed(context, '/call', arguments: {
+              'isCaller': false,
+              'callerId': '',
+              'receiverId': '',
+              'callIdWhenCallee': callId,
+              'isVideo': false,
+            });
+          },
+          onReject: () {
+            _logger.i("❌ تم رفض المكالمة: $callId");
+            Navigator.pop(context);
+          },
+        ));
+
+      case '/channels':
+        return MaterialPageRoute(builder: (_) => const ChannelListScreen());
+      
+      case '/channel':
+        final args = settings.arguments as Map<String, String>?;
+        if (args != null && args['channelId'] != null) {
+          return MaterialPageRoute(
+            builder: (_) => ChannelScreen(channelId: args['channelId']!),
+          );
+        }
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+      
+      case '/create-channel':
+        return MaterialPageRoute(builder: (_) => const CreateChannelScreen());
+
+      case '/search':
+        return MaterialPageRoute(builder: (_) => const SearchScreen());
+      
+      case '/sticker-maker':
+        return MaterialPageRoute(builder: (_) => const StickerMakerScreen());
+      
+      case '/age-verification':
+        return MaterialPageRoute(builder: (_) => AgeVerificationScreen(
+          onVerified: () {
+            Navigator.pop(context);
+          },
+          onUnderAge: () {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('عمرك أقل من المطلوب'),
+                content: const Text('عذراً، لا يمكنك استخدام Privoo.'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('حسناً'),
+                  ),
+                ],
+              ),
+            );
+          },
+        ));
+      
+      case '/terms':
+        return MaterialPageRoute(builder: (_) => const TermsAcceptanceScreen());
+      
+      case '/verify-identity':
+        final args = settings.arguments as Map<String, String>?;
+        if (args != null && args['peerId'] != null && args['peerName'] != null) {
+          return MaterialPageRoute(
+            builder: (_) => VerifyScreen(
+              peerId: args['peerId']!,
+              peerName: args['peerName']!,
+            ),
+          );
+        }
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+
+      case '/manage-admins':
+        return MaterialPageRoute(builder: (_) => const ManageAdminsScreen());
+      
+      case '/support-tickets':
+        return MaterialPageRoute(builder: (_) => const SupportTicketsScreen());
+      
+      case '/manage-users':
+        return MaterialPageRoute(builder: (_) => const ManageUsersScreen());
+      
+      case '/manage-offers':
+        return MaterialPageRoute(builder: (_) => const ManageOffersScreen());
+
+      default:
+        _logger.w("⚠️ مسار غير معروف: ${settings.name}. التوجيه إلى /home.");
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+    }
+  }
+}\n\n========== splash_screen.dart ==========\n\n
+// lib/views/splash_screen.dart
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../../core/logger.dart';
+import '../../services/firebase/notification_service.dart';
+import '../../services/security_checker.dart';
+import '../../config/app_theme.dart';
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+  bool _navigated = false;
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+  final _logger = Logger();
+
+  @override
+  void initState() {
+    super.initState();
+    _logger.debug('SplashScreen initState');
+    
+    _controller = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+    
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeIn,
+    );
+    
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.elasticOut,
+      ),
+    );
+    
+    _controller.forward();
+    
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!_navigated && mounted) _navigateNext();
+    });
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<NotificationService>(context, listen: false)
+            .initNotifications(context);
+      }
+    });
+  }
+
+  Future<void> _navigateNext() async {
+    if (_navigated) return;
+    _navigated = true;
+    _logger.debug('SplashScreen _navigateNext called');
+    
+    try {
+      final securityChecker = SecurityChecker();
+      final isSecure = await securityChecker.isDeviceSecure();
+      
+      if (!isSecure && mounted) {
+        await securityChecker.showSecurityAlert(context);
+      }
+      
+      final user = FirebaseAuth.instance.currentUser;
+      final isLoggedIn = user != null;
+      
+      _logger.debug('isLoggedIn = $isLoggedIn, user = ${user?.uid ?? 'null'}');
+      
+      if (!mounted) return;
+      
+      Navigator.pushReplacementNamed(
+        context,
+        isLoggedIn ? '/home' : '/login',
+      );
+    } catch (e, s) {
+      _logger.error('Error in SplashScreen _navigateNext: $e\n$s');
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: AppTheme.mainGradient,
+        ),
+        child: Center(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // شعار Privoo
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.privooGold.withValues(alpha: 0.5),
+                          blurRadius: 30,
+                          spreadRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/app_icon.jpeg',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.lock_outline,
+                            size: 60,
+                            color: AppTheme.privooDeepPurple,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Privoo',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.privooGold,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Secure • Private • Smart',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.privooGold),
+                    strokeWidth: 2,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}\n\n========== home_screen.dart ==========\n\n
+// lib/views/home_screen.dart
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../main.dart';
+import '../../config/app_theme.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String? _userName;
+  String? _userAvatar;
+  List<Map<String, dynamic>> _recentChats = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+    _loadRecentChats();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (doc.exists) {
+          setState(() {
+            _userName = doc.data()?['name'] ?? user.phoneNumber ?? 'المستخدم';
+            _userAvatar = doc.data()?['avatarUrl'];
+          });
+        } else {
+          setState(() {
+            _userName = user.phoneNumber ?? 'المستخدم';
+          });
+        }
+      } catch (e) {
+        logger.e('❌ فشل تحميل بيانات المستخدم: $e');
+        setState(() {
+          _userName = user.phoneNumber ?? 'المستخدم';
+        });
+      }
+    }
+  }
+
+  Future<void> _loadRecentChats() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final chatsRef = FirebaseFirestore.instance.collection('chats');
+      final querySnapshot = await chatsRef
+          .where('participants', arrayContains: user.uid)
+          .limit(20)
+          .get();
+
+      final chats = <Map<String, dynamic>>[];
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        final participants = List<String>.from(data['participants'] ?? []);
+        final otherId = participants.firstWhere((id) => id != user.uid);
+        
+        String otherName = 'مستخدم';
+        String? otherAvatar;
+        try {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(otherId)
+              .get();
+          if (userDoc.exists) {
+            otherName = userDoc.data()?['name'] ?? 'مستخدم';
+            otherAvatar = userDoc.data()?['avatarUrl'];
+          }
+        } catch (e) {
+          logger.e('❌ فشل تحميل اسم المستخدم الآخر: $e');
+        }
+
+        chats.add({
+          'chatId': doc.id,
+          'receiverId': otherId,
+          'name': otherName,
+          'avatar': otherAvatar,
+          'lastMessage': data['lastMessage'] ?? '',
+          'timestamp': data['lastMessageTime'],
+        });
+      }
+
+      chats.sort((a, b) => (b['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0
+          .compareTo((a['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0));
+
+      setState(() {
+        _recentChats = chats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      logger.e('❌ فشل تحميل المحادثات: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _startNewChat() async {
+    final result = await Navigator.pushNamed(context, '/users');
+    if (result != null && mounted) {
+      _loadRecentChats();
+    }
+  }
+
+  void _openChat(String chatId, String receiverId, String name) {
+    Navigator.pushNamed(
+      context,
+      '/chat',
+      arguments: {
+        'chatId': chatId,
+        'receiverId': receiverId,
+        'name': name,
+      },
+    ).then((_) => _loadRecentChats());
+  }
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد تسجيل الخروج'),
+        content: const Text('هل أنت متأكد من تسجيل الخروج؟'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.privooError,
+            ),
+            child: const Text('تسجيل الخروج'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed == true) {
+      await FirebaseAuth.instance.signOut();
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    }
+  }
+
+  String _formatTime(Timestamp timestamp) {
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+    if (date.day == now.day && date.month == now.month) {
+      return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    }
+    return '${date.day}/${date.month}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        final shouldExit = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('تأكيد الخروج'),
+                content: const Text('هل تريد الخروج من التطبيق؟'),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('إلغاء'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.privooError,
+                    ),
+                    child: const Text('خروج'),
+                  ),
+                ],
+              ),
+            ) ?? false;
+
+        if (shouldExit) {
+          return true;
+        }
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Privoo'),
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.pushNamed(context, '/settings'),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: _logout,
+            ),
+          ],
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  // البروفايل المصغر
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.privooLightBg,
+                      border: Border(
+                        bottom: BorderSide(
+                          color: AppTheme.privooDeepPurple.withValues(alpha: 0.1),
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
+                          ),
+                          child: CircleAvatar(
+                            radius: 30,
+                            backgroundImage: _userAvatar != null
+                                ? NetworkImage(_userAvatar!)
+                                : null,
+                            child: _userAvatar == null
+                                ? Icon(Icons.person, size: 30, color: AppTheme.privooDeepPurple)
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _userName ?? 'مرحباً بك',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'مرحباً بك في Privoo',
+                                style: TextStyle(color: Colors.grey.shade600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _startNewChat,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('محادثة جديدة'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 0),
+                  // قائمة المحادثات
+                  Expanded(
+                    child: _recentChats.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.chat_bubble_outline,
+                                  size: 64,
+                                  color: AppTheme.privooDeepPurple.withValues(alpha: 0.3),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'لا توجد محادثات بعد',
+                                  style: TextStyle(color: Colors.grey.shade600),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'ابدأ محادثة جديدة مع صديق',
+                                  style: TextStyle(color: Colors.grey.shade500),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: _recentChats.length,
+                            itemBuilder: (context, index) {
+                              final chat = _recentChats[index];
+                              return ListTile(
+                                leading: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
+                                  ),
+                                  child: CircleAvatar(
+                                    backgroundImage: chat['avatar'] != null
+                                        ? NetworkImage(chat['avatar'])
+                                        : null,
+                                    child: chat['avatar'] == null
+                                        ? Icon(Icons.person, color: AppTheme.privooDeepPurple)
+                                        : null,
+                                  ),
+                                ),
+                                title: Text(
+                                  chat['name'] ?? 'مستخدم',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Text(
+                                  chat['lastMessage'] ?? 'ابدأ المحادثة',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: chat['timestamp'] != null
+                                    ? Text(
+                                        _formatTime(chat['timestamp']),
+                                        style: const TextStyle(fontSize: 12),
+                                      )
+                                    : null,
+                                onTap: () => _openChat(
+                                  chat['chatId'],
+                                  chat['receiverId'],
+                                  chat['name'],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}

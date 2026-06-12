@@ -19,7 +19,6 @@ class _ThemeSelectorScreenState extends ConsumerState<ThemeSelectorScreen> {
     final app = ref.watch(appControllerProvider);
     final appNotifier = ref.read(appControllerProvider.notifier);
     
-    // ✅ الحصول على الثيمات المتاحة حسب نوع الاشتراك
     final availableThemes = appNotifier.getAvailableThemes();
     final lockedCount = appNotifier.getLockedThemesCount();
     final isPro = app.isPro;
@@ -98,16 +97,19 @@ class _ThemeSelectorScreenState extends ConsumerState<ThemeSelectorScreen> {
           final isSelected = app.themeName == themeName;
           
           return GestureDetector(
-            onTap: () {
+            onTap: () async {
               HapticFeedback.selectionClick();
-              appNotifier.setTheme(themeName);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('✅ تم تفعيل ثيم $themeName'),
-                  duration: const Duration(seconds: 1),
-                ),
-              );
-              Navigator.pop(context);
+              await appNotifier.setTheme(themeName);
+              
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('✅ تم تفعيل ثيم $themeName'),
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+                Navigator.pop(context);
+              }
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
