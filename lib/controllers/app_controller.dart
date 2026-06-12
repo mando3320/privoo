@@ -1,3 +1,4 @@
+// lib/controllers/app_controller.dart
 // controllers/app_controller.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -100,8 +101,6 @@ class AppController extends ChangeNotifier {
     if (value == null) return defaultValue;
     return value == 'true';
   }
-  
-  // Note: string secure storage helpers were removed because they're unused.
 
   // =======================
   //   تحميل الإعدادات
@@ -124,7 +123,6 @@ class AppController extends ChangeNotifier {
       
       // ✅ تحميل الثيم المختار مع التحقق من وجوده
       String savedTheme = prefs.getString('theme_name') ?? 'Blue Light';
-      // التأكد أن الثيم المحفوظ متاح للمستخدم (إذا كان Pro سابقاً وأصبح Free)
       if (!AppTheme.isThemeAvailable(savedTheme, _isPro)) {
         savedTheme = 'Blue Light';
       }
@@ -200,12 +198,12 @@ class AppController extends ChangeNotifier {
     }
 
     try {
-      final subService = SubscriptionService(userAuthToken: token);
-      final response = await subService.checkUserSubscriptionStatus();
-
+      // ✅ استخدام SubscriptionService المعدل (بدون constructor)
+      final status = await SubscriptionService.checkUserStatus();
+      
       await _updateSubscriptionStatus(
-        isPro: response['isPro'] ?? false,
-        isLifetime: response['isLifetime'] ?? false,
+        isPro: status['isPro'] ?? false,
+        isLifetime: status['isLifetime'] ?? false,
       );
     } catch (e) {
       logger.e("❌ فشل التحقق من الاشتراك: $e");
@@ -223,7 +221,6 @@ class AppController extends ChangeNotifier {
     await _saveSecureBool('isPro_cached', isPro);
     await _saveSecureBool('isLifetime_cached', isLifetime);
 
-    // ✅ إذا تغيرت حالة Pro وأصبح المستخدم مجانياً، تحقق من الثيم الحالي
     if (wasPro && !isPro) {
       if (!AppTheme.isThemeAvailable(_themeName, false)) {
         _themeName = 'Blue Light';
@@ -238,7 +235,6 @@ class AppController extends ChangeNotifier {
     logger.d("🔐 تحديث الاشتراك: Pro=$isPro, Lifetime=$isLifetime");
   }
 
-  /// Public wrapper so other controllers can update subscription state.
   Future<void> updateSubscriptionStatus({
     required bool isPro,
     required bool isLifetime,
@@ -279,7 +275,6 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ المهمة 51: تفعيل/تعطيل المصادقة البيومترية
   Future<void> toggleBiometricLock(bool value) async {
     _biometricEnabled = value;
     await _saveSecureBool('biometricEnabled', value);
@@ -292,7 +287,6 @@ class AppController extends ChangeNotifier {
   // ============================================================
   
   Future<void> setTheme(String themeName) async {
-    // ✅ التحقق من صلاحية المستخدم للثيم (مجاني vs Pro)
     if (!AppTheme.isThemeAvailable(themeName, _isPro)) {
       logger.w("⚠️ محاولة تغيير ثيم غير متاح للمستخدم: $themeName (isPro: $_isPro)");
       return;
@@ -310,18 +304,15 @@ class AppController extends ChangeNotifier {
     }
   }
   
-  // ✅ الحصول على الثيم الحالي مع التخزين المؤقت
   ThemeData getCurrentTheme() {
     _cachedTheme ??= AppTheme.getTheme(_themeName);
     return _cachedTheme!;
   }
   
-  // ✅ الحصول على الثيمات المتاحة للمستخدم الحالي
   List<String> getAvailableThemes() {
     return AppTheme.getAvailableThemesForUser(_isPro);
   }
   
-  // ✅ عدد الثيمات المحظورة (التي تتطلب ترقية)
   int getLockedThemesCount() {
     return AppTheme.lockedThemesCount;
   }
@@ -409,28 +400,14 @@ class AppController extends ChangeNotifier {
   Future<void> resetSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final secureKeys = [
-      'isPro_cached',
-      'isLifetime_cached',
-      'lockApp',
-      'hideLastSeen',
-      'hideOnlineStatus',
-      'notificationsEnabled',
-      'vibrationEnabled',
-      'readReceipts',
-      'dataSaverEnabled',
-      'biometricEnabled',
+      'isPro_cached', 'isLifetime_cached', 'lockApp', 'hideLastSeen',
+      'hideOnlineStatus', 'notificationsEnabled', 'vibrationEnabled',
+      'readReceipts', 'dataSaverEnabled', 'biometricEnabled',
     ];
     
     final normalKeys = [
-      'language',
-      'darkMode',
-      'theme_name',
-      'chatWallpaper',
-      'chatFontSize',
-      'protocolVersion',
-      'defaultAlgorithm',
-      'myFingerprint',
-      'peerFingerprint',
+      'language', 'darkMode', 'theme_name', 'chatWallpaper', 'chatFontSize',
+      'protocolVersion', 'defaultAlgorithm', 'myFingerprint', 'peerFingerprint',
     ];
 
     logger.i("♻️ إعادة ضبط جميع الإعدادات…");
@@ -442,7 +419,6 @@ class AppController extends ChangeNotifier {
       await prefs.remove(key);
     }
 
-    // ✅ إعادة تعيين القيم الافتراضية
     _themeName = 'Blue Light';
     _cachedTheme = null;
     _themeMode = ThemeMode.system;

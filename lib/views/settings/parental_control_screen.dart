@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/app_theme.dart';
-import '../../controllers/parental_control_controller.dart';
 
 class ParentalControlScreen extends ConsumerStatefulWidget {
   const ParentalControlScreen({super.key});
@@ -146,7 +145,6 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ✅ تفعيل الرقابة الأبوية
             _buildSwitchCard(
               icon: Icons.family_restroom,
               title: 'تفعيل الرقابة الأبوية',
@@ -161,24 +159,14 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
             
             if (_isEnabled) ...[
               const SizedBox(height: 16),
-              
-              // ✅ حماية بكلمة مرور
               _buildPinSection(),
               const SizedBox(height: 16),
-              
-              // ✅ تصفية المحتوى
               _buildFilterCard(),
               const SizedBox(height: 16),
-              
-              // ✅ تحديد وقت الاستخدام
               _buildTimeLimitCard(),
               const SizedBox(height: 16),
-              
-              // ✅ قائمة جهات الاتصال المسموح بها
               _buildAllowedContactsCard(),
               const SizedBox(height: 16),
-              
-              // ✅ نشاط الطفل
               _buildActivityCard(),
             ],
           ],
@@ -220,10 +208,7 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
           ),
           child: Icon(icon, color: color, size: 28),
         ),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         subtitle: Text(subtitle, style: TextStyle(color: Colors.grey.shade600)),
       ),
     );
@@ -253,10 +238,7 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
               ),
               child: const Icon(Icons.lock_outline, color: Colors.orange, size: 28),
             ),
-            title: const Text(
-              'حماية بكلمة مرور',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            title: const Text('حماية بكلمة مرور', style: TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(
               _isPinSet ? '✓ تم تعيين رمز PIN' : 'لم يتم تعيين رمز PIN بعد',
               style: TextStyle(color: _isPinSet ? Colors.green : Colors.red),
@@ -297,10 +279,7 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
               children: [
                 Icon(Icons.filter_alt, color: Colors.blue),
                 SizedBox(width: 12),
-                Text(
-                  'تصفية المحتوى',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
+                Text('تصفية المحتوى', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ],
             ),
           ),
@@ -368,10 +347,7 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('الحد اليومي:'),
-                      Text(
-                        '$_dailyLimitMinutes دقيقة',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      Text('$_dailyLimitMinutes دقيقة', style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
                   Slider(
@@ -386,10 +362,7 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
                     },
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'سيتم إشعار الطفل عند انتهاء الوقت',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
+                  Text('سيتم إشعار الطفل عند انتهاء الوقت', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 ],
               ),
             ),
@@ -422,10 +395,7 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
               ),
               child: const Icon(Icons.contact_phone, color: Colors.green, size: 28),
             ),
-            title: const Text(
-              'جهات الاتصال المسموح بها',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            title: const Text('جهات الاتصال المسموح بها', style: TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('${_allowedContacts.length} جهة اتصال مسموحة'),
             trailing: IconButton(
               icon: const Icon(Icons.add_circle_outline),
@@ -434,9 +404,7 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
           ),
           if (_allowedContacts.isNotEmpty)
             ..._allowedContacts.map((contact) => ListTile(
-              leading: const CircleAvatar(
-                child: Icon(Icons.person, size: 18),
-              ),
+              leading: const CircleAvatar(child: Icon(Icons.person, size: 18)),
               title: Text(contact),
               trailing: IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.red),
@@ -467,14 +435,8 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('إضافة'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('إضافة')),
         ],
       ),
     );
@@ -512,9 +474,7 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
         title: const Text('نشاط الطفل'),
         subtitle: const Text('عرض تقارير الاستخدام'),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: () {
-          // فتح شاشة النشاط
-        },
+        onTap: () {},
       ),
     );
   }

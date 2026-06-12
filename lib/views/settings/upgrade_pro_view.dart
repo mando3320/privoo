@@ -69,33 +69,32 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
         await ref.read(offerServiceProvider).redeemCoupon(user.uid, _appliedOffer!.code);
       }
 
-      final token = (await user.getIdToken()) ?? '';
-      final subService = SubscriptionService(userAuthToken: token);
-
+      // ✅ استخدام SubscriptionService المعدل (بدون constructor)
       bool success = false;
       switch (type) {
         case 'daily':
-          success = await subService.activateDailySubscription();
+          success = await SubscriptionService.activateDailySubscription();
           break;
         case 'monthly':
-          success = await subService.activateMonthlySubscription();
+          success = await SubscriptionService.activateMonthlySubscription();
           break;
         case 'yearly':
-          success = await subService.activateYearlySubscription();
+          success = await SubscriptionService.activateYearlySubscription();
           break;
         case 'family':
-          success = await subService.activateFamilySubscription();
+          success = await SubscriptionService.activateFamilySubscription();
           break;
         case 'student':
-          success = await subService.activateStudentSubscription();
+          success = await SubscriptionService.activateStudentSubscription();
           break;
         case 'lifetime':
-          success = await subService.activateLifetimeSubscription();
+          success = await SubscriptionService.activateLifetimeSubscription();
           break;
       }
 
       if (success) {
-        await ref.read(appControllerProvider.notifier).fetchAndVerifyUserStatus(token);
+        await SubscriptionService.refreshUserStatus();
+        await ref.read(appControllerProvider.notifier).fetchAndVerifyUserStatus(await user.getIdToken() ?? '');
         
         final messageMap = {
           'daily': 'اليومي Pro',
@@ -203,7 +202,6 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // شعار Pro
                   Container(
                     width: 60,
                     height: 60,
@@ -231,7 +229,6 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
                   ),
                   const SizedBox(height: 24),
 
-                  // جدول المقارنة
                   Container(
                     decoration: BoxDecoration(
                       border: Border.all(color: AppTheme.privooDeepPurple.withValues(alpha: 0.2)),
@@ -250,18 +247,9 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
                             color: AppTheme.privooDeepPurple.withValues(alpha: 0.05),
                           ),
                           children: [
-                            const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: Text('الميزة', style: TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: Text('مجاني', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Text('Pro', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.privooGold)),
-                            ),
+                            const Padding(padding: EdgeInsets.all(12), child: Text('الميزة', style: TextStyle(fontWeight: FontWeight.bold))),
+                            const Padding(padding: EdgeInsets.all(12), child: Text('مجاني', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold))),
+                            Padding(padding: const EdgeInsets.all(12), child: Text('Pro', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.privooGold))),
                           ],
                         ),
                         _buildRow('مكالمات فيديو (1-1)', '✅', '✅'),
@@ -280,7 +268,6 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
 
                   const SizedBox(height: 24),
 
-                  // كود الخصم
                   Container(
                     decoration: BoxDecoration(
                       color: AppTheme.privooGold.withValues(alpha: 0.1),
@@ -294,10 +281,7 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
                           children: [
                             Icon(Icons.local_offer, color: AppTheme.privooGold),
                             const SizedBox(width: 8),
-                            const Text(
-                              'هل لديك كود خصم؟',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
+                            const Text('هل لديك كود خصم؟', style: TextStyle(fontWeight: FontWeight.bold)),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -308,9 +292,7 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
                                 controller: _couponController,
                                 decoration: InputDecoration(
                                   hintText: 'أدخل الكود هنا',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                 ),
                               ),
@@ -320,9 +302,7 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
                               onPressed: _applyCoupon,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.privooGold,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
                               child: const Text('تطبيق'),
                             ),
@@ -367,28 +347,24 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
                       ),
                     )
                   else ...[
-                    // خطة يومية
                     _buildUpgradeButton(
                       icon: Icons.today,
                       title: 'يومي Pro',
                       price: '25 ج.م',
                       onPressed: () => _handleUpgrade('daily'),
                     ),
-                    // خطة شهرية
                     _buildUpgradeButton(
                       icon: Icons.calendar_view_month,
                       title: 'اشتراك شهري',
                       price: '199 ج.م',
                       onPressed: () => _handleUpgrade('monthly'),
                     ),
-                    // خطة سنوية
                     _buildUpgradeButton(
                       icon: Icons.calendar_today,
                       title: 'اشتراك سنوي',
                       price: '1,200 ج.م',
                       onPressed: () => _handleUpgrade('yearly'),
                     ),
-                    // خطة عائلية
                     _buildUpgradeButton(
                       icon: Icons.family_restroom,
                       title: 'خطة عائلية',
@@ -397,7 +373,6 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
                       color: AppTheme.privooLightPurple,
                       onPressed: () => _handleUpgrade('family'),
                     ),
-                    // خطة طلابية
                     _buildUpgradeButton(
                       icon: Icons.school,
                       title: 'خطة طلابية',
@@ -436,9 +411,7 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
           backgroundColor: color ?? AppTheme.privooDeepPurple,
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 55),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -451,8 +424,7 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    if (subtitle != null)
-                      Text(subtitle, style: const TextStyle(fontSize: 12)),
+                    if (subtitle != null) Text(subtitle, style: const TextStyle(fontSize: 12)),
                   ],
                 ),
               ],
@@ -469,10 +441,7 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
       children: [
         Padding(padding: const EdgeInsets.all(10), child: Text(feature)),
         Padding(padding: const EdgeInsets.all(10), child: Text(free, textAlign: TextAlign.center)),
-        Padding(
-          padding: const EdgeInsets.all(10),
-          child: Text(pro, textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.privooGold)),
-        ),
+        Padding(padding: const EdgeInsets.all(10), child: Text(pro, textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.privooGold))),
       ],
     );
   }

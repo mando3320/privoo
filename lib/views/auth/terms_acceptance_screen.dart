@@ -1,4 +1,5 @@
 // lib/views/auth/terms_acceptance_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -47,7 +48,6 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // ✅ رأس الصفحة المتطور
               Container(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -77,25 +77,17 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
                     const SizedBox(height: 20),
                     Text(
                       'مرحباً بك في Privoo',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.privooGold,
-                      ),
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.privooGold),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'تطبيق تواصل آمن وخاص',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade500,
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                     ),
                   ],
                 ),
               ),
               
-              // ✅ قائمة الشروط المتطورة
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -134,7 +126,6 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
                     ),
                     const SizedBox(height: 32),
                     
-                    // ✅ زر الموافقة المتطور
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
                       margin: const EdgeInsets.only(bottom: 30),
@@ -146,9 +137,7 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
                           backgroundColor: AppTheme.privooLightPurple,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                           elevation: 5,
                         ),
                         child: _isLoading
@@ -206,12 +195,10 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
         children: [
           CheckboxListTile(
             value: isChecked,
-            onChanged: onChanged,
+            onChanged: (value) => onChanged(value ?? false),
             controlAffinity: ListTileControlAffinity.leading,
             activeColor: iconColor,
-            checkboxShape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
-            ),
+            checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
             title: Row(
               children: [
                 Container(
@@ -226,20 +213,8 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
+                    Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                   ],
                 ),
               ],
@@ -307,21 +282,9 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
-              ),
+              Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
             ],
           ),
         ),
@@ -335,12 +298,10 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
     setState(() => _isLoading = true);
     
     try {
-      // ✅ حفظ في SharedPreferences أولاً
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('terms_accepted', true);
       _logger.i('✅ Terms saved to SharedPreferences');
       
-      // ✅ محاولة حفظ في Firestore (خلفية، لا ننتظرها)
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         unawaited(
@@ -360,7 +321,6 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
         );
       }
       
-      // ✅ التنقل فوراً
       if (mounted) {
         if (widget.onAccepted != null) {
           widget.onAccepted!();
@@ -371,7 +331,6 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
     } catch (e) {
       _logger.e('❌ Failed to save terms acceptance: $e');
       
-      // ✅ حتى مع الخطأ، حاول التنقل
       if (mounted) {
         if (widget.onAccepted != null) {
           widget.onAccepted!();
