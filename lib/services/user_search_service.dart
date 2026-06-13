@@ -8,7 +8,6 @@ class UserSearchService {
   Future<List<Map<String, dynamic>>> searchByName(String query) async {
     if (query.isEmpty) return [];
     
-    // البحث بالاسم (يستخدم معرّف أصغر ليطابق بداية الكلمة)
     final end = query.substring(0, query.length - 1) +
         String.fromCharCode(query.codeUnitAt(query.length - 1) + 1);
     
@@ -23,29 +22,53 @@ class UserSearchService {
       final data = doc.data();
       return {
         'id': doc.id,
-        'name': data['name'],
-        'phone': data['phone'],
+        'uid': doc.id,
+        'name': data['name'] ?? 'مستخدم',
+        'phone': data['phoneNumber'] ?? data['phone'] ?? '',
         'avatarUrl': data['avatarUrl'],
+        'about': data['about'] ?? '',
       };
     }).toList();
   }
 
-  /// البحث برقم الهاتف
+  /// البحث برقم الهاتف (معدل للبحث في phoneNumber أولاً)
   Future<Map<String, dynamic>?> searchByPhone(String phone) async {
+    // ✅ البحث في phoneNumber أولاً
     final snapshot = await _firestore
+        .collection('users')
+        .where('phoneNumber', isEqualTo: phone)
+        .limit(1)
+        .get();
+    
+    if (snapshot.docs.isNotEmpty) {
+      final data = snapshot.docs.first.data();
+      return {
+        'id': snapshot.docs.first.id,
+        'uid': snapshot.docs.first.id,
+        'name': data['name'] ?? 'مستخدم',
+        'phone': data['phoneNumber'] ?? data['phone'] ?? phone,
+        'avatarUrl': data['avatarUrl'],
+        'about': data['about'] ?? '',
+      };
+    }
+    
+    // ✅ إذا لم يجد في phoneNumber، يبحث في phone (احتياطي)
+    final fallbackSnapshot = await _firestore
         .collection('users')
         .where('phone', isEqualTo: phone)
         .limit(1)
         .get();
     
-    if (snapshot.docs.isEmpty) return null;
+    if (fallbackSnapshot.docs.isEmpty) return null;
     
-    final data = snapshot.docs.first.data();
+    final data = fallbackSnapshot.docs.first.data();
     return {
-      'id': snapshot.docs.first.id,
-      'name': data['name'],
-      'phone': data['phone'],
+      'id': fallbackSnapshot.docs.first.id,
+      'uid': fallbackSnapshot.docs.first.id,
+      'name': data['name'] ?? 'مستخدم',
+      'phone': data['phone'] ?? phone,
       'avatarUrl': data['avatarUrl'],
+      'about': data['about'] ?? '',
     };
   }
 
@@ -55,7 +78,7 @@ class UserSearchService {
     
     final snapshot = await _firestore
         .collection('users')
-        .where('phone', whereIn: phoneNumbers)
+        .where('phoneNumber', whereIn: phoneNumbers.take(30).toList())
         .limit(50)
         .get();
     
@@ -63,9 +86,11 @@ class UserSearchService {
       final data = doc.data();
       return {
         'id': doc.id,
-        'name': data['name'],
-        'phone': data['phone'],
+        'uid': doc.id,
+        'name': data['name'] ?? 'مستخدم',
+        'phone': data['phoneNumber'] ?? data['phone'] ?? '',
         'avatarUrl': data['avatarUrl'],
+        'about': data['about'] ?? '',
       };
     }).toList();
   }

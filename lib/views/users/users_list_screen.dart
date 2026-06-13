@@ -45,6 +45,7 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
     _loadContacts();
   }
 
+  // ✅ دالة تحميل المستخدمين (معدلة - استخدام UID للمقارنة)
   Future<void> _loadUsers() async {
     setState(() => _isLoading = true);
     try {
@@ -57,12 +58,12 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
       for (var doc in usersSnapshot.docs) {
         final data = doc.data();
         final userPhone = data['phoneNumber'] ?? data['phone'] ?? '';
-        final userUid = data['uid'] ?? doc.id;
         
-        if (userPhone != _currentUserPhone) {
+        // ✅ استخدام UID للمقارنة بدلاً من رقم الهاتف
+        if (doc.id != _currentUserId) {
           users.add({
             'id': doc.id,
-            'uid': userUid,
+            'uid': doc.id,
             'name': data['name'] ?? 'مستخدم',
             'phone': userPhone,
             'avatarUrl': data['avatarUrl'],
@@ -157,7 +158,10 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
   }
 
   void _inviteContact(Contact contact) {
-    final phone = contact.phones.isNotEmpty ? contact.phones.first.number : null;
+    final phones = contact.phones.where((p) => p.number != null && p.number.isNotEmpty);
+    if (phones.isEmpty) return;
+    
+    final phone = phones.first.number;
     final message = 'انضم إلى Privoo للتواصل مع ${contact.displayName}: https://privoo.app/download';
     
     showModalBottomSheet(
@@ -256,6 +260,7 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
     );
   }
 
+  // ✅ دالة عرض بطاقة المستخدم (معدلة)
   Widget _buildUserCard(Map<String, dynamic> user) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -336,8 +341,14 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
     );
   }
 
+  // ✅ دالة عرض بطاقة جهة الاتصال (معدلة - التحقق من null)
   Widget _buildContactCard(Contact contact) {
-    final phone = contact.phones.isNotEmpty ? contact.phones.first.number : null;
+    final phones = contact.phones.where((p) => p.number != null && p.number.isNotEmpty);
+    if (phones.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    final phone = phones.first.number;
     final isRegistered = _users.any((u) => u['phone'] == phone);
     
     return Container(
@@ -467,7 +478,6 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
             child: TabBarView(
               controller: _tabController,
               children: [
-                // تبويب المستخدمين
                 _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _filteredUsers.isEmpty
@@ -475,21 +485,11 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.people_outline,
-                                  size: 80,
-                                  color: AppTheme.privooDeepPurple.withValues(alpha: 0.3),
-                                ),
+                                Icon(Icons.people_outline, size: 80, color: AppTheme.privooDeepPurple.withValues(alpha: 0.3)),
                                 const SizedBox(height: 16),
-                                const Text(
-                                  'لا يوجد مستخدمون',
-                                  style: TextStyle(fontSize: 18),
-                                ),
+                                const Text('لا يوجد مستخدمون', style: TextStyle(fontSize: 18)),
                                 const SizedBox(height: 8),
-                                Text(
-                                  'شارك التطبيق مع أصدقائك',
-                                  style: TextStyle(color: Colors.grey.shade600),
-                                ),
+                                Text('شارك التطبيق مع أصدقائك', style: TextStyle(color: Colors.grey.shade600)),
                               ],
                             ),
                           )
@@ -497,8 +497,6 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
                             itemCount: _filteredUsers.length,
                             itemBuilder: (context, index) => _buildUserCard(_filteredUsers[index]),
                           ),
-                
-                // تبويب جهات الاتصال
                 _isContactsLoading
                     ? const Center(child: CircularProgressIndicator())
                     : !_hasPhonePermission
@@ -506,26 +504,11 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.contacts_outlined,
-                                  size: 80,
-                                  color: AppTheme.privooDeepPurple.withValues(alpha: 0.3),
-                                ),
+                                Icon(Icons.contacts_outlined, size: 80, color: AppTheme.privooDeepPurple.withValues(alpha: 0.3)),
                                 const SizedBox(height: 16),
-                                const Text(
-                                  'يحتاج التطبيق إلى إذن قراءة جهات الاتصال',
-                                  style: TextStyle(fontSize: 16),
-                                ),
+                                const Text('يحتاج التطبيق إلى إذن قراءة جهات الاتصال', style: TextStyle(fontSize: 16)),
                                 const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: _loadContacts,
-                                  style: ElevatedButton.styleFrom(
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30),
-                                    ),
-                                  ),
-                                  child: const Text('منح الإذن'),
-                                ),
+                                ElevatedButton(onPressed: _loadContacts, child: const Text('منح الإذن')),
                               ],
                             ),
                           )
@@ -534,21 +517,11 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(
-                                      Icons.contact_phone_outlined,
-                                      size: 80,
-                                      color: AppTheme.privooDeepPurple.withValues(alpha: 0.3),
-                                    ),
+                                    Icon(Icons.contact_phone_outlined, size: 80, color: AppTheme.privooDeepPurple.withValues(alpha: 0.3)),
                                     const SizedBox(height: 16),
-                                    const Text(
-                                      'لا توجد جهات اتصال',
-                                      style: TextStyle(fontSize: 18),
-                                    ),
+                                    const Text('لا توجد جهات اتصال', style: TextStyle(fontSize: 18)),
                                     const SizedBox(height: 8),
-                                    Text(
-                                      'أضف جهات اتصال إلى هاتفك',
-                                      style: TextStyle(color: Colors.grey.shade600),
-                                    ),
+                                    Text('أضف جهات اتصال إلى هاتفك', style: TextStyle(color: Colors.grey.shade600)),
                                   ],
                                 ),
                               )

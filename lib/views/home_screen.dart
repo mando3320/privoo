@@ -2,9 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import '../../main.dart';
 import '../../config/app_theme.dart';
 import '../../services/security_checker.dart';
+import '../../services/contact_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   String? _userName;
   String? _userAvatar;
+  String? _userUid;
   List<Map<String, dynamic>> _recentChats = [];
   bool _isLoading = true;
   late TabController _tabController;
@@ -50,6 +55,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      setState(() {
+        _userUid = user.uid;
+      });
       try {
         final doc = await FirebaseFirestore.instance
             .collection('users')
@@ -192,6 +200,130 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return '${date.day}/${date.month}';
   }
 
+  // ✅ دالة جلب جهات الاتصال الحقيقية من الهاتف ومن Firebase (معدلة)
+  Future<List<Map<String, dynamic>>> _loadRealContacts() async {
+    try {
+      final hasPermission = await ContactService.hasPermission();
+      if (!hasPermission) {
+        logger.w('⚠️ لا يوجد إذن لقراءة جهات الاتصال');
+        return [];
+      }
+      
+      final phoneContacts = await ContactService.getPhoneContacts();
+      if (phoneContacts.isEmpty) {
+        logger.i('📱 لا توجد جهات اتصال في الهاتف');
+        return [];
+      }
+      
+      final usersSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .limit(100)
+          .get();
+      
+      final registeredPhones = usersSnapshot.docs
+          .map((doc) => doc.data()['phoneNumber'] ?? '')
+          .where((phone) => phone.isNotEmpty)
+          .toSet();
+      
+      final List<Map<String, dynamic>> result = [];
+      
+      for (var contact in phoneContacts) {
+        // ✅ التحقق من وجود رقم هاتف صالح
+        final phones = contact.phones.where((p) => p.number != null && p.number.isNotEmpty);
+        if (phones.isEmpty) continue;
+        
+        final phone = phones.first.number;
+        result.add({
+          'name': contact.displayName,
+          'phone': phone,
+          'isRegistered': registeredPhones.contains(phone),
+        });
+      }
+      
+      logger.i('📱 تم تحميل ${result.length} جهة اتصال (${result.where((c) => c['isRegistered'] == true).length} مسجل)');
+      return result;
+    } catch (e) {
+      logger.e('❌ فشل تحميل جهات الاتصال: $e');
+      return [];
+    }
+  }
+
+  void _startChatWithContact(Map<String, dynamic> contact) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUserId = currentUser?.uid;
+    if (currentUserId == null) return;
+
+    final usersSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('phoneNumber', isEqualTo: contact['phone'])
+        .limit(1)
+        .get();
+
+    if (usersSnapshot.docs.isEmpty) {
+      _showSnackbar('لم يتم العثور على المستخدم');
+      return;
+    }
+
+    final targetUser = usersSnapshot.docs.first;
+    final targetUid = targetUser.id;
+    final targetName = targetUser.data()['name'] ?? contact['name'];
+
+    final chatId = currentUserId.compareTo(targetUid) < 0
+        ? '${currentUserId}_$targetUid'
+        : '${targetUid}_$currentUserId';
+
+    final chatDoc = await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(chatId)
+        .get();
+
+    if (!chatDoc.exists) {
+      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+        'participants': [currentUserId, targetUid],
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastMessage': '',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+      });
+    }
+
+    if (mounted) {
+      Navigator.pushNamed(
+        context,
+        '/chat',
+        arguments: {
+          'chatId': chatId,
+          'receiverId': targetUid,
+          'name': targetName,
+        },
+      );
+    }
+  }
+
+  void _inviteContact(String? phone) {
+    final message = 'انضم إلى Privoo للتواصل معي: https://privoo.app/download';
+    
+    if (phone != null && phone.isNotEmpty) {
+      final smsUri = Uri.parse('sms:$phone?body=$message');
+      canLaunchUrl(smsUri).then((canLaunch) {
+        if (canLaunch) {
+          launchUrl(smsUri);
+        } else {
+          Share.share(message);
+        }
+      });
+    } else {
+      Share.share(message);
+    }
+    
+    _showSnackbar('تم إرسال الدعوة');
+  }
+
+  void _showSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -254,13 +386,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       body: TabBarView(
         controller: _tabController,
         children: [
-          // تبويب المحادثات
           _buildChatsTab(),
-          
-          // تبويب المجموعات
           _buildGroupsTab(),
-          
-          // تبويب جهات الاتصال
           _buildContactsTab(),
         ],
       ),
@@ -456,9 +583,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  // ✅ تبويب جهات الاتصال المعدل
   Widget _buildContactsTab() {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _loadContacts(),
+      future: _loadRealContacts(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -477,14 +605,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   color: AppTheme.privooDeepPurple.withValues(alpha: 0.3),
                 ),
                 const SizedBox(height: 16),
-                Text(
+                const Text(
                   'لا توجد جهات اتصال',
-                  style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 18),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'ستظهر جهات اتصالك هنا',
-                  style: TextStyle(color: Colors.grey.shade500),
+                  'أضف جهات اتصال إلى هاتفك',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => setState(() {}),
+                  child: const Text('تحديث'),
                 ),
               ],
             ),
@@ -503,62 +636,53 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
-              title: Text(contact['name']),
+              title: Text(contact['name'] ?? ''),
               subtitle: Text(contact['phone'] ?? ''),
               trailing: contact['isRegistered'] == true
                   ? Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: AppTheme.privooSuccess.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        'مسجل',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.privooSuccess,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle, size: 16, color: AppTheme.privooSuccess),
+                          const SizedBox(width: 4),
+                          Text(
+                            'مسجل',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.privooSuccess,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     )
                   : OutlinedButton(
                       onPressed: () => _inviteContact(contact['phone']),
-                      child: const Text('دعوة'),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppTheme.privooGold),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                      ),
+                      child: Text(
+                        'دعوة',
+                        style: TextStyle(color: AppTheme.privooGold),
+                      ),
                     ),
               onTap: () {
                 if (contact['isRegistered'] == true) {
-                  // بدء محادثة مع المستخدم المسجل
+                  _startChatWithContact(contact);
                 }
               },
             );
           },
         );
       },
-    );
-  }
-
-  Future<List<Map<String, dynamic>>> _loadContacts() async {
-    final currentUserPhone = FirebaseAuth.instance.currentUser?.phoneNumber;
-    final usersSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .limit(100)
-        .get();
-    
-    final registeredPhones = usersSnapshot.docs
-        .map((doc) => doc.data()['phoneNumber'] ?? doc.data()['phone'] ?? '')
-        .toSet();
-    
-    // هنا يمكن إضافة جهات اتصال الهاتف
-    return [
-      {'name': 'مستخدم تجريبي', 'phone': '+201234567890', 'isRegistered': true},
-      {'name': 'أحمد', 'phone': '+201234567891', 'isRegistered': false},
-    ];
-  }
-
-  void _inviteContact(String? phone) {
-    // دالة دعوة جهة الاتصال
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم إرسال الدعوة')),
     );
   }
 }

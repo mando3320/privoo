@@ -2,9 +2,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'terms_acceptance_screen.dart';
 import '../../config/app_theme.dart';
+import '../../main.dart';
 
 class OTPLoginScreen extends StatefulWidget {
   const OTPLoginScreen({super.key});
@@ -73,6 +75,32 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     );
   }
 
+  Future<void> _createUserInFirestore(User user, String phoneNumber) async {
+    try {
+      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final doc = await userRef.get();
+      
+      if (!doc.exists) {
+        await userRef.set({
+          'uid': user.uid,
+          'name': user.phoneNumber ?? phoneNumber,
+          'phoneNumber': phoneNumber,
+          'avatarUrl': '',
+          'about': 'مرحباً، أنا أستخدم Privoo',
+          'isActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastSeen': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        
+        logger.i('✅ تم إنشاء مستخدم جديد في Firestore: ${user.uid}');
+      } else {
+        logger.i('✅ المستخدم موجود مسبقاً في Firestore: ${user.uid}');
+      }
+    } catch (e) {
+      logger.e('❌ فشل إنشاء المستخدم في Firestore: $e');
+    }
+  }
+
   Future<void> _sendOTP() async {
     final rawPhone = _phoneController.text.trim();
     final phone = _formatPhoneNumber(rawPhone);
@@ -112,7 +140,8 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
         timeout: const Duration(seconds: 60),
         verificationCompleted: (PhoneAuthCredential credential) async {
           try {
-            await _auth.signInWithCredential(credential);
+            final userCredential = await _auth.signInWithCredential(credential);
+            await _createUserInFirestore(userCredential.user!, phone);
             await _checkTermsAndNavigate();
           } catch (_) {}
         },
@@ -162,7 +191,9 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
         verificationId: _verificationId!,
         smsCode: code,
       );
-      await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential);
+      final phone = _formatPhoneNumber(_phoneController.text.trim());
+      await _createUserInFirestore(userCredential.user!, phone);
       await _checkTermsAndNavigate();
     } catch (e) {
       setState(() {
@@ -217,7 +248,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // شعار Privoo
             Container(
               width: 100,
               height: 100,

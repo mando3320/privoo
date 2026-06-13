@@ -51,11 +51,14 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     try {
       await _db.collection('users').doc(user.uid).set({
         'id': user.uid,
+        'uid': user.uid,
         'name': name,
-        'phone': user.phoneNumber,
+        'phoneNumber': user.phoneNumber,  // ✅ تم التعديل من 'phone' إلى 'phoneNumber'
         'avatarUrl': '',
         'isOnline': true,
+        'about': 'مرحباً، أنا أستخدم Privoo',
         'createdAt': FieldValue.serverTimestamp(),
+        'lastSeen': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       logger.i("✅ تم حفظ ملف المستخدم: ${user.uid}");
