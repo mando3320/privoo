@@ -18,12 +18,14 @@ class OTPLoginScreen extends StatefulWidget {
 class _OTPLoginScreenState extends State<OTPLoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
 
   String? _verificationId;
   bool _codeSent = false;
   bool _isLoading = false;
   int _attempts = 0;
+  int _loginMethod = 0; // 0 = Phone, 1 = Email
 
   Timer? _cooldownTimer;
   int _cooldownSeconds = 0;
@@ -63,6 +65,10 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     return cleaned;
   }
 
+  String _formatEmail(String email) {
+    return email.trim().toLowerCase();
+  }
+
   void _showSnackbar(String message, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -75,33 +81,48 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     );
   }
 
-  Future<void> _createUserInFirestore(User user, String phoneNumber) async {
+  Future<void> _createUserInFirestore(User user, String identifier, String type) async {
+    print('🔵🔵🔵 دالة _createUserInFirestore اتعملت 🔵🔵🔵');
+    print('🆔 UID: ${user.uid}');
+    print('$type: $identifier');
+    
     try {
       final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final doc = await userRef.get();
       
-      if (!doc.exists) {
-        await userRef.set({
-          'uid': user.uid,
-          'name': user.phoneNumber ?? phoneNumber,
-          'phoneNumber': phoneNumber,
-          'avatarUrl': '',
-          'about': 'مرحباً، أنا أستخدم Privoo',
-          'isActive': true,
-          'createdAt': FieldValue.serverTimestamp(),
-          'lastSeen': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-        
-        logger.i('✅ تم إنشاء مستخدم جديد في Firestore: ${user.uid}');
+      final Map<String, dynamic> userData = {
+        'uid': user.uid,
+        'name': type == 'phone' ? identifier : identifier.split('@').first,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastSeen': FieldValue.serverTimestamp(),
+        'isActive': true,
+        'avatarUrl': '',
+        'about': 'مرحباً، أنا أستخدم Privoo',
+      };
+      
+      if (type == 'phone') {
+        userData['phoneNumber'] = identifier;
       } else {
-        logger.i('✅ المستخدم موجود مسبقاً في Firestore: ${user.uid}');
+        userData['email'] = identifier;
+      }
+      
+      if (!doc.exists) {
+        await userRef.set(userData);
+        print('✅ تم إنشاء مستخدم جديد في Firestore: ${user.uid}');
+      } else {
+        // تحديث بيانات الدخول الجديدة
+        await userRef.update(userData);
+        print('✅ تم تحديث بيانات المستخدم: ${user.uid}');
       }
     } catch (e) {
-      logger.e('❌ فشل إنشاء المستخدم في Firestore: $e');
+      print('❌❌❌ فشل إنشاء المستخدم: $e ❌❌❌');
     }
   }
 
-  Future<void> _sendOTP() async {
+  // ==================== طرق تسجيل الدخول ====================
+  
+  // ✅ 1. تسجيل الدخول برقم الهاتف (SMS OTP)
+  Future<void> _sendPhoneOTP() async {
     final rawPhone = _phoneController.text.trim();
     final phone = _formatPhoneNumber(rawPhone);
     
@@ -110,40 +131,18 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
       return;
     }
     
-    final regex = RegExp(r'^\+[1-9]\d{7,14}$');
-    if (!regex.hasMatch(phone)) {
-      _showSnackbar("📵 رقم الهاتف غير صالح. مثال: 01234567890", isError: true);
-      return;
-    }
-    
     if (_cooldownSeconds > 0) return;
 
     setState(() => _isLoading = true);
-    
-    final messenger = ScaffoldMessenger.of(context);
-    final loadingSnack = SnackBar(
-      content: Row(
-        children: [
-          const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-          const SizedBox(width: 12),
-          Expanded(child: Text('جاري إرسال رمز التحقق إلى $phone...')),
-        ],
-      ),
-      duration: const Duration(seconds: 10),
-      behavior: SnackBarBehavior.floating,
-    );
-    messenger.showSnackBar(loadingSnack);
     
     try {
       await _auth.verifyPhoneNumber(
         phoneNumber: phone,
         timeout: const Duration(seconds: 60),
         verificationCompleted: (PhoneAuthCredential credential) async {
-          try {
-            final userCredential = await _auth.signInWithCredential(credential);
-            await _createUserInFirestore(userCredential.user!, phone);
-            await _checkTermsAndNavigate();
-          } catch (_) {}
+          final userCredential = await _auth.signInWithCredential(credential);
+          await _createUserInFirestore(userCredential.user!, phone, 'phone');
+          await _checkTermsAndNavigate();
         },
         verificationFailed: (FirebaseAuthException e) {
           _showSnackbar("❌ فشل التحقق: ${e.message}", isError: true);
@@ -161,19 +160,13 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
         },
       );
     } catch (e) {
-      _showSnackbar("❌ تعذر إرسال الرمز. حاول لاحقًا.", isError: true);
+      _showSnackbar("❌ تعذر إرسال الرمز.", isError: true);
     } finally {
-      messenger.clearSnackBars();
       setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _verifyOTP() async {
-    if (_attempts >= 5) {
-      _showSnackbar("⏳ تم تجاوز الحد. أعد إرسال الرمز بعد قليل.", isError: true);
-      return;
-    }
-    
+  Future<void> _verifyPhoneOTP() async {
     if (_verificationId == null) {
       _showSnackbar("⚠️ أرسل رمز تحقق أولاً.", isError: true);
       return;
@@ -193,15 +186,71 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
       );
       final userCredential = await _auth.signInWithCredential(credential);
       final phone = _formatPhoneNumber(_phoneController.text.trim());
-      await _createUserInFirestore(userCredential.user!, phone);
+      await _createUserInFirestore(userCredential.user!, phone, 'phone');
       await _checkTermsAndNavigate();
     } catch (e) {
-      setState(() {
-        _attempts += 1;
-      });
-      _showSnackbar("❌ رمز غير صحيح. المحاولات المتبقية: ${5 - _attempts}", isError: true);
+      setState(() => _attempts += 1);
+      _showSnackbar("❌ رمز غير صحيح.", isError: true);
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  // ✅ 2. تسجيل الدخول بالبريد الإلكتروني (Magic Link)
+  Future<void> _sendMagicLink() async {
+    final email = _formatEmail(_emailController.text.trim());
+    
+    if (email.isEmpty || !email.contains('@')) {
+      _showSnackbar("📧 يرجى إدخال بريد إلكتروني صالح.", isError: true);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    
+    try {
+      await _auth.sendSignInLinkToEmail(
+        email: email,
+        actionCodeSettings: ActionCodeSettings(
+          url: 'https://privoo.page.link/login',
+          handleCodeInApp: true,
+          androidPackageName: 'com.mando.privoo',
+          androidInstallApp: true,
+          androidMinimumVersion: '1',
+          iOSBundleId: 'com.mando.privoo',
+        ),
+      );
+      
+      _showSnackbar("✅ تم إرسال رابط سحري إلى $email!");
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('email_for_signin', email);
+      
+      setState(() {
+        _codeSent = true;
+        _loginMethod = 1;
+      });
+    } catch (e) {
+      _showSnackbar("❌ فشل الإرسال: ${e.toString()}", isError: true);
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleMagicLink() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('email_for_signin');
+    
+    if (email != null && _auth.isSignInWithEmailLink(_verificationId ?? '')) {
+      try {
+        final userCredential = await _auth.signInWithEmailLink(
+          email: email,
+          emailLink: _verificationId!,
+        );
+        await _createUserInFirestore(userCredential.user!, email, 'email');
+        await _checkTermsAndNavigate();
+      } catch (e) {
+        print('❌ فشل التحقق من الرابط: $e');
+      }
     }
   }
 
@@ -226,8 +275,15 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _handleMagicLink();
+  }
+
+  @override
   void dispose() {
     _phoneController.dispose();
+    _emailController.dispose();
     _otpController.dispose();
     _cooldownTimer?.cancel();
     super.dispose();
@@ -235,13 +291,33 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final resendTitle = _cooldownSeconds > 0 ? 'إرسال الرمز (${_cooldownSeconds}s)' : 'إرسال الرمز';
+    final isPhoneMethod = _loginMethod == 0;
+    final resendTitle = _cooldownSeconds > 0 
+        ? 'إرسال (${_cooldownSeconds}s)' 
+        : (isPhoneMethod ? 'إرسال رمز التحقق' : 'إرسال رابط سحري');
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("تسجيل الدخول برقم الهاتف"),
+        title: const Text("تسجيل الدخول"),
         centerTitle: true,
         elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(50),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildMethodButton(0, '📱 رقم الهاتف', Icons.phone),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMethodButton(1, '📧 البريد الإلكتروني', Icons.email),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -256,8 +332,12 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
                 color: AppTheme.privooDeepPurple,
                 boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
               ),
-              child: const Center(
-                child: Icon(Icons.phone_android, size: 50, color: Colors.white),
+              child: Center(
+                child: Icon(
+                  _loginMethod == 0 ? Icons.phone_android : Icons.email,
+                  size: 50,
+                  color: Colors.white,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -271,28 +351,41 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
             ),
             const SizedBox(height: 40),
             
-            TextField(
-              controller: _phoneController,
-              decoration: InputDecoration(
-                labelText: "رقم الهاتف",
-                hintText: "مثال: 01234567890",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+            // الحقل حسب الطريقة المختارة
+            if (_loginMethod == 0 && !_codeSent)
+              TextField(
+                controller: _phoneController,
+                decoration: InputDecoration(
+                  labelText: "رقم الهاتف",
+                  hintText: "مثال: 01234567890",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  prefixIcon: const Icon(Icons.phone),
                 ),
-                prefixIcon: const Icon(Icons.phone),
+                keyboardType: TextInputType.phone,
               ),
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _sendOTP(),
-            ),
-            const SizedBox(height: 16),
-            
+              
+            if (_loginMethod == 1 && !_codeSent)
+              TextField(
+                controller: _emailController,
+                decoration: InputDecoration(
+                  labelText: "البريد الإلكتروني",
+                  hintText: "example@domain.com",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  prefixIcon: const Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              
             if (_codeSent)
               TextField(
                 controller: _otpController,
                 decoration: InputDecoration(
-                  labelText: "رمز التحقق",
-                  hintText: "أدخل الرقم المكون من 6 أرقام",
+                  labelText: _loginMethod == 0 ? "رمز التحقق" : "رمز التحقق (اختياري)",
+                  hintText: "أدخل الرمز المكون من 6 أرقام",
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -300,8 +393,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
                 ),
                 keyboardType: TextInputType.number,
                 maxLength: 6,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _verifyOTP(),
               ),
               
             const SizedBox(height: 20),
@@ -309,7 +400,22 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
             _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : ElevatedButton(
-                    onPressed: _codeSent ? _verifyOTP : _sendOTP,
+                    onPressed: () {
+                      if (!_codeSent) {
+                        if (_loginMethod == 0) {
+                          _sendPhoneOTP();
+                        } else {
+                          _sendMagicLink();
+                        }
+                      } else {
+                        if (_loginMethod == 0) {
+                          _verifyPhoneOTP();
+                        } else {
+                          // للبريد الإلكتروني، الرابط السحري لا يحتاج OTP
+                          _showSnackbar("⚠️ اضغط على الرابط المرسل إلى بريدك");
+                        }
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 55),
                       shape: RoundedRectangleBorder(
@@ -322,20 +428,78 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
                     ),
                   ),
                   
-            if (_codeSent)
+            if (_codeSent && _loginMethod == 0)
               TextButton(
-                onPressed: _isLoading
-                    ? null
-                    : () {
-                        setState(() {
-                          _codeSent = false;
-                          _otpController.clear();
-                          _verificationId = null;
-                          _attempts = 0;
-                        });
-                      },
-                child: const Text("تغيير الرقم"),
+                onPressed: () {
+                  setState(() {
+                    _codeSent = false;
+                    _otpController.clear();
+                    _verificationId = null;
+                    _attempts = 0;
+                  });
+                },
+                child: const Text("تغيير رقم الهاتف"),
               ),
+              
+            if (_loginMethod == 1 && !_codeSent)
+              Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: Text(
+                  'سيتم إرسال رابط سحري إلى بريدك الإلكتروني',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildMethodButton(int method, String label, IconData icon) {
+    final isSelected = _loginMethod == method;
+    return GestureDetector(
+      onTap: () {
+        if (!_isLoading) {
+          setState(() {
+            _loginMethod = method;
+            _codeSent = false;
+            _otpController.clear();
+            _verificationId = null;
+            _attempts = 0;
+          });
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? AppTheme.privooLightPurple 
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(
+            color: isSelected 
+                ? AppTheme.privooLightPurple 
+                : Colors.grey.shade400,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon, 
+              size: 18, 
+              color: isSelected ? Colors.white : Colors.grey.shade600,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey.shade600,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
           ],
         ),
       ),
