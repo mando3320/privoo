@@ -54,31 +54,44 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
+    print('🔵🔵🔵 _loadUserData اتعملت 🔵🔵🔵');
+    
     if (user != null) {
+      print('🆔 Current user UID: ${user.uid}');
       setState(() {
         _userUid = user.uid;
       });
+      
       try {
         final doc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .get();
+        
+        print('📄 Document exists: ${doc.exists}');
+        print('📄 Document data: ${doc.data()}');
+        
         if (doc.exists) {
           setState(() {
             _userName = doc.data()?['name'] ?? user.phoneNumber ?? 'المستخدم';
             _userAvatar = doc.data()?['avatarUrl'];
           });
+          print('✅ تم تحميل البيانات: name=$_userName');
         } else {
+          print('⚠️⚠️⚠️ المستند مش موجود في Firestore! ⚠️⚠️⚠️');
           setState(() {
             _userName = user.phoneNumber ?? 'المستخدم';
           });
         }
       } catch (e) {
+        print('❌❌❌ خطأ في تحميل البيانات: $e ❌❌❌');
         logger.e('❌ فشل تحميل بيانات المستخدم: $e');
         setState(() {
           _userName = user.phoneNumber ?? 'المستخدم';
         });
       }
+    } else {
+      print('⚠️ لا يوجد مستخدم مسجل الدخول');
     }
   }
 
@@ -200,7 +213,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return '${date.day}/${date.month}';
   }
 
-  // ✅ دالة جلب جهات الاتصال الحقيقية من الهاتف ومن Firebase (معدلة)
   Future<List<Map<String, dynamic>>> _loadRealContacts() async {
     try {
       final hasPermission = await ContactService.hasPermission();
@@ -228,7 +240,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       final List<Map<String, dynamic>> result = [];
       
       for (var contact in phoneContacts) {
-        // ✅ التحقق من وجود رقم هاتف صالح
         final phones = contact.phones.where((p) => p.number != null && p.number.isNotEmpty);
         if (phones.isEmpty) continue;
         
@@ -362,6 +373,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
         centerTitle: false,
         actions: [
+          // ✅ زر تسجيل الخروج
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.red),
+            tooltip: 'تسجيل الخروج',
+            onPressed: _logout,
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () => Navigator.pushNamed(context, '/search'),
@@ -583,7 +600,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // ✅ تبويب جهات الاتصال المعدل
   Widget _buildContactsTab() {
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: _loadRealContacts(),
