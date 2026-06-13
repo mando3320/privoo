@@ -108,4 +108,78 @@ class SubscriptionService {
     await checkUserStatus();
     logger.i("🔄 تم تحديث حالة المستخدم");
   }
+
+  // ✅ دوال التفعيل المطلوبة
+  static Future<bool> activateDailySubscription() async {
+    final expiry = DateTime.now().add(const Duration(days: 1));
+    await _updateSubscriptionStatus(isPro: true, isLifetime: false, expiryDate: expiry);
+    logger.i("✅ تم تفعيل الاشتراك اليومي Pro (ينتهي: $expiry)");
+    return true;
+  }
+
+  static Future<bool> activateMonthlySubscription() async {
+    final expiry = DateTime.now().add(const Duration(days: 30));
+    await _updateSubscriptionStatus(isPro: true, isLifetime: false, expiryDate: expiry);
+    logger.i("✅ تم تفعيل الاشتراك الشهري Pro (ينتهي: $expiry)");
+    return true;
+  }
+
+  static Future<bool> activateYearlySubscription() async {
+    final expiry = DateTime.now().add(const Duration(days: 365));
+    await _updateSubscriptionStatus(isPro: true, isLifetime: false, expiryDate: expiry);
+    logger.i("✅ تم تفعيل الاشتراك السنوي Pro (ينتهي: $expiry)");
+    return true;
+  }
+
+  static Future<bool> activateFamilySubscription() async {
+    final expiry = DateTime.now().add(const Duration(days: 30));
+    await _updateSubscriptionStatus(isPro: true, isLifetime: false, expiryDate: expiry);
+    logger.i("✅ تم تفعيل الخطة العائلية (ينتهي: $expiry)");
+    return true;
+  }
+
+  static Future<bool> activateStudentSubscription() async {
+    final expiry = DateTime.now().add(const Duration(days: 30));
+    await _updateSubscriptionStatus(isPro: true, isLifetime: false, expiryDate: expiry);
+    logger.i("✅ تم تفعيل الخطة الطلابية (ينتهي: $expiry)");
+    return true;
+  }
+
+  static Future<bool> activateFreeTrial() async {
+    final expiry = DateTime.now().add(const Duration(days: 7));
+    await _updateSubscriptionStatus(isPro: true, isLifetime: false, expiryDate: expiry);
+    logger.i("✅ تم تفعيل العرض التجريبي المجاني (ينتهي: $expiry)");
+    return true;
+  }
+
+  static Future<bool> activateLifetimeSubscription() async {
+    await _updateSubscriptionStatus(isPro: true, isLifetime: true);
+    logger.i("✅ تم تفعيل اشتراك مدى الحياة (Lifetime)");
+    return true;
+  }
+
+  static Future<void> cancelSubscription() async {
+    await _updateSubscriptionStatus(isPro: false, isLifetime: false);
+    logger.i("✅ تم إلغاء الاشتراك");
+  }
+
+  static Future<void> _updateSubscriptionStatus({
+    required bool isPro,
+    required bool isLifetime,
+    DateTime? expiryDate,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isPro_cached', isPro);
+      await prefs.setBool('isLifetime_cached', isLifetime);
+      if (expiryDate != null) {
+        await prefs.setString('pro_expiry', expiryDate.toIso8601String());
+      } else if (!isPro) {
+        await prefs.remove('pro_expiry');
+      }
+      logger.i("✅ تم تحديث حالة الاشتراك: Pro=$isPro, Lifetime=$isLifetime");
+    } catch (e) {
+      logger.e("❌ فشل تحديث حالة الاشتراك: $e");
+    }
+  }
 }
