@@ -4,11 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_contacts/flutter_contacts.dart';
 import '../../main.dart';
 import '../../config/app_theme.dart';
 import '../../services/security_checker.dart';
 import '../../services/contact_service.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,9 +35,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _selectedIndex = _tabController.index;
       });
     });
-    _loadUserData();
-    _loadRecentChats();
+    
+    _initializeHomeScreen();
     _checkDeviceSecurity();
+  }
+
+  Future<void> _initializeHomeScreen() async {
+    setState(() => _isLoading = true);
+    try {
+      await _loadUserData();
+      await _loadRecentChats();
+    } catch (e) {
+      print('❌ خطأ أثناء تهيئة الشاشة الرئيسية: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _checkDeviceSecurity() async {
@@ -54,44 +68,51 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
-    print('🔵🔵🔵 _loadUserData اتعملت 🔵🔵🔵');
+    print('🔵🔵🔵 جاري تشغيل _loadUserData... 🔵🔵🔵');
     
     if (user != null) {
       print('🆔 Current user UID: ${user.uid}');
-      setState(() {
-        _userUid = user.uid;
-      });
+      if (mounted) {
+        setState(() {
+          _userUid = user.uid;
+        });
+      }
       
       try {
         final doc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
-            .get();
+            .get(const GetOptions(source: Source.server));
         
-        print('📄 Document exists: ${doc.exists}');
-        print('📄 Document data: ${doc.data()}');
+        print('📄 المستند موجود في السيرفر؟: ${doc.exists}');
         
-        if (doc.exists) {
-          setState(() {
-            _userName = doc.data()?['name'] ?? user.phoneNumber ?? 'المستخدم';
-            _userAvatar = doc.data()?['avatarUrl'];
-          });
-          print('✅ تم تحميل البيانات: name=$_userName');
+        if (doc.exists && doc.data() != null) {
+          final data = doc.data()!;
+          if (mounted) {
+            setState(() {
+              _userName = data['name'] ?? user.phoneNumber ?? 'المستخدم';
+              _userAvatar = data['avatarUrl'];
+            });
+          }
+          print('✅ تم تحميل بيانات Firestore بنجاح: name=$_userName');
         } else {
-          print('⚠️⚠️⚠️ المستند مش موجود في Firestore! ⚠️⚠️⚠️');
+          print('⚠️ المستند غير موجود في Firestore! سيتم استخدام بيانات الهاتف مؤقتاً.');
+          if (mounted) {
+            setState(() {
+              _userName = user.phoneNumber ?? 'المستخدم الجديد';
+            });
+          }
+        }
+      } catch (e) {
+        print('❌ خطأ في طلب Firestore (جلب بيانات المستخدم): $e');
+        if (mounted) {
           setState(() {
             _userName = user.phoneNumber ?? 'المستخدم';
           });
         }
-      } catch (e) {
-        print('❌❌❌ خطأ في تحميل البيانات: $e ❌❌❌');
-        logger.e('❌ فشل تحميل بيانات المستخدم: $e');
-        setState(() {
-          _userName = user.phoneNumber ?? 'المستخدم';
-        });
       }
     } else {
-      print('⚠️ لا يوجد مستخدم مسجل الدخول');
+      print('⚠️ لا يوجد مستخدم مسجل دخول (User is Null)');
     }
   }
 
@@ -213,128 +234,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return '${date.day}/${date.month}';
   }
 
-  Future<List<Map<String, dynamic>>> _loadRealContacts() async {
-    try {
-      final hasPermission = await ContactService.hasPermission();
-      if (!hasPermission) {
-        logger.w('⚠️ لا يوجد إذن لقراءة جهات الاتصال');
-        return [];
-      }
-      
-      final phoneContacts = await ContactService.getPhoneContacts();
-      if (phoneContacts.isEmpty) {
-        logger.i('📱 لا توجد جهات اتصال في الهاتف');
-        return [];
-      }
-      
-      final usersSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .limit(100)
-          .get();
-      
-      final registeredPhones = usersSnapshot.docs
-          .map((doc) => doc.data()['phoneNumber'] ?? '')
-          .where((phone) => phone.isNotEmpty)
-          .toSet();
-      
-      final List<Map<String, dynamic>> result = [];
-      
-      for (var contact in phoneContacts) {
-        final phones = contact.phones.where((p) => p.number != null && p.number.isNotEmpty);
-        if (phones.isEmpty) continue;
-        
-        final phone = phones.first.number;
-        result.add({
-          'name': contact.displayName,
-          'phone': phone,
-          'isRegistered': registeredPhones.contains(phone),
-        });
-      }
-      
-      logger.i('📱 تم تحميل ${result.length} جهة اتصال (${result.where((c) => c['isRegistered'] == true).length} مسجل)');
-      return result;
-    } catch (e) {
-      logger.e('❌ فشل تحميل جهات الاتصال: $e');
-      return [];
-    }
-  }
-
-  void _startChatWithContact(Map<String, dynamic> contact) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final currentUserId = currentUser?.uid;
-    if (currentUserId == null) return;
-
-    final usersSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('phoneNumber', isEqualTo: contact['phone'])
-        .limit(1)
-        .get();
-
-    if (usersSnapshot.docs.isEmpty) {
-      _showSnackbar('لم يتم العثور على المستخدم');
-      return;
-    }
-
-    final targetUser = usersSnapshot.docs.first;
-    final targetUid = targetUser.id;
-    final targetName = targetUser.data()['name'] ?? contact['name'];
-
-    final chatId = currentUserId.compareTo(targetUid) < 0
-        ? '${currentUserId}_$targetUid'
-        : '${targetUid}_$currentUserId';
-
-    final chatDoc = await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(chatId)
-        .get();
-
-    if (!chatDoc.exists) {
-      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
-        'participants': [currentUserId, targetUid],
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastMessage': '',
-        'lastMessageTime': FieldValue.serverTimestamp(),
-      });
-    }
-
-    if (mounted) {
-      Navigator.pushNamed(
-        context,
-        '/chat',
-        arguments: {
-          'chatId': chatId,
-          'receiverId': targetUid,
-          'name': targetName,
-        },
-      );
-    }
-  }
-
-  void _inviteContact(String? phone) {
-    final message = 'انضم إلى Privoo للتواصل معي: https://privoo.app/download';
-    
-    if (phone != null && phone.isNotEmpty) {
-      final smsUri = Uri.parse('sms:$phone?body=$message');
-      canLaunchUrl(smsUri).then((canLaunch) {
-        if (canLaunch) {
-          launchUrl(smsUri);
-        } else {
-          Share.share(message);
-        }
-      });
-    } else {
-      Share.share(message);
-    }
-    
-    _showSnackbar('تم إرسال الدعوة');
-  }
-
-  void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-    );
-  }
-
   @override
   void dispose() {
     _tabController.dispose();
@@ -373,12 +272,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
         centerTitle: false,
         actions: [
-          // ✅ زر تسجيل الخروج
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.red),
-            tooltip: 'تسجيل الخروج',
-            onPressed: _logout,
-          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () => Navigator.pushNamed(context, '/search'),
@@ -600,6 +493,51 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  Future<List<Map<String, dynamic>>> _loadRealContacts() async {
+    try {
+      final hasPermission = await ContactService.hasPermission();
+      if (!hasPermission) {
+        logger.w('⚠️ لا يوجد إذن لقراءة جهات الاتصال');
+        return [];
+      }
+      
+      final phoneContacts = await ContactService.getPhoneContacts();
+      if (phoneContacts.isEmpty) {
+        logger.i('📱 لا توجد جهات اتصال في الهاتف');
+        return [];
+      }
+      
+      final usersSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .limit(100)
+          .get();
+      
+      final registeredPhones = usersSnapshot.docs
+          .map((doc) => doc.data()['phoneNumber'] ?? '')
+          .where((phone) => phone.isNotEmpty)
+          .toSet();
+      
+      final List<Map<String, dynamic>> result = [];
+      
+      for (var contact in phoneContacts) {
+        final phone = contact.phones.isNotEmpty ? contact.phones.first.number : null;
+        if (phone != null && phone.isNotEmpty) {
+          result.add({
+            'name': contact.displayName,
+            'phone': phone,
+            'isRegistered': registeredPhones.contains(phone),
+          });
+        }
+      }
+      
+      logger.i('📱 تم تحميل ${result.length} جهة اتصال (${result.where((c) => c['isRegistered'] == true).length} مسجل)');
+      return result;
+    } catch (e) {
+      logger.e('❌ فشل تحميل جهات الاتصال: $e');
+      return [];
+    }
+  }
+
   Widget _buildContactsTab() {
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: _loadRealContacts(),
@@ -699,6 +637,82 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           },
         );
       },
+    );
+  }
+
+  void _startChatWithContact(Map<String, dynamic> contact) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUserId = currentUser?.uid;
+    if (currentUserId == null) return;
+
+    final usersSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('phoneNumber', isEqualTo: contact['phone'])
+        .limit(1)
+        .get();
+
+    if (usersSnapshot.docs.isEmpty) {
+      _showSnackbar('لم يتم العثور على المستخدم');
+      return;
+    }
+
+    final targetUser = usersSnapshot.docs.first;
+    final targetUid = targetUser.id;
+    final targetName = targetUser.data()['name'] ?? contact['name'];
+
+    final chatId = currentUserId.compareTo(targetUid) < 0
+        ? '${currentUserId}_$targetUid'
+        : '${targetUid}_$currentUserId';
+
+    final chatDoc = await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(chatId)
+        .get();
+
+    if (!chatDoc.exists) {
+      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+        'participants': [currentUserId, targetUid],
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastMessage': '',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+      });
+    }
+
+    if (mounted) {
+      Navigator.pushNamed(
+        context,
+        '/chat',
+        arguments: {
+          'chatId': chatId,
+          'receiverId': targetUid,
+          'name': targetName,
+        },
+      );
+    }
+  }
+
+  void _inviteContact(String? phone) {
+    final message = 'انضم إلى Privoo للتواصل معي: https://privoo.app/download';
+    
+    if (phone != null && phone.isNotEmpty) {
+      final smsUri = Uri.parse('sms:$phone?body=$message');
+      canLaunchUrl(smsUri).then((canLaunch) {
+        if (canLaunch) {
+          launchUrl(smsUri);
+        } else {
+          Share.share(message);
+        }
+      });
+    } else {
+      Share.share(message);
+    }
+    
+    _showSnackbar('تم إرسال الدعوة');
+  }
+
+  void _showSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 }
