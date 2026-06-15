@@ -1,0 +1,23 @@
+# تحسين SEO
+RewriteEngine On
+
+# إعادة توجيه www إلى non-www
+RewriteCond %{HTTP_HOST} ^www\.privoo-b1c4b\.web\.app [NC]
+RewriteRule ^(.*)$ https://privoo-b1c4b.web.app/$1 [L,R=301]
+
+# إعادة توجيه 404 إلى صفحة مخصصة
+ErrorDocument 404 /404.html
+
+# تحسين ضغط الملفات
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript
+</IfModule>
+
+# Cache التحكم
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType text/css "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
+</IfModule>
