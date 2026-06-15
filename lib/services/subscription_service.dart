@@ -1,17 +1,18 @@
 // lib/services/subscription_service.dart
-import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 
 class SubscriptionService {
-  static final DatabaseReference _database = FirebaseDatabase.instance.ref();
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  /// ✅ التحقق من حالة المستخدم من Firestore
   static Future<Map<String, dynamic>> checkUserStatus() async {
     final user = _auth.currentUser;
     
-    if (user == null || user.phoneNumber == null) {
+    if (user == null) {
       return {
         'isPro': false,
         'isLifetime': false,
@@ -21,74 +22,98 @@ class SubscriptionService {
     }
 
     try {
-      final snapshot = await _database.child('lifetime_phons').get();
+      final doc = await _firestore.collection('users').doc(user.uid).get();
       
-      if (snapshot.exists) {
-        final value = snapshot.value;
-        bool isLifetime = false;
+      if (doc.exists) {
+        final data = doc.data()!;
+        final isPro = data['isPro'] ?? false;
+        final isLifetime = data['isLifetime'] ?? false;
+        final isAdmin = data['isAdmin'] ?? false;
+        final expiryTimestamp = data['subscriptionExpiry'] as Timestamp?;
         
-        if (value is String) {
-          isLifetime = (value == user.phoneNumber);
-        } else if (value is Map) {
-          isLifetime = value.values.map((e) => e.toString()).contains(user.phoneNumber);
-        } else if (value is List) {
-          isLifetime = value.map((e) => e.toString()).contains(user.phoneNumber);
+        bool isValid = isPro || isLifetime;
+        
+        // ✅ التحقق من انتهاء الصلاحية
+        if (expiryTimestamp != null) {
+          if (expiryTimestamp.toDate().isAfter(DateTime.now())) {
+            isValid = true;
+          } else if (expiryTimestamp.toDate().isBefore(DateTime.now())) {
+            // الاشتراك منتهي - تحديث الحالة
+            await _firestore.collection('users').doc(user.uid).update({
+              'isPro': false,
+            });
+            isValid = false;
+          }
         }
         
-        await _saveToLocal(isLifetime: isLifetime);
+        await _saveToLocal(isPro: isValid, isLifetime: isLifetime);
         
-        logger.i("✅ المستخدم: ${user.phoneNumber}, Lifetime=$isLifetime");
+        logger.i("✅ المستخدم: ${user.uid}, Pro=$isValid, Lifetime=$isLifetime");
         
         return {
-          'isPro': isLifetime,
+          'isPro': isValid,
           'isLifetime': isLifetime,
-          'isAdmin': isLifetime,
-          'phoneNumber': user.phoneNumber,
-          'message': isLifetime ? '✅ اشتراك مدى الحياة مفعل' : '❌ اشتراك غير موجود',
+          'isAdmin': isAdmin,
+          'uid': user.uid,
+          'message': isValid ? '✅ اشتراك مفعل' : '❌ اشتراك غير موجود',
+        };
+      } else {
+        // ✅ إنشاء مستخدم جديد إذا لم يكن موجوداً
+        await _firestore.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'name': user.phoneNumber ?? '',
+          'phoneNumber': user.phoneNumber ?? '',
+          'avatarUrl': '',
+          'about': 'مرحباً، أنا أستخدم Privoo',
+          'isActive': true,
+          'isPro': false,
+          'isLifetime': false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastSeen': FieldValue.serverTimestamp(),
+        });
+        
+        return {
+          'isPro': false,
+          'isLifetime': false,
+          'isAdmin': false,
+          'uid': user.uid,
+          'message': 'تم إنشاء مستخدم جديد',
         };
       }
-      
-      return {
-        'isPro': false,
-        'isLifetime': false,
-        'isAdmin': false,
-        'phoneNumber': user.phoneNumber,
-        'message': 'لا يوجد اشتراك',
-      };
     } catch (e) {
       logger.e("❌ فشل الاتصال بقاعدة البيانات: $e");
-      return _getFromLocal(user.phoneNumber!);
+      return _getFromLocal();
     }
   }
 
-  static Future<void> _saveToLocal({required bool isLifetime}) async {
+  static Future<void> _saveToLocal({required bool isPro, required bool isLifetime}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLifetime', isLifetime);
-      await prefs.setString('lifetime_updated', DateTime.now().toIso8601String());
+      await prefs.setBool('isPro_cached', isPro);
+      await prefs.setBool('isLifetime_cached', isLifetime);
+      await prefs.setString('subscription_updated', DateTime.now().toIso8601String());
     } catch (e) {
       logger.e("❌ فشل حفظ الحالة محلياً: $e");
     }
   }
 
-  static Future<Map<String, dynamic>> _getFromLocal(String phoneNumber) async {
+  static Future<Map<String, dynamic>> _getFromLocal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final isLifetime = prefs.getBool('isLifetime') ?? false;
+      final isPro = prefs.getBool('isPro_cached') ?? false;
+      final isLifetime = prefs.getBool('isLifetime_cached') ?? false;
       
       return {
-        'isPro': isLifetime,
+        'isPro': isPro,
         'isLifetime': isLifetime,
         'isAdmin': false,
-        'phoneNumber': phoneNumber,
-        'message': isLifetime ? 'اشتراك مدى الحياة (من التخزين المحلي)' : 'لا يوجد اشتراك',
+        'message': isPro ? 'اشتراك (من التخزين المحلي)' : 'لا يوجد اشتراك',
       };
     } catch (e) {
       return {
         'isPro': false,
         'isLifetime': false,
         'isAdmin': false,
-        'phoneNumber': phoneNumber,
         'message': 'خطأ في جلب الحالة',
       };
     }
@@ -109,77 +134,108 @@ class SubscriptionService {
     logger.i("🔄 تم تحديث حالة المستخدم");
   }
 
-  // ✅ دوال التفعيل المطلوبة
+  // ✅ دوال التفعيل
   static Future<bool> activateDailySubscription() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    
     final expiry = DateTime.now().add(const Duration(days: 1));
-    await _updateSubscriptionStatus(isPro: true, isLifetime: false, expiryDate: expiry);
-    logger.i("✅ تم تفعيل الاشتراك اليومي Pro (ينتهي: $expiry)");
+    await _firestore.collection('users').doc(user.uid).update({
+      'isPro': true,
+      'subscriptionExpiry': Timestamp.fromDate(expiry),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await _saveToLocal(isPro: true, isLifetime: false);
+    logger.i("✅ تم تفعيل الاشتراك اليومي Pro");
     return true;
   }
 
   static Future<bool> activateMonthlySubscription() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    
     final expiry = DateTime.now().add(const Duration(days: 30));
-    await _updateSubscriptionStatus(isPro: true, isLifetime: false, expiryDate: expiry);
-    logger.i("✅ تم تفعيل الاشتراك الشهري Pro (ينتهي: $expiry)");
+    await _firestore.collection('users').doc(user.uid).update({
+      'isPro': true,
+      'subscriptionExpiry': Timestamp.fromDate(expiry),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await _saveToLocal(isPro: true, isLifetime: false);
+    logger.i("✅ تم تفعيل الاشتراك الشهري Pro");
     return true;
   }
 
   static Future<bool> activateYearlySubscription() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    
     final expiry = DateTime.now().add(const Duration(days: 365));
-    await _updateSubscriptionStatus(isPro: true, isLifetime: false, expiryDate: expiry);
-    logger.i("✅ تم تفعيل الاشتراك السنوي Pro (ينتهي: $expiry)");
+    await _firestore.collection('users').doc(user.uid).update({
+      'isPro': true,
+      'subscriptionExpiry': Timestamp.fromDate(expiry),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await _saveToLocal(isPro: true, isLifetime: false);
+    logger.i("✅ تم تفعيل الاشتراك السنوي Pro");
     return true;
   }
 
   static Future<bool> activateFamilySubscription() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    
     final expiry = DateTime.now().add(const Duration(days: 30));
-    await _updateSubscriptionStatus(isPro: true, isLifetime: false, expiryDate: expiry);
-    logger.i("✅ تم تفعيل الخطة العائلية (ينتهي: $expiry)");
+    await _firestore.collection('users').doc(user.uid).update({
+      'isPro': true,
+      'isFamily': true,
+      'subscriptionExpiry': Timestamp.fromDate(expiry),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await _saveToLocal(isPro: true, isLifetime: false);
+    logger.i("✅ تم تفعيل الخطة العائلية");
     return true;
   }
 
   static Future<bool> activateStudentSubscription() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    
     final expiry = DateTime.now().add(const Duration(days: 30));
-    await _updateSubscriptionStatus(isPro: true, isLifetime: false, expiryDate: expiry);
-    logger.i("✅ تم تفعيل الخطة الطلابية (ينتهي: $expiry)");
-    return true;
-  }
-
-  static Future<bool> activateFreeTrial() async {
-    final expiry = DateTime.now().add(const Duration(days: 7));
-    await _updateSubscriptionStatus(isPro: true, isLifetime: false, expiryDate: expiry);
-    logger.i("✅ تم تفعيل العرض التجريبي المجاني (ينتهي: $expiry)");
+    await _firestore.collection('users').doc(user.uid).update({
+      'isPro': true,
+      'isStudent': true,
+      'subscriptionExpiry': Timestamp.fromDate(expiry),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await _saveToLocal(isPro: true, isLifetime: false);
+    logger.i("✅ تم تفعيل الخطة الطلابية");
     return true;
   }
 
   static Future<bool> activateLifetimeSubscription() async {
-    await _updateSubscriptionStatus(isPro: true, isLifetime: true);
-    logger.i("✅ تم تفعيل اشتراك مدى الحياة (Lifetime)");
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    
+    await _firestore.collection('users').doc(user.uid).update({
+      'isPro': true,
+      'isLifetime': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await _saveToLocal(isPro: true, isLifetime: true);
+    logger.i("✅ تم تفعيل اشتراك مدى الحياة");
     return true;
   }
 
   static Future<void> cancelSubscription() async {
-    await _updateSubscriptionStatus(isPro: false, isLifetime: false);
+    final user = _auth.currentUser;
+    if (user == null) return;
+    
+    await _firestore.collection('users').doc(user.uid).update({
+      'isPro': false,
+      'subscriptionExpiry': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await _saveToLocal(isPro: false, isLifetime: false);
     logger.i("✅ تم إلغاء الاشتراك");
-  }
-
-  static Future<void> _updateSubscriptionStatus({
-    required bool isPro,
-    required bool isLifetime,
-    DateTime? expiryDate,
-  }) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isPro_cached', isPro);
-      await prefs.setBool('isLifetime_cached', isLifetime);
-      if (expiryDate != null) {
-        await prefs.setString('pro_expiry', expiryDate.toIso8601String());
-      } else if (!isPro) {
-        await prefs.remove('pro_expiry');
-      }
-      logger.i("✅ تم تحديث حالة الاشتراك: Pro=$isPro, Lifetime=$isLifetime");
-    } catch (e) {
-      logger.e("❌ فشل تحديث حالة الاشتراك: $e");
-    }
   }
 }
