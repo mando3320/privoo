@@ -7,9 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logger/logger.dart';
 import 'package:firebase_performance/firebase_performance.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'app.dart';
-// ❌ تم إزالة import 'core/device_helper.dart';
 import 'firebase/firebase_options.dart';
 import 'config/app_theme.dart';
 import 'controllers/app_controller.dart';
@@ -25,18 +26,17 @@ Future<void> main() async {
     await dotenv.load(fileName: ".env");
     logger.i('✅ تم تحميل ملف .env بنجاح');
 
-    // ❌ تم إزالة كود DeviceHelper بالكامل
-    // if (Platform.isAndroid) {
-    //   final isProblematic = await DeviceHelper.isProblematicDevice();
-    //   if (isProblematic) {
-    //     logger.w('⚠️ تم اكتشاف جهاز OPPO / Realme / OnePlus / Vivo — تفعيل الحماية الخاصة.');
-    //   }
-    // }
-
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
     logger.i('✅ تم تهيئة Firebase بنجاح');
+
+    // ✅ إعدادات إضافية لـ Firestore لتحسين الأداء
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,  // تفعيل التخزين المحلي
+      cacheSizeBytes: 100 * 1024 * 1024, // 100 MB
+    );
+    logger.i('✅ تم تهيئة Firestore Settings');
 
     await HiveStorageService.init();
     logger.i('✅ تم تهيئة Hive Storage بنجاح');
@@ -104,9 +104,16 @@ class PrivooMainApp extends ConsumerWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('ar'), Locale('en'), Locale('fr'), Locale('es'),
-        Locale('de'), Locale('zh'), Locale('ru'), Locale('hi'),
-        Locale('tr'), Locale('ja'),
+        Locale('ar'), 
+        Locale('en'), 
+        Locale('fr'), 
+        Locale('es'),
+        Locale('de'), 
+        Locale('zh'), 
+        Locale('ru'), 
+        Locale('hi'),
+        Locale('tr'), 
+        Locale('ja'),
       ],
       home: const PrivooApp(),
       debugShowCheckedModeBanner: false,
