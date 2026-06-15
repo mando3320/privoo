@@ -242,69 +242,104 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundImage: _userAvatar != null ? NetworkImage(_userAvatar!) : null,
-              child: _userAvatar == null
-                  ? Icon(Icons.person, size: 16, color: AppTheme.privooDeepPurple)
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Privoo',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return WillPopScope(
+      onWillPop: () async {
+        if (_selectedIndex == 0) {
+          final shouldExit = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('تأكيد الخروج'),
+              content: const Text('هل تريد الخروج من التطبيق؟'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('إلغاء'),
                 ),
-                if (_userName != null)
-                  Text(
-                    _userName!,
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.privooError,
                   ),
+                  child: const Text('خروج'),
+                ),
               ],
             ),
+          );
+          return shouldExit ?? false;
+        }
+        _tabController.animateTo(0);
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundImage: _userAvatar != null ? NetworkImage(_userAvatar!) : null,
+                child: _userAvatar == null
+                    ? Icon(Icons.person, size: 16, color: AppTheme.privooDeepPurple)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Privoo',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  if (_userName != null)
+                    Text(
+                      _userName!,
+                      style: const TextStyle(fontSize: 12, color: Colors.white70),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          centerTitle: false,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: () => Navigator.pushNamed(context, '/search'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () => Navigator.pushNamed(context, '/settings'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: _logout,
+              tooltip: 'تسجيل الخروج',
+            ),
           ],
+          bottom: TabBar(
+            controller: _tabController,
+            indicatorColor: AppTheme.privooGold,
+            labelColor: AppTheme.privooGold,
+            unselectedLabelColor: Colors.white70,
+            tabs: const [
+              Tab(icon: Icon(Icons.chat), text: 'المحادثات'),
+              Tab(icon: Icon(Icons.people), text: 'المجموعات'),
+              Tab(icon: Icon(Icons.contact_phone), text: 'جهات الاتصال'),
+            ],
+          ),
         ),
-        centerTitle: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => Navigator.pushNamed(context, '/search'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => Navigator.pushNamed(context, '/settings'),
-          ),
-        ],
-        bottom: TabBar(
+        body: TabBarView(
           controller: _tabController,
-          indicatorColor: AppTheme.privooGold,
-          labelColor: AppTheme.privooGold,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(icon: Icon(Icons.chat), text: 'المحادثات'),
-            Tab(icon: Icon(Icons.people), text: 'المجموعات'),
-            Tab(icon: Icon(Icons.contact_phone), text: 'جهات الاتصال'),
+          children: [
+            _buildChatsTab(),
+            _buildGroupsTab(),
+            _buildContactsTab(),
           ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildChatsTab(),
-          _buildGroupsTab(),
-          _buildContactsTab(),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _startNewChat,
-        backgroundColor: AppTheme.privooLightPurple,
-        child: const Icon(Icons.chat, color: Colors.white),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _startNewChat,
+          backgroundColor: AppTheme.privooLightPurple,
+          child: const Icon(Icons.chat, color: Colors.white),
+        ),
       ),
     );
   }

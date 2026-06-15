@@ -1,4 +1,4 @@
-// views/auth/verify_screen.dart
+// lib/views/auth/verify_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../controllers/auth_controller.dart';
@@ -35,8 +35,6 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
   void _loadFingerprints() {
     final authController = ref.read(authControllerProvider.notifier);
     _myFingerprintFuture = authController.getMyFingerprint();
-    // ملاحظة: الحصول على بصمة الطرف الآخر يتطلب من الطرف الآخر مشاركتها.
-    // في التنفيذ الحالي، سنحصل عليها من خلال AuthService و KeyExchangeService
     _peerFingerprintFuture = _getPeerFingerprint();
   }
 
@@ -107,7 +105,6 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // أيقونة بصمة
                 const Icon(
                   Icons.fingerprint,
                   size: 80,
@@ -115,7 +112,6 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
                 ),
                 const SizedBox(height: 24),
                 
-                // شرح
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -130,7 +126,6 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
                 ),
                 const SizedBox(height: 32),
                 
-                // بصمة المستخدم الحالي
                 Card(
                   elevation: 2,
                   child: Padding(
@@ -168,7 +163,6 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
                 ),
                 const SizedBox(height: 16),
                 
-                // بصمة الطرف الآخر
                 Card(
                   elevation: 2,
                   child: Padding(
@@ -206,16 +200,13 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
                 ),
                 const SizedBox(height: 32),
                 
-                // زر التحقق والمطابقة
                 ElevatedButton.icon(
                   onPressed: () async {
                     final isMatch = await _verifyFingerprint();
                     if (!mounted) return;
-                    final ctx = context;
                     if (isMatch) {
-                      // بصمة متطابقة - اتصال آمن
                       showDialog(
-                        context: ctx,
+                        context: context,
                         builder: (context) => AlertDialog(
                           title: const Text('✅ اتصال آمن'),
                           content: const Text('البصمة متطابقة. الاتصال مع هذا المستخدم آمن ومشفر بالكامل.'),
@@ -228,9 +219,8 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
                         ),
                       );
                     } else {
-                      // بصمة غير متطابقة - خطر
                       showDialog(
-                        context: ctx,
+                        context: context,
                         builder: (context) => AlertDialog(
                           title: const Text('⚠️ تحذير أمني!'),
                           content: const Text(
@@ -256,7 +246,6 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
                 ),
                 const SizedBox(height: 16),
                 
-                // زر إلغاء
                 OutlinedButton.icon(
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
@@ -272,7 +261,6 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
 
   /// تنسيق البصمة لتكون مقروءة بشكل أفضل
   String _formatFingerprint(String fingerprint) {
-    // إزالة النقطتين المزدوجتين إن وجدت ثم إضافتها بشكل منظم كل 4 أحرف
     String cleaned = fingerprint.replaceAll(':', '');
     List<String> chunks = [];
     for (int i = 0; i < cleaned.length; i += 4) {
@@ -282,4 +270,4 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
     }
     return chunks.join(' ');
   }
-}//None
+}
