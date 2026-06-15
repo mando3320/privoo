@@ -1,16 +1,15 @@
 // lib/app.dart
-// ============================================================
-// 🚀 جميع الـ imports في الأعلى أولاً
-// ============================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
 import 'services/firebase/notification_service.dart';
+import 'services/permission_service.dart';
 import 'config/app_theme.dart';
 
-// 📁 استيراد جميع شاشات التطبيق
+// استيراد جميع الشاشات
 import 'views/auth/otp_login_screen.dart';
 import 'views/auth/login_screen.dart';
 import 'views/auth/profile_setup_screen.dart';
@@ -18,7 +17,6 @@ import 'views/auth/age_verification_screen.dart';
 import 'views/auth/terms_acceptance_screen.dart';
 import 'views/auth/verify_screen.dart';
 import 'views/auth/invite_screen.dart';
-
 import 'views/home_screen.dart';
 import 'views/settings/setting_screen.dart';
 import 'views/settings/splash_screen.dart';
@@ -33,16 +31,13 @@ import 'views/settings/encryption_info_screen.dart';
 import 'views/settings/export_data_screen.dart';
 import 'views/settings/delete_account_screen.dart';
 import 'views/settings/parental_control_screen.dart';
-
 import 'views/chat/smart_chat_screen.dart';
 import 'views/chat/create_group_screen.dart';
 import 'views/chat/group_details_screen.dart';
 import 'views/chat/pinned_messages_screen.dart';
-
 import 'views/call/call_screen.dart';
 import 'views/call/group_call_screen.dart';
 import 'views/incoming_call_screen.dart';
-
 import 'views/block_list_screen.dart';
 import 'views/channel_list_screen.dart';
 import 'views/channel_screen.dart';
@@ -50,28 +45,23 @@ import 'views/create_channel_screen.dart';
 import 'views/search_screen.dart';
 import 'views/sticker/sticker_maker_screen.dart';
 import 'views/users/users_list_screen.dart';
-
 import 'views/admin/manage_admins_screen.dart';
 import 'views/admin/support_tickets_screen.dart';
 import 'views/admin/manage_users_screen.dart';
 import 'views/admin/manage_offers_screen.dart';
 
-// ============================================================
-// 📦 تعريف المتغيرات بعد الـ imports
-// ============================================================
 final _logger = Logger();
 
 final notificationServiceProvider = Provider((ref) {
   final service = NotificationService();
-  _logger.i("🔔 تم تهيئة NotificationService باستخدام Riverpod.");
+  _logger.i("🔔 تم تهيئة NotificationService");
   return service;
 });
 
-// ============================================================
-// 🏠 التطبيق الرئيسي
-// ============================================================
 class PrivooApp extends ConsumerStatefulWidget {
-  const PrivooApp({super.key});
+  final Function(Locale)? onLocaleChange;
+  
+  const PrivooApp({super.key, this.onLocaleChange});
 
   @override
   ConsumerState<PrivooApp> createState() => _PrivooAppState();
@@ -93,12 +83,14 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
       ref.read(notificationServiceProvider);
       _logger.i("✅ تم تهيئة NotificationService");
 
+      // ✅ طلب الأذونات تلقائياً
+      await _requestPermissionsIfNeeded();
+
       final user = FirebaseAuth.instance.currentUser;
       
       if (user != null) {
-        _logger.i("🔍 المستخدم مسجل تليفونياً: ${user.uid} - جاري التحقق من وجود البروفايل...");
+        _logger.i("🔍 المستخدم مسجل: ${user.uid}");
         
-        // ✅ فحص ذكي: إجبار القراءة من السيرفر مباشرة للتأكد من وجود المستند
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -107,31 +99,48 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
         if (userDoc.exists) {
           final data = userDoc.data();
           final name = data?['name'] as String?;
-          if (name != null && name.trim().isNotEmpty) {
-            _nextRoute = '/home';
-            _logger.i("✅ البروفايل موجود ومكتمل - التوجيه إلى HomeScreen");
-          } else {
-            _nextRoute = '/profile';
-            _logger.w("⚠️ لا يوجد اسم في السيرفر - التوجيه إلى ProfileSetupScreen");
-          }
+          _nextRoute = (name != null && name.trim().isNotEmpty) ? '/home' : '/profile';
         } else {
           _nextRoute = '/profile';
-          _logger.w("⚠️ لا يوجد مستند في السيرفر - التوجيه إلى ProfileSetupScreen");
         }
       } else {
         _nextRoute = '/login';
-        _logger.i("👤 المستخدم غير مسجل - التوجيه إلى شاشة تسجيل الدخول");
       }
 
       setState(() => _isInitialized = true);
-    } catch (e, s) {
+    } catch (e) {
       _logger.e("❌ خطأ أثناء تهيئة التطبيق: $e");
-      _logger.e("Stacktrace: $s");
       setState(() {
         _isInitialized = true;
         _nextRoute = '/login';
       });
     }
+  }
+
+  Future<void> _requestPermissionsIfNeeded() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasRequestedPermissions = prefs.getBool('permissions_requested') ?? false;
+      
+      if (!hasRequestedPermissions && mounted) {
+        _logger.i('🔔 طلب الأذونات لأول مرة');
+        final granted = await PermissionService.requestPermissionsWithUI(context);
+        if (granted) {
+          await prefs.setBool('permissions_requested', true);
+          _logger.i('✅ تم منح جميع الأذونات');
+        }
+      }
+    } catch (e) {
+      _logger.e('❌ خطأ في طلب الأذونات: $e');
+    }
+  }
+
+  void changeLanguage(String languageCode) {
+    widget.onLocaleChange?.call(Locale(languageCode));
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('app_language', languageCode);
+    });
+    setState(() {});
   }
 
   @override
@@ -150,7 +159,6 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
     );
   }
 
-  // ✅ دالة معالجة زر الرجوع المحسنة
   Future<bool> _onWillPop() async {
     final navigator = Navigator.of(context);
     
@@ -189,7 +197,7 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
   }
 
   Route<dynamic> _generateRoute(RouteSettings settings) {
-    _logger.d("🚀 مسار جديد مطلوب: ${settings.name}");
+    _logger.d("🚀 مسار جديد: ${settings.name}");
 
     switch (settings.name) {
       case '/':
@@ -197,8 +205,6 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
         return MaterialPageRoute(builder: (_) => const SplashScreen());
       
       case '/login':
-        return MaterialPageRoute(builder: (_) => const OTPLoginScreen());
-      
       case '/otp-login':
         return MaterialPageRoute(builder: (_) => const OTPLoginScreen());
       
@@ -209,7 +215,9 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
         return MaterialPageRoute(builder: (_) => const HomeScreen());
       
       case '/settings':
-        return MaterialPageRoute(builder: (_) => const SettingsScreen());
+        return MaterialPageRoute(builder: (_) => SettingsScreen(
+          onChangeLanguage: changeLanguage,
+        ));
       
       case '/parental-control':
         return MaterialPageRoute(builder: (_) => const ParentalControlScreen());
@@ -257,22 +265,8 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
       case '/delete-account':
         return MaterialPageRoute(builder: (_) => const DeleteAccountScreen());
       
-      case '/chat-wallpaper':
-      case '/chat-font-size':
-      case '/notification-sound':
-      case '/silent-notifications':
-      case '/auto-download-media':
-      case '/manage-allowed-senders':
-      case '/hidden-chats':
-      case '/change-name':
-      case '/change-avatar':
-      case '/change-credentials':
-      case '/link-providers':
-        _logger.w("⚠️ شاشة '${settings.name}' غير موجودة بعد، مؤقتاً نعود للإعدادات.");
-        return MaterialPageRoute(builder: (_) => const SettingsScreen());
-
       case '/chat':
-        final args = _chatArgs ?? (settings.arguments as Map<String, String>?);
+        final args = settings.arguments as Map<String, String>?;
         if (args != null && args['chatId'] != null && args['receiverId'] != null) {
           return MaterialPageRoute(
             builder: (_) => SmartChatScreen(
@@ -281,7 +275,6 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
             ),
           );
         }
-        _logger.w("⚠️ لا توجد محادثة محددة، التوجيه إلى HomeScreen");
         return MaterialPageRoute(builder: (_) => const HomeScreen());
       
       case '/create-group':
@@ -385,24 +378,20 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
       
       case '/age-verification':
         return MaterialPageRoute(builder: (_) => AgeVerificationScreen(
-          onVerified: () {
-            Navigator.pop(context);
-          },
-          onUnderAge: () {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('عمرك أقل من المطلوب'),
-                content: const Text('عذراً، لا يمكنك استخدام Privoo.'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('حسناً'),
-                  ),
-                ],
-              ),
-            );
-          },
+          onVerified: () => Navigator.pop(context),
+          onUnderAge: () => showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('عمرك أقل من المطلوب'),
+              content: const Text('عذراً، لا يمكنك استخدام Privoo.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('حسناً'),
+                ),
+              ],
+            ),
+          ),
         ));
       
       case '/terms':
@@ -433,7 +422,7 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
         return MaterialPageRoute(builder: (_) => const ManageOffersScreen());
 
       default:
-        _logger.w("⚠️ مسار غير معروف: ${settings.name}. التوجيه إلى /home.");
+        _logger.w("⚠️ مسار غير معروف: ${settings.name}");
         return MaterialPageRoute(builder: (_) => const HomeScreen());
     }
   }

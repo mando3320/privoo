@@ -1,4 +1,6 @@
 // lib/views/auth/profile_setup_screen.dart
+// (الكود كامل مع التعديل - استبدل ملفك بهذا)
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,6 +23,33 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final _auth = FirebaseAuth.instance;
 
   bool _isLoading = false;
+  String? _cachedPhoneNumber; // ✅ تخزين رقم الهاتف مؤقتاً
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhoneNumber();
+  }
+
+  Future<void> _loadPhoneNumber() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      // ✅ محاولة جلب رقم الهاتف من Firestore أولاً
+      try {
+        final doc = await _db.collection('users').doc(user.uid).get();
+        if (doc.exists && doc.data()?['phoneNumber'] != null) {
+          _cachedPhoneNumber = doc.data()!['phoneNumber'];
+        } else if (user.phoneNumber != null) {
+          _cachedPhoneNumber = user.phoneNumber;
+        }
+      } catch (e) {
+        logger.e('❌ فشل جلب رقم الهاتف: $e');
+        if (user.phoneNumber != null) {
+          _cachedPhoneNumber = user.phoneNumber;
+        }
+      }
+    }
+  }
 
   void _showSnackbar(String message, {bool isError = false}) {
     if (!mounted) return;
@@ -49,14 +78,13 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }
 
     try {
-      // ✅ الحقول موحدة مع Firestore
-      // uid = user.uid (Document ID)
-      // phoneNumber (وليس phone)
-      // isActive (وليس isOnline)
+      // ✅ استخدام رقم الهاتف المخزن مؤقتاً أو من Firebase Auth
+      final phoneNumber = _cachedPhoneNumber ?? user.phoneNumber ?? '';
+      
       await _db.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'name': name,
-        'phoneNumber': user.phoneNumber ?? '',
+        'phoneNumber': phoneNumber,
         'avatarUrl': '',
         'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),
@@ -67,7 +95,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
       if (mounted) {
         setState(() => _isLoading = false);
-        await Future.delayed(const Duration(milliseconds: 500));
         Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {

@@ -1,7 +1,10 @@
 // lib/views/settings/setting_screen.dart
+// (الكود كامل مع التعديل - استبدل ملفك بهذا)
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ إضافة هذا الـ import
 import '../../l10n/app_localizations.dart';
 import '../../config/app_theme.dart';
 import '../../controllers/app_controller.dart';
@@ -31,7 +34,9 @@ import 'hidden_chats_screen.dart';
 import 'parental_control_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  final Function(String)? onChangeLanguage; // ✅ إضافة معامل اختياري
+  
+  const SettingsScreen({super.key, this.onChangeLanguage});
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -72,6 +77,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  // ✅ دالة تغيير اللغة المحسنة - تعيد بناء الواجهة فوراً
+  void _changeLanguage(String code, String label, dynamic appNotifier) {
+    // حفظ اللغة في SharedPreferences
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('app_language', code);
+    });
+    
+    // تحديث اللغة في AppController
+    appNotifier.updateLanguage(code);
+    
+    // ✅ استدعاء دالة تغيير اللغة من الوالد إذا كانت موجودة
+    widget.onChangeLanguage?.call(code);
+    
+    // عرض رسالة تأكيد
+    _showSnack(context, "تم تغيير اللغة إلى $label");
+    
+    // ✅ إعادة بناء الواجهة
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
@@ -88,7 +113,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          // ---------- اللغة ----------
+          // ---------- اللغة (معدل) ----------
           _buildLanguageTile(context, app, appNotifier),
           const Divider(),
 
@@ -383,7 +408,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         child: Row(
                           children: [
                             Icon(Icons.admin_panel_settings, color: AppTheme.privooDeepPurple),
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8),
                             Text(
                               'لوحة تحكم المشرفين',
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.privooDeepPurple),
@@ -504,6 +529,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  // ✅ دالة بناء خيار اللغة المعدلة
   Widget _buildLanguageTile(BuildContext context, dynamic app, dynamic appNotifier) {
     final currentCode = app.locale.languageCode;
     return ListTile(
@@ -518,8 +544,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }).toList(),
         onChanged: (value) {
           if (value != null) {
-            appNotifier.updateLanguage(value);
-            _showSnack(context, "تم تغيير اللغة إلى ${_languages.firstWhere((l) => l['code'] == value)['label']}");
+            final label = _languages.firstWhere((l) => l['code'] == value)['label']!;
+            _changeLanguage(value, label, appNotifier);
           }
         },
       ),

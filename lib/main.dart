@@ -7,9 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logger/logger.dart';
 import 'package:firebase_performance/firebase_performance.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
-// ❌ تم إزالة import 'core/device_helper.dart';
 import 'firebase/firebase_options.dart';
 import 'config/app_theme.dart';
 import 'controllers/app_controller.dart';
@@ -25,18 +26,16 @@ Future<void> main() async {
     await dotenv.load(fileName: ".env");
     logger.i('✅ تم تحميل ملف .env بنجاح');
 
-    // ❌ تم إزالة كود DeviceHelper بالكامل
-    // if (Platform.isAndroid) {
-    //   final isProblematic = await DeviceHelper.isProblematicDevice();
-    //   if (isProblematic) {
-    //     logger.w('⚠️ تم اكتشاف جهاز OPPO / Realme / OnePlus / Vivo — تفعيل الحماية الخاصة.');
-    //   }
-    // }
-
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
     logger.i('✅ تم تهيئة Firebase بنجاح');
+
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: 100 * 1024 * 1024,
+    );
+    logger.i('✅ تم تهيئة Firestore Settings');
 
     await HiveStorageService.init();
     logger.i('✅ تم تهيئة Hive Storage بنجاح');
@@ -56,9 +55,9 @@ Future<void> main() async {
     logger.e('❌ خطأ أثناء التهيئة: $e');
     logger.e('Stacktrace: $s');
     
-    // عرض شاشة خطأ بديلة
     runApp(
       MaterialApp(
+        debugShowCheckedModeBanner: false,
         home: Scaffold(
           body: Center(
             child: Column(
@@ -81,22 +80,53 @@ Future<void> main() async {
   }
 }
 
-class PrivooMainApp extends ConsumerWidget {
+class PrivooMainApp extends ConsumerStatefulWidget {
   const PrivooMainApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PrivooMainApp> createState() => _PrivooMainAppState();
+}
+
+class _PrivooMainAppState extends ConsumerState<PrivooMainApp> {
+  Locale? _locale;
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedLocale();
+  }
+  
+  Future<void> _loadSavedLocale() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedLanguage = prefs.getString('app_language');
+    if (savedLanguage != null && mounted) {
+      setState(() {
+        _locale = Locale(savedLanguage);
+      });
+    }
+  }
+  
+  void setLocale(Locale locale) {
+    setState(() {
+      _locale = locale;
+    });
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('app_language', locale.languageCode);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final app = ref.watch(appControllerProvider);
-    
-    // الحصول على الثيم الحالي
     final theme = app.getCurrentTheme();
 
     return MaterialApp(
       title: 'Privoo',
+      debugShowCheckedModeBanner: false,
       theme: theme,
       darkTheme: AppTheme.darkTheme,
       themeMode: app.themeMode,
-      locale: app.locale,
+      locale: _locale ?? app.locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -104,12 +134,20 @@ class PrivooMainApp extends ConsumerWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('ar'), Locale('en'), Locale('fr'), Locale('es'),
-        Locale('de'), Locale('zh'), Locale('ru'), Locale('hi'),
-        Locale('tr'), Locale('ja'),
+        Locale('ar'), 
+        Locale('en'), 
+        Locale('fr'), 
+        Locale('es'),
+        Locale('de'), 
+        Locale('zh'), 
+        Locale('ru'), 
+        Locale('hi'),
+        Locale('tr'), 
+        Locale('ja'),
       ],
-      home: const PrivooApp(),
-      debugShowCheckedModeBanner: false,
+      home: PrivooApp(
+        onLocaleChange: setLocale,
+      ),
     );
   }
 }

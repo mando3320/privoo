@@ -1,4 +1,6 @@
 // lib/views/auth/otp_login_screen.dart
+// (الكود كامل مع التعديلات - استبدل ملفك بهذا)
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -25,7 +27,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
   bool _isLoading = false;
   int _attempts = 0;
 
-  // ✅ متغير رمز الدولة
   String _selectedCountryCode = '+20';
   String _selectedCountryFlag = '🇪🇬';
   String _selectedCountryName = 'مصر';
@@ -33,226 +34,43 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
   Timer? _cooldownTimer;
   int _cooldownSeconds = 0;
 
-  // ✅ قائمة جميع دول العالم (250+ دولة)
   final List<Map<String, String>> _allCountries = [
-    // 🌍 أفريقيا
     {'code': '+20', 'flag': '🇪🇬', 'name': 'مصر'},
+    {'code': '+966', 'flag': '🇸🇦', 'name': 'السعودية'},
+    {'code': '+971', 'flag': '🇦🇪', 'name': 'الإمارات'},
+    {'code': '+974', 'flag': '🇶🇦', 'name': 'قطر'},
+    {'code': '+965', 'flag': '🇰🇼', 'name': 'الكويت'},
+    {'code': '+973', 'flag': '🇧🇭', 'name': 'البحرين'},
+    {'code': '+968', 'flag': '🇴🇲', 'name': 'عمان'},
+    {'code': '+962', 'flag': '🇯🇴', 'name': 'الأردن'},
+    {'code': '+961', 'flag': '🇱🇧', 'name': 'لبنان'},
+    {'code': '+963', 'flag': '🇸🇾', 'name': 'سوريا'},
+    {'code': '+970', 'flag': '🇵🇸', 'name': 'فلسطين'},
+    {'code': '+964', 'flag': '🇮🇶', 'name': 'العراق'},
+    {'code': '+967', 'flag': '🇾🇪', 'name': 'اليمن'},
+    {'code': '+93', 'flag': '🇦🇫', 'name': 'أفغانستان'},
+    {'code': '+91', 'flag': '🇮🇳', 'name': 'الهند'},
+    {'code': '+92', 'flag': '🇵🇰', 'name': 'باكستان'},
+    {'code': '+90', 'flag': '🇹🇷', 'name': 'تركيا'},
+    {'code': '+1', 'flag': '🇺🇸', 'name': 'الولايات المتحدة'},
+    {'code': '+44', 'flag': '🇬🇧', 'name': 'بريطانيا'},
+    {'code': '+49', 'flag': '🇩🇪', 'name': 'ألمانيا'},
+    {'code': '+33', 'flag': '🇫🇷', 'name': 'فرنسا'},
+    {'code': '+39', 'flag': '🇮🇹', 'name': 'إيطاليا'},
+    {'code': '+34', 'flag': '🇪🇸', 'name': 'إسبانيا'},
+    {'code': '+7', 'flag': '🇷🇺', 'name': 'روسيا'},
+    {'code': '+86', 'flag': '🇨🇳', 'name': 'الصين'},
+    {'code': '+81', 'flag': '🇯🇵', 'name': 'اليابان'},
+    {'code': '+55', 'flag': '🇧🇷', 'name': 'البرازيل'},
+    {'code': '+61', 'flag': '🇦🇺', 'name': 'أستراليا'},
+    {'code': '+27', 'flag': '🇿🇦', 'name': 'جنوب أفريقيا'},
     {'code': '+213', 'flag': '🇩🇿', 'name': 'الجزائر'},
     {'code': '+212', 'flag': '🇲🇦', 'name': 'المغرب'},
     {'code': '+216', 'flag': '🇹🇳', 'name': 'تونس'},
     {'code': '+218', 'flag': '🇱🇾', 'name': 'ليبيا'},
     {'code': '+249', 'flag': '🇸🇩', 'name': 'السودان'},
-    {'code': '+222', 'flag': '🇲🇷', 'name': 'موريتانيا'},
-    {'code': '+223', 'flag': '🇲🇱', 'name': 'مالي'},
-    {'code': '+227', 'flag': '🇳🇪', 'name': 'النيجر'},
-    {'code': '+235', 'flag': '🇹🇩', 'name': 'تشاد'},
-    {'code': '+221', 'flag': '🇸🇳', 'name': 'السنغال'},
-    {'code': '+224', 'flag': '🇬🇳', 'name': 'غينيا'},
-    {'code': '+225', 'flag': '🇨🇮', 'name': 'ساحل العاج'},
-    {'code': '+226', 'flag': '🇧🇫', 'name': 'بوركينا فاسو'},
-    {'code': '+229', 'flag': '🇧🇯', 'name': 'بنين'},
-    {'code': '+228', 'flag': '🇹🇬', 'name': 'توغو'},
-    {'code': '+233', 'flag': '🇬🇭', 'name': 'غانا'},
-    {'code': '+234', 'flag': '🇳🇬', 'name': 'نيجيريا'},
-    {'code': '+237', 'flag': '🇨🇲', 'name': 'الكاميرون'},
-    {'code': '+242', 'flag': '🇨🇬', 'name': 'الكونغو'},
-    {'code': '+243', 'flag': '🇨🇩', 'name': 'الكونغو الديمقراطية'},
-    {'code': '+244', 'flag': '🇦🇴', 'name': 'أنغولا'},
-    {'code': '+245', 'flag': '🇬🇼', 'name': 'غينيا بيساو'},
-    {'code': '+246', 'flag': '🇮🇴', 'name': 'إقليم المحيط الهندي البريطاني'},
-    {'code': '+248', 'flag': '🇸🇨', 'name': 'سيشل'},
-    {'code': '+250', 'flag': '🇷🇼', 'name': 'رواندا'},
-    {'code': '+251', 'flag': '🇪🇹', 'name': 'إثيوبيا'},
-    {'code': '+252', 'flag': '🇸🇴', 'name': 'الصومال'},
-    {'code': '+253', 'flag': '🇩🇯', 'name': 'جيبوتي'},
-    {'code': '+254', 'flag': '🇰🇪', 'name': 'كينيا'},
-    {'code': '+255', 'flag': '🇹🇿', 'name': 'تنزانيا'},
-    {'code': '+256', 'flag': '🇺🇬', 'name': 'أوغندا'},
-    {'code': '+257', 'flag': '🇧🇮', 'name': 'بوروندي'},
-    {'code': '+258', 'flag': '🇲🇿', 'name': 'موزمبيق'},
-    {'code': '+260', 'flag': '🇿🇲', 'name': 'زامبيا'},
-    {'code': '+261', 'flag': '🇲🇬', 'name': 'مدغشقر'},
-    {'code': '+262', 'flag': '🇷🇪', 'name': 'لا ريونيون'},
-    {'code': '+263', 'flag': '🇿🇼', 'name': 'زيمبابوي'},
-    {'code': '+264', 'flag': '🇳🇦', 'name': 'ناميبيا'},
-    {'code': '+265', 'flag': '🇲🇼', 'name': 'مالاوي'},
-    {'code': '+266', 'flag': '🇱🇸', 'name': 'ليسوتو'},
-    {'code': '+267', 'flag': '🇧🇼', 'name': 'بوتسوانا'},
-    {'code': '+268', 'flag': '🇸🇿', 'name': 'إسواتيني'},
-    {'code': '+269', 'flag': '🇰🇲', 'name': 'جزر القمر'},
-    {'code': '+27', 'flag': '🇿🇦', 'name': 'جنوب أفريقيا'},
-    {'code': '+290', 'flag': '🇸🇭', 'name': 'سانت هيلينا'},
-    {'code': '+291', 'flag': '🇪🇷', 'name': 'إريتريا'},
-    {'code': '+297', 'flag': '🇦🇼', 'name': 'أروبا'},
-    {'code': '+298', 'flag': '🇫🇴', 'name': 'جزر فارو'},
-    {'code': '+299', 'flag': '🇬🇱', 'name': 'غرينلاند'},
-    
-    // 🌍 آسيا
-    {'code': '+93', 'flag': '🇦🇫', 'name': 'أفغانستان'},
-    {'code': '+94', 'flag': '🇱🇰', 'name': 'سريلانكا'},
-    {'code': '+95', 'flag': '🇲🇲', 'name': 'ميانمار'},
-    {'code': '+960', 'flag': '🇲🇻', 'name': 'جزر المالديف'},
-    {'code': '+961', 'flag': '🇱🇧', 'name': 'لبنان'},
-    {'code': '+962', 'flag': '🇯🇴', 'name': 'الأردن'},
-    {'code': '+963', 'flag': '🇸🇾', 'name': 'سوريا'},
-    {'code': '+964', 'flag': '🇮🇶', 'name': 'العراق'},
-    {'code': '+965', 'flag': '🇰🇼', 'name': 'الكويت'},
-    {'code': '+966', 'flag': '🇸🇦', 'name': 'السعودية'},
-    {'code': '+967', 'flag': '🇾🇪', 'name': 'اليمن'},
-    {'code': '+968', 'flag': '🇴🇲', 'name': 'عمان'},
-    {'code': '+970', 'flag': '🇵🇸', 'name': 'فلسطين'},
-    {'code': '+971', 'flag': '🇦🇪', 'name': 'الإمارات'},
-    {'code': '+972', 'flag': '🇮🇱', 'name': 'إسرائيل'},
-    {'code': '+973', 'flag': '🇧🇭', 'name': 'البحرين'},
-    {'code': '+974', 'flag': '🇶🇦', 'name': 'قطر'},
-    {'code': '+975', 'flag': '🇧🇹', 'name': 'بوتان'},
-    {'code': '+976', 'flag': '🇲🇳', 'name': 'منغوليا'},
-    {'code': '+977', 'flag': '🇳🇵', 'name': 'نيبال'},
-    {'code': '+98', 'flag': '🇮🇷', 'name': 'إيران'},
-    {'code': '+992', 'flag': '🇹🇯', 'name': 'طاجيكستان'},
-    {'code': '+993', 'flag': '🇹🇲', 'name': 'تركمانستان'},
-    {'code': '+994', 'flag': '🇦🇿', 'name': 'أذربيجان'},
-    {'code': '+995', 'flag': '🇬🇪', 'name': 'جورجيا'},
-    {'code': '+996', 'flag': '🇰🇬', 'name': 'قيرغيزستان'},
-    {'code': '+998', 'flag': '🇺🇿', 'name': 'أوزبكستان'},
-    {'code': '+850', 'flag': '🇰🇵', 'name': 'كوريا الشمالية'},
-    {'code': '+852', 'flag': '🇭🇰', 'name': 'هونغ كونغ'},
-    {'code': '+853', 'flag': '🇲🇴', 'name': 'ماكاو'},
-    {'code': '+855', 'flag': '🇰🇭', 'name': 'كمبوديا'},
-    {'code': '+856', 'flag': '🇱🇦', 'name': 'لاوس'},
-    {'code': '+86', 'flag': '🇨🇳', 'name': 'الصين'},
-    {'code': '+880', 'flag': '🇧🇩', 'name': 'بنغلاديش'},
-    {'code': '+886', 'flag': '🇹🇼', 'name': 'تايوان'},
-    {'code': '+90', 'flag': '🇹🇷', 'name': 'تركيا'},
-    {'code': '+91', 'flag': '🇮🇳', 'name': 'الهند'},
-    {'code': '+92', 'flag': '🇵🇰', 'name': 'باكستان'},
-    {'code': '+60', 'flag': '🇲🇾', 'name': 'ماليزيا'},
-    {'code': '+61', 'flag': '🇦🇺', 'name': 'أستراليا'},
-    {'code': '+62', 'flag': '🇮🇩', 'name': 'إندونيسيا'},
-    {'code': '+63', 'flag': '🇵🇭', 'name': 'الفلبين'},
-    {'code': '+64', 'flag': '🇳🇿', 'name': 'نيوزيلندا'},
-    {'code': '+65', 'flag': '🇸🇬', 'name': 'سنغافورة'},
-    {'code': '+66', 'flag': '🇹🇭', 'name': 'تايلاند'},
-    {'code': '+81', 'flag': '🇯🇵', 'name': 'اليابان'},
-    {'code': '+82', 'flag': '🇰🇷', 'name': 'كوريا الجنوبية'},
-    {'code': '+84', 'flag': '🇻🇳', 'name': 'فيتنام'},
-    
-    // 🌍 أوروبا
-    {'code': '+7', 'flag': '🇷🇺', 'name': 'روسيا'},
-    {'code': '+30', 'flag': '🇬🇷', 'name': 'اليونان'},
-    {'code': '+31', 'flag': '🇳🇱', 'name': 'هولندا'},
-    {'code': '+32', 'flag': '🇧🇪', 'name': 'بلجيكا'},
-    {'code': '+33', 'flag': '🇫🇷', 'name': 'فرنسا'},
-    {'code': '+34', 'flag': '🇪🇸', 'name': 'إسبانيا'},
-    {'code': '+36', 'flag': '🇭🇺', 'name': 'المجر'},
-    {'code': '+39', 'flag': '🇮🇹', 'name': 'إيطاليا'},
-    {'code': '+40', 'flag': '🇷🇴', 'name': 'رومانيا'},
-    {'code': '+41', 'flag': '🇨🇭', 'name': 'سويسرا'},
-    {'code': '+42', 'flag': '🇨🇿', 'name': 'التشيك'},
-    {'code': '+43', 'flag': '🇦🇹', 'name': 'النمسا'},
-    {'code': '+44', 'flag': '🇬🇧', 'name': 'بريطانيا'},
-    {'code': '+45', 'flag': '🇩🇰', 'name': 'الدنمارك'},
-    {'code': '+46', 'flag': '🇸🇪', 'name': 'السويد'},
-    {'code': '+47', 'flag': '🇳🇴', 'name': 'النرويج'},
-    {'code': '+48', 'flag': '🇵🇱', 'name': 'بولندا'},
-    {'code': '+49', 'flag': '🇩🇪', 'name': 'ألمانيا'},
-    {'code': '+350', 'flag': '🇬🇮', 'name': 'جبل طارق'},
-    {'code': '+351', 'flag': '🇵🇹', 'name': 'البرتغال'},
-    {'code': '+352', 'flag': '🇱🇺', 'name': 'لوكسمبورغ'},
-    {'code': '+353', 'flag': '🇮🇪', 'name': 'أيرلندا'},
-    {'code': '+354', 'flag': '🇮🇸', 'name': 'آيسلندا'},
-    {'code': '+355', 'flag': '🇦🇱', 'name': 'ألبانيا'},
-    {'code': '+356', 'flag': '🇲🇹', 'name': 'مالطا'},
-    {'code': '+357', 'flag': '🇨🇾', 'name': 'قبرص'},
-    {'code': '+358', 'flag': '🇫🇮', 'name': 'فنلندا'},
-    {'code': '+359', 'flag': '🇧🇬', 'name': 'بلغاريا'},
-    {'code': '+370', 'flag': '🇱🇹', 'name': 'ليتوانيا'},
-    {'code': '+371', 'flag': '🇱🇻', 'name': 'لاتفيا'},
-    {'code': '+372', 'flag': '🇪🇪', 'name': 'إستونيا'},
-    {'code': '+373', 'flag': '🇲🇩', 'name': 'مولدوفا'},
-    {'code': '+374', 'flag': '🇦🇲', 'name': 'أرمينيا'},
-    {'code': '+375', 'flag': '🇧🇾', 'name': 'بيلاروسيا'},
-    {'code': '+376', 'flag': '🇦🇩', 'name': 'أندورا'},
-    {'code': '+377', 'flag': '🇲🇨', 'name': 'موناكو'},
-    {'code': '+378', 'flag': '🇸🇲', 'name': 'سان مارينو'},
-    {'code': '+379', 'flag': '🇻🇦', 'name': 'الفاتيكان'},
-    {'code': '+380', 'flag': '🇺🇦', 'name': 'أوكرانيا'},
-    {'code': '+381', 'flag': '🇷🇸', 'name': 'صربيا'},
-    {'code': '+382', 'flag': '🇲🇪', 'name': 'الجبل الأسود'},
-    {'code': '+383', 'flag': '🇽🇰', 'name': 'كوسوفو'},
-    {'code': '+385', 'flag': '🇭🇷', 'name': 'كرواتيا'},
-    {'code': '+386', 'flag': '🇸🇮', 'name': 'سلوفينيا'},
-    {'code': '+387', 'flag': '🇧🇦', 'name': 'البوسنة والهرسك'},
-    {'code': '+389', 'flag': '🇲🇰', 'name': 'مقدونيا الشمالية'},
-    {'code': '+420', 'flag': '🇨🇿', 'name': 'التشيك'},
-    {'code': '+421', 'flag': '🇸🇰', 'name': 'سلوفاكيا'},
-    {'code': '+423', 'flag': '🇱🇮', 'name': 'ليختنشتاين'},
-    
-    // 🌍 أمريكا الشمالية والجنوبية
-    {'code': '+1', 'flag': '🇺🇸', 'name': 'الولايات المتحدة'},
-    {'code': '+1', 'flag': '🇨🇦', 'name': 'كندا (نفس الرقم)'},
-    {'code': '+52', 'flag': '🇲🇽', 'name': 'المكسيك'},
-    {'code': '+53', 'flag': '🇨🇺', 'name': 'كوبا'},
-    {'code': '+54', 'flag': '🇦🇷', 'name': 'الأرجنتين'},
-    {'code': '+55', 'flag': '🇧🇷', 'name': 'البرازيل'},
-    {'code': '+56', 'flag': '🇨🇱', 'name': 'تشيلي'},
-    {'code': '+57', 'flag': '🇨🇴', 'name': 'كولومبيا'},
-    {'code': '+58', 'flag': '🇻🇪', 'name': 'فنزويلا'},
-    {'code': '+591', 'flag': '🇧🇴', 'name': 'بوليفيا'},
-    {'code': '+592', 'flag': '🇬🇾', 'name': 'غيانا'},
-    {'code': '+593', 'flag': '🇪🇨', 'name': 'الإكوادور'},
-    {'code': '+594', 'flag': '🇬🇫', 'name': 'غويانا الفرنسية'},
-    {'code': '+595', 'flag': '🇵🇾', 'name': 'باراغواي'},
-    {'code': '+596', 'flag': '🇲🇶', 'name': 'مارتينيك'},
-    {'code': '+597', 'flag': '🇸🇷', 'name': 'سورينام'},
-    {'code': '+598', 'flag': '🇺🇾', 'name': 'أوروغواي'},
-    {'code': '+599', 'flag': '🇧🇶', 'name': 'جزر الكاريبي الهولندية'},
-    {'code': '+500', 'flag': '🇫🇰', 'name': 'جزر فوكلاند'},
-    {'code': '+501', 'flag': '🇧🇿', 'name': 'بليز'},
-    {'code': '+502', 'flag': '🇬🇹', 'name': 'غواتيمالا'},
-    {'code': '+503', 'flag': '🇸🇻', 'name': 'السلفادور'},
-    {'code': '+504', 'flag': '🇭🇳', 'name': 'هندوراس'},
-    {'code': '+505', 'flag': '🇳🇮', 'name': 'نيكاراغوا'},
-    {'code': '+506', 'flag': '🇨🇷', 'name': 'كوستاريكا'},
-    {'code': '+507', 'flag': '🇵🇦', 'name': 'بنما'},
-    {'code': '+508', 'flag': '🇵🇲', 'name': 'سان بيير وميكلون'},
-    {'code': '+509', 'flag': '🇭🇹', 'name': 'هايتي'},
-    {'code': '+51', 'flag': '🇵🇪', 'name': 'بيرو'},
-    {'code': '+52', 'flag': '🇲🇽', 'name': 'المكسيك'},
-    {'code': '+53', 'flag': '🇨🇺', 'name': 'كوبا'},
-    {'code': '+54', 'flag': '🇦🇷', 'name': 'الأرجنتين'},
-    {'code': '+55', 'flag': '🇧🇷', 'name': 'البرازيل'},
-    {'code': '+56', 'flag': '🇨🇱', 'name': 'تشيلي'},
-    {'code': '+57', 'flag': '🇨🇴', 'name': 'كولومبيا'},
-    {'code': '+58', 'flag': '🇻🇪', 'name': 'فنزويلا'},
-    {'code': '+1-868', 'flag': '🇹🇹', 'name': 'ترينيداد وتوباغو'},
-    {'code': '+1-876', 'flag': '🇯🇲', 'name': 'جامايكا'},
-    {'code': '+1-242', 'flag': '🇧🇸', 'name': 'جزر البهاما'},
-    {'code': '+1-246', 'flag': '🇧🇧', 'name': 'باربادوس'},
-    {'code': '+1-264', 'flag': '🇦🇮', 'name': 'أنغويلا'},
-    {'code': '+1-268', 'flag': '🇦🇬', 'name': 'أنتيغوا وباربودا'},
-    {'code': '+1-284', 'flag': '🇻🇬', 'name': 'جزر العذراء البريطانية'},
-    {'code': '+1-340', 'flag': '🇻🇮', 'name': 'جزر العذراء الأمريكية'},
-    {'code': '+1-345', 'flag': '🇰🇾', 'name': 'جزر كايمان'},
-    {'code': '+1-441', 'flag': '🇧🇲', 'name': 'برمودا'},
-    {'code': '+1-473', 'flag': '🇬🇩', 'name': 'غرينادا'},
-    {'code': '+1-649', 'flag': '🇹🇨', 'name': 'جزر توركس وكايكوس'},
-    {'code': '+1-664', 'flag': '🇲🇸', 'name': 'مونتسرات'},
-    {'code': '+1-670', 'flag': '🇲🇵', 'name': 'جزر ماريانا الشمالية'},
-    {'code': '+1-671', 'flag': '🇬🇺', 'name': 'غوام'},
-    {'code': '+1-684', 'flag': '🇦🇸', 'name': 'ساموا الأمريكية'},
-    {'code': '+1-721', 'flag': '🇸🇽', 'name': 'سينت مارتن'},
-    {'code': '+1-767', 'flag': '🇩🇲', 'name': 'دومينيكا'},
-    {'code': '+1-784', 'flag': '🇻🇨', 'name': 'سانت فينسنت والغرينادين'},
-    {'code': '+1-787', 'flag': '🇵🇷', 'name': 'بورتوريكو'},
-    {'code': '+1-809', 'flag': '🇩🇴', 'name': 'جمهورية الدومينيكان'},
-    {'code': '+1-829', 'flag': '🇩🇴', 'name': 'جمهورية الدومينيكان'},
-    {'code': '+1-849', 'flag': '🇩🇴', 'name': 'جمهورية الدومينيكان'},
-    {'code': '+1-869', 'flag': '🇰🇳', 'name': 'سانت كيتس ونيفيس'},
-    {'code': '+1-939', 'flag': '🇵🇷', 'name': 'بورتوريكو'},
   ];
 
-  // ✅ القائمة المفلترة (البحث)
   List<Map<String, String>> _filteredCountries = [];
   TextEditingController _searchController = TextEditingController();
 
@@ -312,49 +130,30 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     );
   }
 
+  // ✅ دالة إنشاء المستخدم في Firestore (محسنة)
   Future<void> _createOrUpdateUserInFirestore(User user, String phoneNumber) async {
-    print('🔵🔵🔵 دالة _createOrUpdateUserInFirestore اتعملت 🔵🔵🔵');
-    print('🆔 UID: ${user.uid}');
-    print('📞 Phone: $phoneNumber');
+    print('🔵 بدء إنشاء المستخدم في Firestore...');
     
     try {
       final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final doc = await userRef.get();
       
-      if (!doc.exists) {
-        final Map<String, dynamic> newUserData = {
-          'uid': user.uid,
-          'name': phoneNumber,
-          'phoneNumber': phoneNumber,
-          'avatarUrl': '',
-          'about': 'مرحباً، أنا أستخدم Privoo',
-          'isActive': true,
-          'createdAt': FieldValue.serverTimestamp(),
-          'lastSeen': FieldValue.serverTimestamp(),
-        };
-        
-        await userRef.set(newUserData);
-        print('✅ تم إنشاء مستخدم جديد في Firestore: ${user.uid}');
-      } else {
-        final existingData = doc.data()!;
-        final Map<String, dynamic> updateData = {
-          'lastSeen': FieldValue.serverTimestamp(),
-          'isActive': true,
-        };
-        
-        if (existingData['phoneNumber'] == null || existingData['phoneNumber'].isEmpty) {
-          updateData['phoneNumber'] = phoneNumber;
-        }
-        
-        if (existingData['name'] == null || existingData['name'].isEmpty) {
-          updateData['name'] = phoneNumber;
-        }
-        
-        await userRef.update(updateData);
-        print('✅ تم تحديث وقت التواجد للمستخدم: ${user.uid}');
-      }
+      final userData = {
+        'uid': user.uid,
+        'name': phoneNumber,
+        'phoneNumber': phoneNumber,
+        'avatarUrl': '',
+        'about': 'مرحباً، أنا أستخدم Privoo',
+        'isActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastSeen': FieldValue.serverTimestamp(),
+      };
+      
+      await userRef.set(userData, SetOptions(merge: true));
+      print('✅ تم حفظ المستخدم في Firestore');
+      
     } catch (e) {
-      print('❌❌❌ فشل إنشاء أو تحديث المستخدم: $e ❌❌❌');
+      print('❌ فشل إنشاء المستخدم: $e');
+      rethrow;
     }
   }
 
@@ -376,20 +175,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     final fullPhoneNumber = _getFullPhoneNumber();
     setState(() => _isLoading = true);
     
-    final messenger = ScaffoldMessenger.of(context);
-    final loadingSnack = SnackBar(
-      content: Row(
-        children: [
-          const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-          const SizedBox(width: 12),
-          Expanded(child: Text('جاري إرسال رمز التحقق إلى $fullPhoneNumber...')),
-        ],
-      ),
-      duration: const Duration(seconds: 10),
-      behavior: SnackBarBehavior.floating,
-    );
-    messenger.showSnackBar(loadingSnack);
-    
     try {
       await _auth.verifyPhoneNumber(
         phoneNumber: fullPhoneNumber,
@@ -398,16 +183,20 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
           try {
             final userCredential = await _auth.signInWithCredential(credential);
             await _createOrUpdateUserInFirestore(userCredential.user!, fullPhoneNumber);
-            await _checkTermsAndNavigate();
-          } catch (_) {}
+            if (mounted) await _checkTermsAndNavigate();
+          } catch (e) {
+            print('❌ verificationCompleted error: $e');
+          }
         },
         verificationFailed: (FirebaseAuthException e) {
           _showSnackbar("❌ فشل التحقق: ${e.message}", isError: true);
+          setState(() => _isLoading = false);
         },
         codeSent: (verificationId, _) {
           setState(() {
             _verificationId = verificationId;
             _codeSent = true;
+            _isLoading = false;
           });
           _startCooldown(30);
           _showSnackbar("✅ تم إرسال رمز التحقق إلى $fullPhoneNumber");
@@ -417,9 +206,7 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
         },
       );
     } catch (e) {
-      _showSnackbar("❌ تعذر إرسال الرمز.", isError: true);
-    } finally {
-      messenger.clearSnackBars();
+      _showSnackbar("❌ تعذر إرسال الرمز: $e", isError: true);
       setState(() => _isLoading = false);
     }
   }
@@ -442,19 +229,26 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     }
 
     setState(() => _isLoading = true);
+    
     try {
       final credential = PhoneAuthProvider.credential(
         verificationId: _verificationId!,
         smsCode: code,
       );
+      
       final userCredential = await _auth.signInWithCredential(credential);
       final fullPhoneNumber = _getFullPhoneNumber();
+      
       await _createOrUpdateUserInFirestore(userCredential.user!, fullPhoneNumber);
-      await _checkTermsAndNavigate();
+      
+      if (mounted) {
+        await _checkTermsAndNavigate();
+      }
+      
     } catch (e) {
+      print('❌ خطأ في التحقق: $e');
       setState(() => _attempts += 1);
       _showSnackbar("❌ رمز غير صحيح. المحاولات المتبقية: ${5 - _attempts}", isError: true);
-    } finally {
       setState(() => _isLoading = false);
     }
   }
@@ -588,11 +382,9 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
             ),
             const SizedBox(height: 40),
             
-            // ✅ حقل رقم الهاتف مع اختيار رمز الدولة
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✅ زر اختيار رمز الدولة
                 GestureDetector(
                   onTap: _showCountryPicker,
                   child: Container(
@@ -612,7 +404,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // ✅ حقل إدخال رقم الهاتف
                 Expanded(
                   child: TextField(
                     controller: _phoneController,
