@@ -35,7 +35,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
 
   // ✅ قائمة جميع دول العالم (250+ دولة)
   final List<Map<String, String>> _allCountries = [
-    // 🌍 أفريقيا
     {'code': '+20', 'flag': '🇪🇬', 'name': 'مصر'},
     {'code': '+213', 'flag': '🇩🇿', 'name': 'الجزائر'},
     {'code': '+212', 'flag': '🇲🇦', 'name': 'المغرب'},
@@ -86,8 +85,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     {'code': '+297', 'flag': '🇦🇼', 'name': 'أروبا'},
     {'code': '+298', 'flag': '🇫🇴', 'name': 'جزر فارو'},
     {'code': '+299', 'flag': '🇬🇱', 'name': 'غرينلاند'},
-    
-    // 🌍 آسيا
     {'code': '+93', 'flag': '🇦🇫', 'name': 'أفغانستان'},
     {'code': '+94', 'flag': '🇱🇰', 'name': 'سريلانكا'},
     {'code': '+95', 'flag': '🇲🇲', 'name': 'ميانمار'},
@@ -136,8 +133,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     {'code': '+81', 'flag': '🇯🇵', 'name': 'اليابان'},
     {'code': '+82', 'flag': '🇰🇷', 'name': 'كوريا الجنوبية'},
     {'code': '+84', 'flag': '🇻🇳', 'name': 'فيتنام'},
-    
-    // 🌍 أوروبا
     {'code': '+7', 'flag': '🇷🇺', 'name': 'روسيا'},
     {'code': '+30', 'flag': '🇬🇷', 'name': 'اليونان'},
     {'code': '+31', 'flag': '🇳🇱', 'name': 'هولندا'},
@@ -187,10 +182,8 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     {'code': '+420', 'flag': '🇨🇿', 'name': 'التشيك'},
     {'code': '+421', 'flag': '🇸🇰', 'name': 'سلوفاكيا'},
     {'code': '+423', 'flag': '🇱🇮', 'name': 'ليختنشتاين'},
-    
-    // 🌍 أمريكا الشمالية والجنوبية
     {'code': '+1', 'flag': '🇺🇸', 'name': 'الولايات المتحدة'},
-    {'code': '+1', 'flag': '🇨🇦', 'name': 'كندا (نفس الرقم)'},
+    {'code': '+1', 'flag': '🇨🇦', 'name': 'كندا'},
     {'code': '+52', 'flag': '🇲🇽', 'name': 'المكسيك'},
     {'code': '+53', 'flag': '🇨🇺', 'name': 'كوبا'},
     {'code': '+54', 'flag': '🇦🇷', 'name': 'الأرجنتين'},
@@ -218,13 +211,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     {'code': '+508', 'flag': '🇵🇲', 'name': 'سان بيير وميكلون'},
     {'code': '+509', 'flag': '🇭🇹', 'name': 'هايتي'},
     {'code': '+51', 'flag': '🇵🇪', 'name': 'بيرو'},
-    {'code': '+52', 'flag': '🇲🇽', 'name': 'المكسيك'},
-    {'code': '+53', 'flag': '🇨🇺', 'name': 'كوبا'},
-    {'code': '+54', 'flag': '🇦🇷', 'name': 'الأرجنتين'},
-    {'code': '+55', 'flag': '🇧🇷', 'name': 'البرازيل'},
-    {'code': '+56', 'flag': '🇨🇱', 'name': 'تشيلي'},
-    {'code': '+57', 'flag': '🇨🇴', 'name': 'كولومبيا'},
-    {'code': '+58', 'flag': '🇻🇪', 'name': 'فنزويلا'},
     {'code': '+1-868', 'flag': '🇹🇹', 'name': 'ترينيداد وتوباغو'},
     {'code': '+1-876', 'flag': '🇯🇲', 'name': 'جامايكا'},
     {'code': '+1-242', 'flag': '🇧🇸', 'name': 'جزر البهاما'},
@@ -252,7 +238,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     {'code': '+1-939', 'flag': '🇵🇷', 'name': 'بورتوريكو'},
   ];
 
-  // ✅ القائمة المفلترة (البحث)
   List<Map<String, String>> _filteredCountries = [];
   TextEditingController _searchController = TextEditingController();
 
@@ -312,49 +297,42 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     );
   }
 
+  // ✅ دالة محسنة لإنشاء المستخدم في Firestore
   Future<void> _createOrUpdateUserInFirestore(User user, String phoneNumber) async {
-    print('🔵🔵🔵 دالة _createOrUpdateUserInFirestore اتعملت 🔵🔵🔵');
+    print('🔵🔵🔵 بدء إنشاء المستخدم في Firestore 🔵🔵🔵');
     print('🆔 UID: ${user.uid}');
     print('📞 Phone: $phoneNumber');
     
     try {
       final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final doc = await userRef.get();
       
-      if (!doc.exists) {
-        final Map<String, dynamic> newUserData = {
-          'uid': user.uid,
-          'name': phoneNumber,
-          'phoneNumber': phoneNumber,
-          'avatarUrl': '',
-          'about': 'مرحباً، أنا أستخدم Privoo',
-          'isActive': true,
-          'createdAt': FieldValue.serverTimestamp(),
-          'lastSeen': FieldValue.serverTimestamp(),
-        };
-        
-        await userRef.set(newUserData);
-        print('✅ تم إنشاء مستخدم جديد في Firestore: ${user.uid}');
+      // البيانات الموحدة
+      final Map<String, dynamic> userData = {
+        'uid': user.uid,
+        'name': phoneNumber, // اسم مؤقت سيتم تحديثه في ProfileSetupScreen
+        'phoneNumber': phoneNumber,
+        'avatarUrl': '',
+        'about': 'مرحباً، أنا أستخدم Privoo',
+        'isActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastSeen': FieldValue.serverTimestamp(),
+      };
+      
+      // استخدام set مع merge: true
+      await userRef.set(userData, SetOptions(merge: true));
+      print('✅ تم حفظ بيانات المستخدم في Firestore');
+      
+      // تأكيد الكتابة
+      final checkDoc = await userRef.get();
+      if (checkDoc.exists) {
+        print('✅✅✅ تأكيد: المستند موجود في Firestore');
+        print('📄 البيانات: ${checkDoc.data()}');
       } else {
-        final existingData = doc.data()!;
-        final Map<String, dynamic> updateData = {
-          'lastSeen': FieldValue.serverTimestamp(),
-          'isActive': true,
-        };
-        
-        if (existingData['phoneNumber'] == null || existingData['phoneNumber'].isEmpty) {
-          updateData['phoneNumber'] = phoneNumber;
-        }
-        
-        if (existingData['name'] == null || existingData['name'].isEmpty) {
-          updateData['name'] = phoneNumber;
-        }
-        
-        await userRef.update(updateData);
-        print('✅ تم تحديث وقت التواجد للمستخدم: ${user.uid}');
+        throw Exception('المستند غير موجود بعد الكتابة!');
       }
     } catch (e) {
-      print('❌❌❌ فشل إنشاء أو تحديث المستخدم: $e ❌❌❌');
+      print('❌❌❌ فشل إنشاء المستخدم: $e');
+      rethrow;
     }
   }
 
@@ -395,11 +373,20 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
         phoneNumber: fullPhoneNumber,
         timeout: const Duration(seconds: 60),
         verificationCompleted: (PhoneAuthCredential credential) async {
+          print('📱 تم التحقق التلقائي');
           try {
             final userCredential = await _auth.signInWithCredential(credential);
+            print('✅ تم تسجيل الدخول: ${userCredential.user?.uid}');
             await _createOrUpdateUserInFirestore(userCredential.user!, fullPhoneNumber);
-            await _checkTermsAndNavigate();
-          } catch (_) {}
+            if (mounted) {
+              await _checkTermsAndNavigate();
+            }
+          } catch (e) {
+            print('❌ خطأ في verificationCompleted: $e');
+            if (mounted) {
+              _showSnackbar("حدث خطأ: ${e.toString()}", isError: true);
+            }
+          }
         },
         verificationFailed: (FirebaseAuthException e) {
           _showSnackbar("❌ فشل التحقق: ${e.message}", isError: true);
@@ -448,13 +435,31 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
         smsCode: code,
       );
       final userCredential = await _auth.signInWithCredential(credential);
+      print('🎉 تم تسجيل الدخول: ${userCredential.user?.uid}');
+      
       final fullPhoneNumber = _getFullPhoneNumber();
+      print('📞 الرقم الكامل: $fullPhoneNumber');
+      
+      // ✅ انتظار إنشاء المستخدم في Firestore
       await _createOrUpdateUserInFirestore(userCredential.user!, fullPhoneNumber);
-      await _checkTermsAndNavigate();
+      print('✨ تم الحفظ في Firestore بنجاح');
+      
+      // ✅ تأكد من وجود البيانات قبل الانتقال
+      final checkDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+      
+      if (checkDoc.exists) {
+        print('✅✅✅ المستخدم موجود في Firestore، سيتم التوجيه');
+        await _checkTermsAndNavigate();
+      } else {
+        throw Exception('المستخدم غير موجود في Firestore بعد المحاولة');
+      }
     } catch (e) {
+      print('💥 خطأ في _verifyOTP: $e');
       setState(() => _attempts += 1);
-      _showSnackbar("❌ رمز غير صحيح. المحاولات المتبقية: ${5 - _attempts}", isError: true);
-    } finally {
+      _showSnackbar("❌ رمز غير صحيح أو خطأ في الحفظ. المحاولات المتبقية: ${5 - _attempts}", isError: true);
       setState(() => _isLoading = false);
     }
   }
@@ -588,11 +593,9 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
             ),
             const SizedBox(height: 40),
             
-            // ✅ حقل رقم الهاتف مع اختيار رمز الدولة
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✅ زر اختيار رمز الدولة
                 GestureDetector(
                   onTap: _showCountryPicker,
                   child: Container(
@@ -612,7 +615,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // ✅ حقل إدخال رقم الهاتف
                 Expanded(
                   child: TextField(
                     controller: _phoneController,
