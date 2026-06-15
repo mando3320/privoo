@@ -1,492 +1,429 @@
-// lib/views/auth/otp_login_screen.dart
-// (الكود كامل مع التعديلات - استبدل ملفك بهذا)
-
-import 'dart:async';
+// lib/app.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'terms_acceptance_screen.dart';
-import '../../config/app_theme.dart';
-import '../../main.dart';
+import 'package:logger/logger.dart';
+import 'services/firebase/notification_service.dart';
+import 'services/permission_service.dart';
+import 'config/app_theme.dart';
 
-class OTPLoginScreen extends StatefulWidget {
-  const OTPLoginScreen({super.key});
+// استيراد جميع الشاشات
+import 'views/auth/otp_login_screen.dart';
+import 'views/auth/login_screen.dart';
+import 'views/auth/profile_setup_screen.dart';
+import 'views/auth/age_verification_screen.dart';
+import 'views/auth/terms_acceptance_screen.dart';
+import 'views/auth/verify_screen.dart';
+import 'views/auth/invite_screen.dart';
+import 'views/home_screen.dart';
+import 'views/settings/setting_screen.dart';
+import 'views/settings/splash_screen.dart';
+import 'views/settings/upgrade_pro_view.dart';
+import 'views/settings/compliance_screen.dart';
+import 'views/settings/theme_selector_screen.dart';
+import 'views/settings/privacy_settings_screen.dart';
+import 'views/settings/scientific_achievements_screen.dart';
+import 'views/settings/about_screen.dart';
+import 'views/settings/chat_with_developer_screen.dart';
+import 'views/settings/encryption_info_screen.dart';
+import 'views/settings/export_data_screen.dart';
+import 'views/settings/delete_account_screen.dart';
+import 'views/settings/parental_control_screen.dart';
+import 'views/chat/smart_chat_screen.dart';
+import 'views/chat/create_group_screen.dart';
+import 'views/chat/group_details_screen.dart';
+import 'views/chat/pinned_messages_screen.dart';
+import 'views/call/call_screen.dart';
+import 'views/call/group_call_screen.dart';
+import 'views/incoming_call_screen.dart';
+import 'views/block_list_screen.dart';
+import 'views/channel_list_screen.dart';
+import 'views/channel_screen.dart';
+import 'views/create_channel_screen.dart';
+import 'views/search_screen.dart';
+import 'views/sticker/sticker_maker_screen.dart';
+import 'views/users/users_list_screen.dart';
+import 'views/admin/manage_admins_screen.dart';
+import 'views/admin/support_tickets_screen.dart';
+import 'views/admin/manage_users_screen.dart';
+import 'views/admin/manage_offers_screen.dart';
+
+final _logger = Logger();
+
+final notificationServiceProvider = Provider((ref) {
+  final service = NotificationService();
+  _logger.i("🔔 تم تهيئة NotificationService");
+  return service;
+});
+
+class PrivooApp extends ConsumerStatefulWidget {
+  final Function(Locale)? onLocaleChange;
+  
+  const PrivooApp({super.key, this.onLocaleChange});
 
   @override
-  State<OTPLoginScreen> createState() => _OTPLoginScreenState();
+  ConsumerState<PrivooApp> createState() => _PrivooAppState();
 }
 
-class _OTPLoginScreenState extends State<OTPLoginScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _otpController = TextEditingController();
-
-  String? _verificationId;
-  bool _codeSent = false;
-  bool _isLoading = false;
-  int _attempts = 0;
-
-  String _selectedCountryCode = '+20';
-  String _selectedCountryFlag = '🇪🇬';
-  String _selectedCountryName = 'مصر';
-
-  Timer? _cooldownTimer;
-  int _cooldownSeconds = 0;
-
-  final List<Map<String, String>> _allCountries = [
-    {'code': '+20', 'flag': '🇪🇬', 'name': 'مصر'},
-    {'code': '+966', 'flag': '🇸🇦', 'name': 'السعودية'},
-    {'code': '+971', 'flag': '🇦🇪', 'name': 'الإمارات'},
-    {'code': '+974', 'flag': '🇶🇦', 'name': 'قطر'},
-    {'code': '+965', 'flag': '🇰🇼', 'name': 'الكويت'},
-    {'code': '+973', 'flag': '🇧🇭', 'name': 'البحرين'},
-    {'code': '+968', 'flag': '🇴🇲', 'name': 'عمان'},
-    {'code': '+962', 'flag': '🇯🇴', 'name': 'الأردن'},
-    {'code': '+961', 'flag': '🇱🇧', 'name': 'لبنان'},
-    {'code': '+963', 'flag': '🇸🇾', 'name': 'سوريا'},
-    {'code': '+970', 'flag': '🇵🇸', 'name': 'فلسطين'},
-    {'code': '+964', 'flag': '🇮🇶', 'name': 'العراق'},
-    {'code': '+967', 'flag': '🇾🇪', 'name': 'اليمن'},
-    {'code': '+93', 'flag': '🇦🇫', 'name': 'أفغانستان'},
-    {'code': '+91', 'flag': '🇮🇳', 'name': 'الهند'},
-    {'code': '+92', 'flag': '🇵🇰', 'name': 'باكستان'},
-    {'code': '+90', 'flag': '🇹🇷', 'name': 'تركيا'},
-    {'code': '+1', 'flag': '🇺🇸', 'name': 'الولايات المتحدة'},
-    {'code': '+44', 'flag': '🇬🇧', 'name': 'بريطانيا'},
-    {'code': '+49', 'flag': '🇩🇪', 'name': 'ألمانيا'},
-    {'code': '+33', 'flag': '🇫🇷', 'name': 'فرنسا'},
-    {'code': '+39', 'flag': '🇮🇹', 'name': 'إيطاليا'},
-    {'code': '+34', 'flag': '🇪🇸', 'name': 'إسبانيا'},
-    {'code': '+7', 'flag': '🇷🇺', 'name': 'روسيا'},
-    {'code': '+86', 'flag': '🇨🇳', 'name': 'الصين'},
-    {'code': '+81', 'flag': '🇯🇵', 'name': 'اليابان'},
-    {'code': '+55', 'flag': '🇧🇷', 'name': 'البرازيل'},
-    {'code': '+61', 'flag': '🇦🇺', 'name': 'أستراليا'},
-    {'code': '+27', 'flag': '🇿🇦', 'name': 'جنوب أفريقيا'},
-    {'code': '+213', 'flag': '🇩🇿', 'name': 'الجزائر'},
-    {'code': '+212', 'flag': '🇲🇦', 'name': 'المغرب'},
-    {'code': '+216', 'flag': '🇹🇳', 'name': 'تونس'},
-    {'code': '+218', 'flag': '🇱🇾', 'name': 'ليبيا'},
-    {'code': '+249', 'flag': '🇸🇩', 'name': 'السودان'},
-  ];
-
-  List<Map<String, String>> _filteredCountries = [];
-  TextEditingController _searchController = TextEditingController();
+class _PrivooAppState extends ConsumerState<PrivooApp> {
+  bool _isInitialized = false;
+  String _nextRoute = '/splash';
+  Map<String, String>? _chatArgs;
 
   @override
   void initState() {
     super.initState();
-    _filteredCountries = _allCountries;
-    _searchController.addListener(_filterCountries);
+    _initApp();
   }
 
-  void _filterCountries() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      _filteredCountries = _allCountries.where((country) {
-        return country['name']!.toLowerCase().contains(query) ||
-            country['code']!.contains(query);
-      }).toList();
-    });
-  }
+  Future<void> _initApp() async {
+    try {
+      ref.read(notificationServiceProvider);
+      _logger.i("✅ تم تهيئة NotificationService");
 
-  void _startCooldown([int seconds = 30]) {
-    _cooldownTimer?.cancel();
-    setState(() => _cooldownSeconds = seconds);
-    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (_cooldownSeconds <= 1) {
-        t.cancel();
-        setState(() => _cooldownSeconds = 0);
+      // ✅ طلب الأذونات تلقائياً
+      await _requestPermissionsIfNeeded();
+
+      final user = FirebaseAuth.instance.currentUser;
+      
+      if (user != null) {
+        _logger.i("🔍 المستخدم مسجل: ${user.uid}");
+        
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get(const GetOptions(source: Source.server));
+
+        if (userDoc.exists) {
+          final data = userDoc.data();
+          final name = data?['name'] as String?;
+          _nextRoute = (name != null && name.trim().isNotEmpty) ? '/home' : '/profile';
+        } else {
+          _nextRoute = '/profile';
+        }
       } else {
-        setState(() => _cooldownSeconds -= 1);
+        _nextRoute = '/login';
       }
+
+      setState(() => _isInitialized = true);
+    } catch (e) {
+      _logger.e("❌ خطأ أثناء تهيئة التطبيق: $e");
+      setState(() {
+        _isInitialized = true;
+        _nextRoute = '/login';
+      });
+    }
+  }
+
+  Future<void> _requestPermissionsIfNeeded() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasRequestedPermissions = prefs.getBool('permissions_requested') ?? false;
+      
+      if (!hasRequestedPermissions && mounted) {
+        _logger.i('🔔 طلب الأذونات لأول مرة');
+        final granted = await PermissionService.requestPermissionsWithUI(context);
+        if (granted) {
+          await prefs.setBool('permissions_requested', true);
+          _logger.i('✅ تم منح جميع الأذونات');
+        }
+      }
+    } catch (e) {
+      _logger.e('❌ خطأ في طلب الأذونات: $e');
+    }
+  }
+
+  void changeLanguage(String languageCode) {
+    widget.onLocaleChange?.call(Locale(languageCode));
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('app_language', languageCode);
     });
-  }
-
-  String _getFullPhoneNumber() {
-    String localNumber = _phoneController.text.trim();
-    localNumber = localNumber.replaceAll(' ', '');
-    localNumber = localNumber.replaceAll('-', '');
-    localNumber = localNumber.replaceAll('(', '');
-    localNumber = localNumber.replaceAll(')', '');
-    
-    while (localNumber.startsWith('0')) {
-      localNumber = localNumber.substring(1);
-    }
-    
-    return '$_selectedCountryCode$localNumber';
-  }
-
-  void _showSnackbar(String message, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? AppTheme.privooError : AppTheme.privooSuccess,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  // ✅ دالة إنشاء المستخدم في Firestore (محسنة)
-  Future<void> _createOrUpdateUserInFirestore(User user, String phoneNumber) async {
-    print('🔵 بدء إنشاء المستخدم في Firestore...');
-    
-    try {
-      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      
-      final userData = {
-        'uid': user.uid,
-        'name': phoneNumber,
-        'phoneNumber': phoneNumber,
-        'avatarUrl': '',
-        'about': 'مرحباً، أنا أستخدم Privoo',
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastSeen': FieldValue.serverTimestamp(),
-      };
-      
-      await userRef.set(userData, SetOptions(merge: true));
-      print('✅ تم حفظ المستخدم في Firestore');
-      
-    } catch (e) {
-      print('❌ فشل إنشاء المستخدم: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> _sendOTP() async {
-    final localNumber = _phoneController.text.trim();
-    
-    if (localNumber.isEmpty) {
-      _showSnackbar("📵 يرجى إدخال رقم الهاتف.", isError: true);
-      return;
-    }
-    
-    if (localNumber.length < 6) {
-      _showSnackbar("📵 رقم الهاتف يجب أن يكون 6 أرقام على الأقل", isError: true);
-      return;
-    }
-    
-    if (_cooldownSeconds > 0) return;
-
-    final fullPhoneNumber = _getFullPhoneNumber();
-    setState(() => _isLoading = true);
-    
-    try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: fullPhoneNumber,
-        timeout: const Duration(seconds: 60),
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          try {
-            final userCredential = await _auth.signInWithCredential(credential);
-            await _createOrUpdateUserInFirestore(userCredential.user!, fullPhoneNumber);
-            if (mounted) await _checkTermsAndNavigate();
-          } catch (e) {
-            print('❌ verificationCompleted error: $e');
-          }
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          _showSnackbar("❌ فشل التحقق: ${e.message}", isError: true);
-          setState(() => _isLoading = false);
-        },
-        codeSent: (verificationId, _) {
-          setState(() {
-            _verificationId = verificationId;
-            _codeSent = true;
-            _isLoading = false;
-          });
-          _startCooldown(30);
-          _showSnackbar("✅ تم إرسال رمز التحقق إلى $fullPhoneNumber");
-        },
-        codeAutoRetrievalTimeout: (verificationId) {
-          _verificationId = verificationId;
-        },
-      );
-    } catch (e) {
-      _showSnackbar("❌ تعذر إرسال الرمز: $e", isError: true);
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _verifyOTP() async {
-    if (_attempts >= 5) {
-      _showSnackbar("⏳ تم تجاوز الحد. أعد إرسال الرمز بعد قليل.", isError: true);
-      return;
-    }
-    
-    if (_verificationId == null) {
-      _showSnackbar("⚠️ أرسل رمز تحقق أولاً.", isError: true);
-      return;
-    }
-
-    final code = _otpController.text.trim();
-    if (code.length != 6) {
-      _showSnackbar("🔑 رمز التحقق يجب أن يكون 6 أرقام.", isError: true);
-      return;
-    }
-
-    setState(() => _isLoading = true);
-    
-    try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _verificationId!,
-        smsCode: code,
-      );
-      
-      final userCredential = await _auth.signInWithCredential(credential);
-      final fullPhoneNumber = _getFullPhoneNumber();
-      
-      await _createOrUpdateUserInFirestore(userCredential.user!, fullPhoneNumber);
-      
-      if (mounted) {
-        await _checkTermsAndNavigate();
-      }
-      
-    } catch (e) {
-      print('❌ خطأ في التحقق: $e');
-      setState(() => _attempts += 1);
-      _showSnackbar("❌ رمز غير صحيح. المحاولات المتبقية: ${5 - _attempts}", isError: true);
-      setState(() => _isLoading = false);
-    }
-  }
-
-  void _showCountryPicker() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return SizedBox(
-              height: MediaQuery.of(context).size.height * 0.7,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: TextField(
-                      controller: _searchController,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        hintText: 'البحث عن دولة...',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _filteredCountries.length,
-                      itemBuilder: (context, index) {
-                        final country = _filteredCountries[index];
-                        return ListTile(
-                          leading: Text(country['flag']!, style: const TextStyle(fontSize: 28)),
-                          title: Text(country['name']!),
-                          trailing: Text(country['code']!, 
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          onTap: () {
-                            setState(() {
-                              _selectedCountryCode = country['code']!;
-                              _selectedCountryFlag = country['flag']!;
-                              _selectedCountryName = country['name']!;
-                            });
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _checkTermsAndNavigate() async {
-    final prefs = await SharedPreferences.getInstance();
-    final termsAccepted = prefs.getBool('terms_accepted') ?? false;
-    
-    if (!termsAccepted && mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => TermsAcceptanceScreen(
-            onAccepted: () {
-              Navigator.pushReplacementNamed(context, '/profile');
-            },
-          ),
-        ),
-      );
-    } else if (mounted) {
-      Navigator.pushReplacementNamed(context, '/profile');
-    }
-  }
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
-    _otpController.dispose();
-    _searchController.dispose();
-    _cooldownTimer?.cancel();
-    super.dispose();
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final resendTitle = _cooldownSeconds > 0 
-        ? 'إرسال الرمز (${_cooldownSeconds}s)' 
-        : 'إرسال رمز التحقق';
+    if (!_isInitialized) {
+      return const SplashScreen();
+    }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("تسجيل الدخول برقم الهاتف"),
-        centerTitle: true,
-        elevation: 0,
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Navigator(
+        key: UniqueKey(),
+        initialRoute: _nextRoute,
+        onGenerateRoute: _generateRoute,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppTheme.privooDeepPurple,
-                boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
-              ),
-              child: const Center(
-                child: Icon(Icons.phone_android, size: 50, color: Colors.white),
-              ),
+    );
+  }
+
+  Future<bool> _onWillPop() async {
+    final navigator = Navigator.of(context);
+    
+    if (navigator.canPop()) {
+      navigator.pop();
+      return false;
+    }
+    
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد الخروج'),
+        content: const Text('هل تريد الخروج من التطبيق؟'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: AppTheme.privooCardDark,
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20),
+        contentTextStyle: const TextStyle(color: Colors.white70),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.privooError,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Privoo',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.privooDeepPurple,
-              ),
+            child: const Text('خروج'),
+          ),
+        ],
+      ),
+    ) ?? false;
+    
+    return shouldExit;
+  }
+
+  Route<dynamic> _generateRoute(RouteSettings settings) {
+    _logger.d("🚀 مسار جديد: ${settings.name}");
+
+    switch (settings.name) {
+      case '/':
+      case '/splash':
+        return MaterialPageRoute(builder: (_) => const SplashScreen());
+      
+      case '/login':
+      case '/otp-login':
+        return MaterialPageRoute(builder: (_) => const OTPLoginScreen());
+      
+      case '/profile':
+        return MaterialPageRoute(builder: (_) => const ProfileSetupScreen());
+      
+      case '/home':
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+      
+      case '/settings':
+        return MaterialPageRoute(builder: (_) => SettingsScreen(
+          onChangeLanguage: changeLanguage,
+        ));
+      
+      case '/parental-control':
+        return MaterialPageRoute(builder: (_) => const ParentalControlScreen());
+      
+      case '/users':
+        return MaterialPageRoute(builder: (_) => const UsersListScreen());
+      
+      case '/invite':
+        final args = settings.arguments as Map<String, String>?;
+        return MaterialPageRoute(builder: (_) => InviteScreen(
+          phoneNumber: args?['phone'] ?? '',
+          name: args?['name'] ?? '',
+        ));
+      
+      case '/upgrade-pro':
+        return MaterialPageRoute(builder: (_) => const UpgradeProView());
+      
+      case '/compliance':
+        return MaterialPageRoute(builder: (_) => const ComplianceScreen());
+      
+      case '/block-list':
+        return MaterialPageRoute(builder: (_) => const BlockListScreen());
+      
+      case '/theme-selector':
+        return MaterialPageRoute(builder: (_) => const ThemeSelectorScreen());
+      
+      case '/privacy-settings':
+        return MaterialPageRoute(builder: (_) => const PrivacySettingsScreen());
+      
+      case '/scientific-achievements':
+        return MaterialPageRoute(builder: (_) => const ScientificAchievementsScreen());
+      
+      case '/about':
+        return MaterialPageRoute(builder: (_) => const AboutScreen());
+      
+      case '/chat-with-developer':
+        return MaterialPageRoute(builder: (_) => const ChatWithDeveloperScreen());
+      
+      case '/encryption-info':
+        return MaterialPageRoute(builder: (_) => const EncryptionInfoScreen());
+      
+      case '/export-data':
+        return MaterialPageRoute(builder: (_) => const ExportDataScreen());
+      
+      case '/delete-account':
+        return MaterialPageRoute(builder: (_) => const DeleteAccountScreen());
+      
+      case '/chat':
+        final args = settings.arguments as Map<String, String>?;
+        if (args != null && args['chatId'] != null && args['receiverId'] != null) {
+          return MaterialPageRoute(
+            builder: (_) => SmartChatScreen(
+              chatId: args['chatId']!,
+              receiverId: args['receiverId']!,
             ),
-            const SizedBox(height: 40),
-            
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                GestureDetector(
-                  onTap: _showCountryPicker,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade400),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(_selectedCountryFlag, style: const TextStyle(fontSize: 24)),
-                        const SizedBox(width: 4),
-                        Text(_selectedCountryCode, style: const TextStyle(fontSize: 14)),
-                        const Icon(Icons.arrow_drop_down, size: 20),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _phoneController,
-                    decoration: InputDecoration(
-                      labelText: "رقم الهاتف",
-                      hintText: "مثال: 123456789",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      prefixIcon: const Icon(Icons.phone),
-                    ),
-                    keyboardType: TextInputType.phone,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _sendOTP(),
-                  ),
+          );
+        }
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+      
+      case '/create-group':
+        return MaterialPageRoute(builder: (_) => const CreateGroupScreen());
+      
+      case '/group-details':
+        final args = settings.arguments as Map<String, String>?;
+        if (args != null && args['groupId'] != null) {
+          return MaterialPageRoute(
+            builder: (_) => GroupDetailsScreen(groupId: args['groupId']!),
+          );
+        }
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+      
+      case '/pinned-messages':
+        final args = settings.arguments as Map<String, String>?;
+        if (args != null && args['chatId'] != null) {
+          return MaterialPageRoute(
+            builder: (_) => PinnedMessagesScreen(chatId: args['chatId']!),
+          );
+        }
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+
+      case '/call':
+        if (settings.arguments is Map<String, dynamic>) {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (_) => CallScreen(
+              isCaller: args['isCaller'] as bool? ?? false,
+              callerId: args['callerId'] as String? ?? '',
+              receiverId: args['receiverId'] as String? ?? '',
+              callIdWhenCallee: args['callIdWhenCallee'] as String?,
+              isVideo: args['isVideo'] as bool? ?? true,
+              title: args['title'] as String? ?? 'Privoo Call',
+            ),
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const CallScreen(isCaller: false, callerId: '', receiverId: ''),
+        );
+      
+      case '/group-call':
+        if (settings.arguments is Map<String, dynamic>) {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (_) => GroupCallScreen(
+              isInitiator: args['isInitiator'] as bool? ?? false,
+              groupId: args['groupId'] as String? ?? '',
+              callId: args['callId'] as String? ?? '',
+              participantIds: List<String>.from(args['participantIds'] ?? []),
+              currentUserId: args['currentUserId'] as String? ?? '',
+              isVideo: args['isVideo'] as bool? ?? true,
+            ),
+          );
+        }
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+      
+      case '/incoming-call':
+        final callId = DateTime.now().millisecondsSinceEpoch.toString();
+        return MaterialPageRoute(builder: (_) => IncomingCallScreen(
+          callId: callId,
+          callerName: 'مستخدم',
+          isVideo: false,
+          onAccept: () {
+            _logger.i("✅ تم قبول المكالمة: $callId");
+            Navigator.pop(context);
+            Navigator.pushNamed(context, '/call', arguments: {
+              'isCaller': false,
+              'callerId': '',
+              'receiverId': '',
+              'callIdWhenCallee': callId,
+              'isVideo': false,
+            });
+          },
+          onReject: () {
+            _logger.i("❌ تم رفض المكالمة: $callId");
+            Navigator.pop(context);
+          },
+        ));
+
+      case '/channels':
+        return MaterialPageRoute(builder: (_) => const ChannelListScreen());
+      
+      case '/channel':
+        final args = settings.arguments as Map<String, String>?;
+        if (args != null && args['channelId'] != null) {
+          return MaterialPageRoute(
+            builder: (_) => ChannelScreen(channelId: args['channelId']!),
+          );
+        }
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+      
+      case '/create-channel':
+        return MaterialPageRoute(builder: (_) => const CreateChannelScreen());
+
+      case '/search':
+        return MaterialPageRoute(builder: (_) => const SearchScreen());
+      
+      case '/sticker-maker':
+        return MaterialPageRoute(builder: (_) => const StickerMakerScreen());
+      
+      case '/age-verification':
+        return MaterialPageRoute(builder: (_) => AgeVerificationScreen(
+          onVerified: () => Navigator.pop(context),
+          onUnderAge: () => showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('عمرك أقل من المطلوب'),
+              content: const Text('عذراً، لا يمكنك استخدام Privoo.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('حسناً'),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              '$_selectedCountryName • ${_selectedCountryFlag} $_selectedCountryCode',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+        ));
+      
+      case '/terms':
+        return MaterialPageRoute(builder: (_) => const TermsAcceptanceScreen());
+      
+      case '/verify-identity':
+        final args = settings.arguments as Map<String, String>?;
+        if (args != null && args['peerId'] != null && args['peerName'] != null) {
+          return MaterialPageRoute(
+            builder: (_) => VerifyScreen(
+              peerId: args['peerId']!,
+              peerName: args['peerName']!,
             ),
-            const SizedBox(height: 16),
-            
-            if (_codeSent)
-              TextField(
-                controller: _otpController,
-                decoration: InputDecoration(
-                  labelText: "رمز التحقق",
-                  hintText: "أدخل الرقم المكون من 6 أرقام",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  prefixIcon: const Icon(Icons.lock),
-                ),
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _verifyOTP(),
-              ),
-              
-            const SizedBox(height: 20),
-            
-            _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ElevatedButton(
-                    onPressed: _codeSent ? _verifyOTP : _sendOTP,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 55),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: Text(
-                      _codeSent ? "تحقق" : resendTitle,
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ),
-                  
-            if (_codeSent)
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _codeSent = false;
-                    _otpController.clear();
-                    _verificationId = null;
-                    _attempts = 0;
-                  });
-                },
-                child: const Text("تغيير رقم الهاتف"),
-              ),
-              
-            const SizedBox(height: 20),
-            
-            Text(
-              'سيتم إرسال رمز تحقق عن طريق رسالة نصية إلى رقم هاتفك',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
+          );
+        }
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+
+      case '/manage-admins':
+        return MaterialPageRoute(builder: (_) => const ManageAdminsScreen());
+      
+      case '/support-tickets':
+        return MaterialPageRoute(builder: (_) => const SupportTicketsScreen());
+      
+      case '/manage-users':
+        return MaterialPageRoute(builder: (_) => const ManageUsersScreen());
+      
+      case '/manage-offers':
+        return MaterialPageRoute(builder: (_) => const ManageOffersScreen());
+
+      default:
+        _logger.w("⚠️ مسار غير معروف: ${settings.name}");
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+    }
   }
 }
