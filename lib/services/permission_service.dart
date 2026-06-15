@@ -27,11 +27,9 @@ class PermissionService {
       
       bool allGranted = statuses.values.every((status) => status.isGranted);
       
-      // طلب خاص لجهات الاتصال (بسبب مكتبة flutter_contacts)
-      if (!await FlutterContacts.hasPermission()) {
-        final contactPermission = await FlutterContacts.requestPermission();
-        allGranted = allGranted && contactPermission;
-      }
+      // ✅ تصحيح: استخدام الطريقة الصحيحة للتحقق من إذن جهات الاتصال
+      final hasContactPermission = await FlutterContacts.requestPermission();
+      allGranted = allGranted && hasContactPermission;
       
       if (!allGranted && context.mounted) {
         final result = await showDialog<bool>(
