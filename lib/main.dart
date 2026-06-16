@@ -1,15 +1,15 @@
 // lib/main.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';  // ✅ ده عشان kDebugMode
+import 'package:flutter/foundation.dart';   // ✅ عشان kDebugMode
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logger/logger.dart';
 import 'package:firebase_performance/firebase_performance.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';  // ✅ ده عشان Firestore
-import 'package:firebase_auth/firebase_auth.dart';      // ✅ ده عشان Auth
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
@@ -33,11 +33,13 @@ Future<void> main() async {
     );
     logger.i('✅ تم تهيئة Firebase بنجاح');
 
-    // ✅ استخدام الـ Emulator في التطوير (Debug Mode)
+    // ✅ تشغيل الـ Emulator في وضع Debug فقط
     if (kDebugMode) {
       await FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
       await FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8080);
-      logger.i('✅ تم تفعيل Firebase Emulators');
+      logger.i('✅ تم تفعيل Firebase Emulators (Debug Only)');
+    } else {
+      logger.i('✅ استخدام Firebase الحقيقي (Release Mode)');
     }
 
     // ✅ إعدادات Firestore
