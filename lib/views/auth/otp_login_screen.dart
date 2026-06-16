@@ -128,8 +128,9 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     );
   }
 
-  Future<void> _saveUserToFirestore(User user, String phoneNumber) async {
+  Future<bool> _saveUserToFirestore(User user, String phoneNumber) async {
     print('📝 حفظ المستخدم في Firestore: ${user.uid}');
+    print('📞 الهاتف: $phoneNumber');
     
     try {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
@@ -144,11 +145,14 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
       });
       
       print('✅ تم حفظ المستخدم بنجاح');
+      return true;
       
     } on FirebaseException catch (e) {
       print('❌ FirebaseException: ${e.code} - ${e.message}');
+      return false;
     } catch (e) {
-      print('❌ خطأ: $e');
+      print('❌ خطأ غير متوقع: $e');
+      return false;
     }
   }
 
@@ -177,8 +181,8 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
         verificationCompleted: (PhoneAuthCredential credential) async {
           try {
             final userCredential = await _auth.signInWithCredential(credential);
-            await _saveUserToFirestore(userCredential.user!, fullPhoneNumber);
-            if (mounted) {
+            final success = await _saveUserToFirestore(userCredential.user!, fullPhoneNumber);
+            if (success && mounted) {
               await _checkTermsAndNavigate();
             }
           } catch (e) {
@@ -238,11 +242,31 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
       final userCredential = await _auth.signInWithCredential(credential);
       print('✅ تم تسجيل الدخول: ${userCredential.user?.uid}');
       
+      final currentUser = FirebaseAuth.instance.currentUser;
+      print('👤 Current user: ${currentUser?.uid}');
+      
       final fullPhoneNumber = _getFullPhoneNumber();
       
-      await _saveUserToFirestore(userCredential.user!, fullPhoneNumber);
+      final success = await _saveUserToFirestore(userCredential.user!, fullPhoneNumber);
       
-      setState(() => _isLoading = false);
+      if (!success) {
+        _showSnackbar("❌ فشل حفظ البيانات، حاول مرة أخرى.", isError: true);
+        return;
+      }
+      
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+      
+      print('📄 المستند موجود؟ ${doc.exists}');
+      if (doc.exists) {
+        print('📄 البيانات: ${doc.data()}');
+      } else {
+        print('⚠️ المستند غير موجود بعد الحفظ!');
+        _showSnackbar("⚠️ حدث خطأ في حفظ البيانات.", isError: true);
+        return;
+      }
       
       if (mounted) {
         await _checkTermsAndNavigate();
@@ -252,7 +276,11 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
       print('❌ خطأ في التحقق: $e');
       setState(() => _attempts += 1);
       _showSnackbar("❌ رمز غير صحيح. المحاولات المتبقية: ${5 - _attempts}", isError: true);
-      setState(() => _isLoading = false);
+      
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
