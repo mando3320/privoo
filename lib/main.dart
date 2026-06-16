@@ -31,6 +31,13 @@ Future<void> main() async {
     );
     logger.i('✅ تم تهيئة Firebase بنجاح');
 
+    // ✅ استخدام الـ Emulator في التطوير (Debug Mode)
+    if (kDebugMode) {
+      await FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
+      await FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8080);
+      logger.i('✅ تم تفعيل Firebase Emulators (Auth: 9099, Firestore: 8080)');
+    }
+
     // ✅ إعدادات Firestore
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
