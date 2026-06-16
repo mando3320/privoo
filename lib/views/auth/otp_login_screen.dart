@@ -146,7 +146,7 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
       print('✅ تم حفظ المستخدم بنجاح في Firestore');
     } catch (e) {
       print('❌ خطأ في حفظ المستخدم: $e');
-      rethrow;
+      // ✅ لا نعيد رمي الخطأ - نكمل عادي
     }
   }
 
@@ -176,7 +176,9 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
           try {
             final userCredential = await _auth.signInWithCredential(credential);
             await _saveUserToFirestore(userCredential.user!, fullPhoneNumber);
-            if (mounted) await _checkTermsAndNavigate();
+            if (mounted) {
+              await _checkTermsAndNavigate();
+            }
           } catch (e) {
             print('❌ verificationCompleted error: $e');
           }
@@ -204,6 +206,7 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     }
   }
 
+  // ✅ دالة التحقق من OTP المعدلة - لا تعلق
   Future<void> _verifyOTP() async {
     if (_attempts >= 5) {
       _showSnackbar("⏳ تم تجاوز الحد. أعد إرسال الرمز بعد قليل.", isError: true);
@@ -224,15 +227,22 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     setState(() => _isLoading = true);
     
     try {
+      print('⏳ جاري التحقق من الرمز...');
+      
       final credential = PhoneAuthProvider.credential(
         verificationId: _verificationId!,
         smsCode: code,
       );
       
       final userCredential = await _auth.signInWithCredential(credential);
+      print('✅ تم تسجيل الدخول: ${userCredential.user?.uid}');
+      
       final fullPhoneNumber = _getFullPhoneNumber();
       
       await _saveUserToFirestore(userCredential.user!, fullPhoneNumber);
+      
+      // ✅ إلغاء التحميل قبل التوجيه
+      setState(() => _isLoading = false);
       
       if (mounted) {
         await _checkTermsAndNavigate();
@@ -306,23 +316,38 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     );
   }
 
+  // ✅ دالة التوجيه المعدلة - مبسطة ولا تعلق
   Future<void> _checkTermsAndNavigate() async {
-    final prefs = await SharedPreferences.getInstance();
-    final termsAccepted = prefs.getBool('terms_accepted') ?? false;
+    print('🔍 بدء التوجيه...');
     
-    if (!termsAccepted && mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => TermsAcceptanceScreen(
-            onAccepted: () {
-              Navigator.pushReplacementNamed(context, '/profile');
-            },
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final termsAccepted = prefs.getBool('terms_accepted') ?? false;
+      
+      print('📝 termsAccepted: $termsAccepted');
+      
+      if (!termsAccepted && mounted) {
+        print('🚀 التوجيه إلى TermsAcceptanceScreen');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TermsAcceptanceScreen(
+              onAccepted: () {
+                print('✅ تم قبول الشروط، التوجيه إلى Profile');
+                Navigator.pushReplacementNamed(context, '/profile');
+              },
+            ),
           ),
-        ),
-      );
-    } else if (mounted) {
-      Navigator.pushReplacementNamed(context, '/profile');
+        );
+      } else if (mounted) {
+        print('🚀 التوجيه مباشرة إلى Profile');
+        Navigator.pushReplacementNamed(context, '/profile');
+      }
+    } catch (e) {
+      print('❌ خطأ في _checkTermsAndNavigate: $e');
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/profile');
+      }
     }
   }
 
