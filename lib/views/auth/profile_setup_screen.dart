@@ -1,6 +1,4 @@
 // lib/views/auth/profile_setup_screen.dart
-// (الكود كامل مع التعديل - استبدل ملفك بهذا)
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -70,53 +68,35 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     
     final user = _auth.currentUser;
     if (user == null) {
-      logger.e("❌ لا يوجد مستخدم مصادق حاليًا.");
       _showSnackbar("خطأ: يرجى تسجيل الدخول أولاً.", isError: true);
       setState(() => _isLoading = false);
       return;
     }
 
     try {
-      final phoneNumber = _cachedPhoneNumber ?? user.phoneNumber ?? '';
-      
-      print('📝 حفظ الملف الشخصي...');
-      print('🆔 UID: ${user.uid}');
-      print('📝 الاسم: $name');
-      print('📞 الهاتف: $phoneNumber');
-      
-      final userRef = _db.collection('users').doc(user.uid);
-      
-      await userRef.set({
-        'uid': user.uid,
+      // ✅ استخدام set مع merge: true بدلاً من update
+      await _db.collection('users').doc(user.uid).set({
         'name': name,
-        'phoneNumber': phoneNumber,
         'avatarUrl': '',
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
         'lastSeen': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      logger.i("✅ تم حفظ ملف المستخدم بنجاح: ${user.uid}");
+      logger.i("✅ تم حفظ الملف الشخصي بنجاح: ${user.uid}");
       
-      // ✅ تأكيد الحفظ
-      final check = await userRef.get();
-      if (check.exists) {
-        print('✅✅✅ تأكيد: المستند موجود في Firestore');
-        print('📄 البيانات: ${check.data()}');
-      } else {
-        print('❌❌❌ فشل التأكيد: المستند غير موجود');
+      // ✅ التحقق من نجاح الحفظ
+      final doc = await _db.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        print('✅ تأكيد: المستند موجود في Firestore');
+        print('📄 البيانات: ${doc.data()}');
       }
 
       if (mounted) {
         setState(() => _isLoading = false);
-        await Future.delayed(const Duration(milliseconds: 300));
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
-        }
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
-      logger.e("❌ فشل حفظ ملف المستخدم في Firestore: $e");
-      _showSnackbar("فشل حفظ الملف الشخصي: ${e.toString()}", isError: true);
+      logger.e("❌ فشل حفظ الملف الشخصي: $e");
+      _showSnackbar("فشل حفظ الملف الشخصي", isError: true);
       if (mounted) {
         setState(() => _isLoading = false);
       }
