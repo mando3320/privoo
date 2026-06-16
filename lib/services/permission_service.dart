@@ -20,50 +20,36 @@ class PermissionService {
     return await permissions.request();
   }
 
-  /// طلب الأذونات مع واجهة مستخدم
+  /// طلب الأذونات مع واجهة مستخدم (بدون توجيه للإعدادات)
   static Future<bool> requestPermissionsWithUI(BuildContext context) async {
     try {
       final statuses = await requestAllPermissions();
       
       bool allGranted = statuses.values.every((status) => status.isGranted);
       
-      // ✅ تصحيح: استخدام الطريقة الصحيحة للتحقق من إذن جهات الاتصال
+      // طلب خاص لجهات الاتصال
       final hasContactPermission = await FlutterContacts.requestPermission();
       allGranted = allGranted && hasContactPermission;
       
+      // ✅ إذا لم يتم منح جميع الأذونات، نعرض رسالة فقط (بدون توجيه للإعدادات)
       if (!allGranted && context.mounted) {
-        final result = await showDialog<bool>(
+        // ✅ مجرد رسالة تنبيه بدون زر "فتح الإعدادات"
+        await showDialog(
           context: context,
-          barrierDismissible: false,
+          barrierDismissible: true, // ✅ يسمح بإغلاق الحوار بالضغط خارجاً
           builder: (ctx) => AlertDialog(
-            title: const Text('الأذونات مطلوبة'),
+            title: const Text('تنبيه'),
             content: const Text(
-              'يرجى منح الأذونات المطلوبة لضمان عمل التطبيق بشكل صحيح:\n\n'
-              '• الكاميرا - لإجراء مكالمات الفيديو\n'
-              '• الميكروفون - لإجراء المكالمات\n'
-              '• التخزين - لحفظ الملفات والصور\n'
-              '• جهات الاتصال - للعثور على أصدقائك\n'
-              '• الإشعارات - لتلقي التنبيهات',
+              'بعض الأذونات غير مفعلة. يمكنك تفعيلها لاحقاً من إعدادات الجهاز.',
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('ليس الآن'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.privooDeepPurple,
-                ),
-                child: const Text('فتح الإعدادات'),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('حسناً'),
               ),
             ],
           ),
         );
-        
-        if (result == true) {
-          await openAppSettings();
-        }
         return false;
       }
       
