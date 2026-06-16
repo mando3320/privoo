@@ -7,8 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logger/logger.dart';
 import 'package:firebase_performance/firebase_performance.dart';
+<<<<<<< HEAD
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+=======
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+>>>>>>> 7f490ef8614cdd68cdafaffd6b4437f07774ebae
 
 import 'app.dart';
 import 'firebase/firebase_options.dart';
@@ -31,9 +36,16 @@ Future<void> main() async {
     );
     logger.i('✅ تم تهيئة Firebase بنجاح');
 
+<<<<<<< HEAD
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
       cacheSizeBytes: 100 * 1024 * 1024,
+=======
+    // ✅ إعدادات إضافية لـ Firestore لتحسين الأداء
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,  // تفعيل التخزين المحلي
+      cacheSizeBytes: 100 * 1024 * 1024, // 100 MB
+>>>>>>> 7f490ef8614cdd68cdafaffd6b4437f07774ebae
     );
     logger.i('✅ تم تهيئة Firestore Settings');
 
