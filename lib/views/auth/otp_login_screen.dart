@@ -130,6 +130,7 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
 
   Future<void> _saveUserToFirestore(User user, String phoneNumber) async {
     print('📝 حفظ المستخدم في Firestore: ${user.uid}');
+    
     try {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'uid': user.uid,
@@ -138,15 +139,16 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
         'avatarUrl': '',
         'about': 'مرحباً، أنا أستخدم Privoo',
         'isActive': true,
-        'isPro': false,
-        'isLifetime': false,
         'createdAt': FieldValue.serverTimestamp(),
         'lastSeen': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      print('✅ تم حفظ المستخدم بنجاح في Firestore');
+      });
+      
+      print('✅ تم حفظ المستخدم بنجاح');
+      
+    } on FirebaseException catch (e) {
+      print('❌ FirebaseException: ${e.code} - ${e.message}');
     } catch (e) {
-      print('❌ خطأ في حفظ المستخدم: $e');
-      // ✅ لا نعيد رمي الخطأ - نكمل عادي
+      print('❌ خطأ: $e');
     }
   }
 
@@ -206,7 +208,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     }
   }
 
-  // ✅ دالة التحقق من OTP المعدلة - لا تعلق
   Future<void> _verifyOTP() async {
     if (_attempts >= 5) {
       _showSnackbar("⏳ تم تجاوز الحد. أعد إرسال الرمز بعد قليل.", isError: true);
@@ -241,7 +242,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
       
       await _saveUserToFirestore(userCredential.user!, fullPhoneNumber);
       
-      // ✅ إلغاء التحميل قبل التوجيه
       setState(() => _isLoading = false);
       
       if (mounted) {
@@ -316,7 +316,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> {
     );
   }
 
-  // ✅ دالة التوجيه المعدلة - مبسطة ولا تعلق
   Future<void> _checkTermsAndNavigate() async {
     print('🔍 بدء التوجيه...');
     
