@@ -48,7 +48,7 @@ class DefaultFirebaseOptions {
       appId: '1:392831856847:android:672e8fe9b9f9bf1e6847ba',
       messagingSenderId: messagingSenderId,
       projectId: projectId,
-      storageBucket: storageBucket ?? '${projectId}.firebasestorage.app',
+      storageBucket: storageBucket ?? '${projectId}.appspot.com',
     );
   }
 
@@ -72,7 +72,7 @@ class DefaultFirebaseOptions {
       messagingSenderId: messagingSenderId ?? '392831856847',
       projectId: projectId,
       authDomain: authDomain ?? '${projectId}.firebaseapp.com',
-      storageBucket: storageBucket ?? '${projectId}.firebasestorage.app',
+      storageBucket: storageBucket ?? '${projectId}.appspot.com',
     );
   }
 
@@ -96,7 +96,7 @@ class DefaultFirebaseOptions {
       messagingSenderId: messagingSenderId ?? '392831856847',
       projectId: projectId,
       authDomain: authDomain ?? '${projectId}.firebaseapp.com',
-      storageBucket: storageBucket ?? '${projectId}.firebasestorage.app',
+      storageBucket: storageBucket ?? '${projectId}.appspot.com',
     );
   }
 
@@ -120,7 +120,7 @@ class DefaultFirebaseOptions {
       messagingSenderId: messagingSenderId ?? '392831856847',
       projectId: projectId,
       authDomain: authDomain ?? '${projectId}.firebaseapp.com',
-      storageBucket: storageBucket ?? '${projectId}.firebasestorage.app',
+      storageBucket: storageBucket ?? '${projectId}.appspot.com',
     );
   }
 }
