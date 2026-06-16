@@ -6,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
 import 'services/firebase/notification_service.dart';
-import 'services/permission_service.dart';
 import 'config/app_theme.dart';
 
 // استيراد جميع الشاشات
@@ -78,60 +77,52 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
     _initApp();
   }
 
+  // ✅ دالة التهيئة المبسطة - بدون طلب أذونات
   Future<void> _initApp() async {
     try {
       ref.read(notificationServiceProvider);
       _logger.i("✅ تم تهيئة NotificationService");
-
-      // ✅ طلب الأذونات تلقائياً
-      await _requestPermissionsIfNeeded();
 
       final user = FirebaseAuth.instance.currentUser;
       
       if (user != null) {
         _logger.i("🔍 المستخدم مسجل: ${user.uid}");
         
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get(const GetOptions(source: Source.server));
+        try {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get(const GetOptions(source: Source.server));
 
-        if (userDoc.exists) {
-          final data = userDoc.data();
-          final name = data?['name'] as String?;
-          _nextRoute = (name != null && name.trim().isNotEmpty) ? '/home' : '/profile';
-        } else {
+          if (userDoc.exists) {
+            final data = userDoc.data();
+            final name = data?['name'] as String?;
+            _nextRoute = (name != null && name.trim().isNotEmpty) ? '/home' : '/profile';
+            _logger.i("✅ التوجيه إلى: $_nextRoute");
+          } else {
+            _nextRoute = '/profile';
+            _logger.i("✅ التوجيه إلى: $_nextRoute (مستخدم جديد)");
+          }
+        } catch (e) {
+          _logger.e("❌ خطأ في جلب بيانات المستخدم: $e");
           _nextRoute = '/profile';
         }
       } else {
         _nextRoute = '/login';
+        _logger.i("👤 التوجيه إلى شاشة تسجيل الدخول");
       }
 
-      setState(() => _isInitialized = true);
+      if (mounted) {
+        setState(() => _isInitialized = true);
+      }
     } catch (e) {
       _logger.e("❌ خطأ أثناء تهيئة التطبيق: $e");
-      setState(() {
-        _isInitialized = true;
-        _nextRoute = '/login';
-      });
-    }
-  }
-
-  Future<void> _requestPermissionsIfNeeded() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final hasRequestedPermissions = prefs.getBool('permissions_requested') ?? false;
-      
-      if (!hasRequestedPermissions && mounted) {
-        _logger.i('🔔 طلب الأذونات لأول مرة');
-        final granted = await PermissionService.requestPermissionsWithUI(context);
-        if (granted) {
-          await prefs.setBool('permissions_requested', true);
-          _logger.i('✅ تم منح جميع الأذونات');
-        }
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+          _nextRoute = '/login';
+        });
       }
-    } catch (e) {
-      _logger.e('❌ خطأ في طلب الأذونات: $e');
     }
   }
 
@@ -272,6 +263,7 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
             builder: (_) => SmartChatScreen(
               chatId: args['chatId']!,
               receiverId: args['receiverId']!,
+              receiverName: args['name'], // ✅ إضافة receiverName
             ),
           );
         }
