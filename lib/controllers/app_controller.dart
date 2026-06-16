@@ -26,7 +26,7 @@ class AppController extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   
   // ✅ إضافة دعم الثيمات المتعددة
-  String _themeName = 'Blue Light';
+  String _themeName = 'Privoo Premium';  // ✅ تم التعديل هنا
   ThemeData? _cachedTheme;
 
   // 👑 الاشتراك
@@ -122,11 +122,11 @@ class AppController extends ChangeNotifier {
       _locale = Locale(prefs.getString('language') ?? 'ar');
       
       // ✅ تحميل الثيم المختار مع التحقق من وجوده
-      String savedTheme = prefs.getString('theme_name') ?? 'Blue Light';
+      String savedTheme = prefs.getString('theme_name') ?? 'Privoo Premium';  // ✅ تم التعديل هنا
       if (!AppTheme.isThemeAvailable(savedTheme, _isPro)) {
-        savedTheme = 'Blue Light';
+        savedTheme = 'Privoo Premium';  // ✅ تم التعديل هنا
       }
-      _themeName = AppTheme.allThemes.containsKey(savedTheme) ? savedTheme : 'Blue Light';
+      _themeName = AppTheme.allThemes.containsKey(savedTheme) ? savedTheme : 'Privoo Premium';  // ✅ تم التعديل هنا
       
       _themeMode = (prefs.getBool('darkMode') ?? false) ? ThemeMode.dark : ThemeMode.light;
       
@@ -223,7 +223,7 @@ class AppController extends ChangeNotifier {
 
     if (wasPro && !isPro) {
       if (!AppTheme.isThemeAvailable(_themeName, false)) {
-        _themeName = 'Blue Light';
+        _themeName = 'Privoo Premium';  // ✅ تم التعديل هنا
         _cachedTheme = null;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('theme_name', _themeName);
@@ -419,7 +419,7 @@ class AppController extends ChangeNotifier {
       await prefs.remove(key);
     }
 
-    _themeName = 'Blue Light';
+    _themeName = 'Privoo Premium';  // ✅ تم التعديل هنا
     _cachedTheme = null;
     _themeMode = ThemeMode.system;
     _locale = const Locale('ar');
