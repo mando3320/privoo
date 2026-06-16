@@ -263,7 +263,6 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
             builder: (_) => SmartChatScreen(
               chatId: args['chatId']!,
               receiverId: args['receiverId']!,
-              receiverName: args['name'], // ✅ إضافة receiverName
             ),
           );
         }
