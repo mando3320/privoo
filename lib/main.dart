@@ -1,13 +1,15 @@
 // lib/main.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';  // ✅ ده عشان kDebugMode
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logger/logger.dart';
 import 'package:firebase_performance/firebase_performance.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';  // ✅ ده عشان Firestore
+import 'package:firebase_auth/firebase_auth.dart';      // ✅ ده عشان Auth
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
@@ -35,7 +37,7 @@ Future<void> main() async {
     if (kDebugMode) {
       await FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
       await FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8080);
-      logger.i('✅ تم تفعيل Firebase Emulators (Auth: 9099, Firestore: 8080)');
+      logger.i('✅ تم تفعيل Firebase Emulators');
     }
 
     // ✅ إعدادات Firestore
