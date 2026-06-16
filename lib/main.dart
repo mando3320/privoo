@@ -1,7 +1,7 @@
 // lib/main.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';   // ✅ عشان kDebugMode
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,21 +33,25 @@ Future<void> main() async {
     );
     logger.i('✅ تم تهيئة Firebase بنجاح');
 
-    // ✅ تشغيل الـ Emulator في وضع Debug فقط
+    // ✅ استخدام الـ Emulator في Debug Mode (الطريقة القديمة)
     if (kDebugMode) {
-      await FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
-      await FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8080);
+      // ✅ استخدم localhost بدلاً من 127.0.0.1
+      const String host = 'localhost';
+      
+      // ✅ Auth Emulator
+      await FirebaseAuth.instance.useAuthEmulator(host, 9099);
+      
+      // ✅ Firestore Emulator (الطريقة الصحيحة)
+      FirebaseFirestore.instance.settings = const Settings(
+        host: 'localhost:8080',
+        sslEnabled: false,
+        persistenceEnabled: false,
+      );
+      
       logger.i('✅ تم تفعيل Firebase Emulators (Debug Only)');
     } else {
       logger.i('✅ استخدام Firebase الحقيقي (Release Mode)');
     }
-
-    // ✅ إعدادات Firestore
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: 100 * 1024 * 1024,
-    );
-    logger.i('✅ تم تهيئة Firestore Settings');
 
     await HiveStorageService.init();
     logger.i('✅ تم تهيئة Hive Storage بنجاح');
