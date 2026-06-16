@@ -23,7 +23,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final _auth = FirebaseAuth.instance;
 
   bool _isLoading = false;
-  String? _cachedPhoneNumber; // ✅ تخزين رقم الهاتف مؤقتاً
+  String? _cachedPhoneNumber;
 
   @override
   void initState() {
@@ -34,7 +34,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   Future<void> _loadPhoneNumber() async {
     final user = _auth.currentUser;
     if (user != null) {
-      // ✅ محاولة جلب رقم الهاتف من Firestore أولاً
       try {
         final doc = await _db.collection('users').doc(user.uid).get();
         if (doc.exists && doc.data()?['phoneNumber'] != null) {
@@ -78,10 +77,16 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }
 
     try {
-      // ✅ استخدام رقم الهاتف المخزن مؤقتاً أو من Firebase Auth
       final phoneNumber = _cachedPhoneNumber ?? user.phoneNumber ?? '';
       
-      await _db.collection('users').doc(user.uid).set({
+      print('📝 حفظ الملف الشخصي...');
+      print('🆔 UID: ${user.uid}');
+      print('📝 الاسم: $name');
+      print('📞 الهاتف: $phoneNumber');
+      
+      final userRef = _db.collection('users').doc(user.uid);
+      
+      await userRef.set({
         'uid': user.uid,
         'name': name,
         'phoneNumber': phoneNumber,
@@ -92,10 +97,22 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       }, SetOptions(merge: true));
 
       logger.i("✅ تم حفظ ملف المستخدم بنجاح: ${user.uid}");
+      
+      // ✅ تأكيد الحفظ
+      final check = await userRef.get();
+      if (check.exists) {
+        print('✅✅✅ تأكيد: المستند موجود في Firestore');
+        print('📄 البيانات: ${check.data()}');
+      } else {
+        print('❌❌❌ فشل التأكيد: المستند غير موجود');
+      }
 
       if (mounted) {
         setState(() => _isLoading = false);
-        Navigator.pushReplacementNamed(context, '/home');
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
       }
     } catch (e) {
       logger.e("❌ فشل حفظ ملف المستخدم في Firestore: $e");
