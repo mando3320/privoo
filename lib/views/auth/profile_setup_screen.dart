@@ -1,4 +1,4 @@
-// lib/views/rgb(19,15,15)/profile_setup_screen.dart
+// lib/views/auth/profile_setup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -47,19 +47,21 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }
 
     try {
+      // ✅ استخدم uid و phoneNumber عشان يتوافق مع القواعد
       await _db.collection('users').doc(user.uid).set({
-        'id': user.uid,
+        'uid': user.uid,
         'name': name,
-        'phone': user.phoneNumber,
+        'phoneNumber': user.phoneNumber ?? '',
         'avatarUrl': '',
-        'isOnline': true,
+        'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       logger.i("✅ تم حفظ ملف المستخدم: ${user.uid}");
 
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/chat'); 
+        // ✅ استخدم /home بدلاً من /chat
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
       logger.e("❌ فشل حفظ ملف المستخدم: $e");
