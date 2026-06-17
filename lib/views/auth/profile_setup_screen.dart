@@ -1,10 +1,9 @@
-// lib/views/auth/profile_setup_screen.dart
+// lib/views/rgb(19,15,15)/profile_setup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../main.dart';
-import '../../config/app_theme.dart';
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -21,41 +20,14 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final _auth = FirebaseAuth.instance;
 
   bool _isLoading = false;
-  String? _cachedPhoneNumber;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPhoneNumber();
-  }
-
-  Future<void> _loadPhoneNumber() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      try {
-        final doc = await _db.collection('users').doc(user.uid).get();
-        if (doc.exists && doc.data()?['phoneNumber'] != null) {
-          _cachedPhoneNumber = doc.data()!['phoneNumber'];
-        } else if (user.phoneNumber != null) {
-          _cachedPhoneNumber = user.phoneNumber;
-        }
-      } catch (e) {
-        logger.e('❌ فشل جلب رقم الهاتف: $e');
-        if (user.phoneNumber != null) {
-          _cachedPhoneNumber = user.phoneNumber;
-        }
-      }
-    }
-  }
 
   void _showSnackbar(String message, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? AppTheme.privooError : AppTheme.privooSuccess,
+        backgroundColor: isError ? Colors.red : Colors.green,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -68,35 +40,31 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     
     final user = _auth.currentUser;
     if (user == null) {
+      logger.e("❌ لا يوجد مستخدم مصادق حاليًا.");
       _showSnackbar("خطأ: يرجى تسجيل الدخول أولاً.", isError: true);
       setState(() => _isLoading = false);
       return;
     }
 
     try {
-      // ✅ استخدام set مع merge: true بدلاً من update
       await _db.collection('users').doc(user.uid).set({
+        'id': user.uid,
         'name': name,
+        'phone': user.phoneNumber,
         'avatarUrl': '',
-        'lastSeen': FieldValue.serverTimestamp(),
+        'isOnline': true,
+        'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      logger.i("✅ تم حفظ الملف الشخصي بنجاح: ${user.uid}");
-      
-      // ✅ التحقق من نجاح الحفظ
-      final doc = await _db.collection('users').doc(user.uid).get();
-      if (doc.exists) {
-        print('✅ تأكيد: المستند موجود في Firestore');
-        print('📄 البيانات: ${doc.data()}');
-      }
+      logger.i("✅ تم حفظ ملف المستخدم: ${user.uid}");
 
       if (mounted) {
-        setState(() => _isLoading = false);
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacementNamed(context, '/chat'); 
       }
     } catch (e) {
-      logger.e("❌ فشل حفظ الملف الشخصي: $e");
-      _showSnackbar("فشل حفظ الملف الشخصي", isError: true);
+      logger.e("❌ فشل حفظ ملف المستخدم: $e");
+      _showSnackbar("فشل حفظ الملف الشخصي. يرجى المحاولة مرة أخرى.", isError: true);
+    } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -112,11 +80,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("إعداد الملف الشخصي"),
-        centerTitle: true,
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text("إعداد الملف الشخصي")),
       body: Form(
         key: _formKey,
         child: Center(
@@ -125,63 +89,27 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppTheme.privooDeepPurple,
-                    boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.person_add, size: 50, color: Colors.white),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Privoo',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.privooDeepPurple,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 40),
-                
-                Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
-                    ),
-                    child: const CircleAvatar(
-                      radius: 60,
-                      backgroundColor: AppTheme.privooLightPurple,
-                      child: Icon(Icons.person, size: 60, color: Colors.white),
-                    ),
+                const Center(
+                  child: CircleAvatar(
+                    radius: 60,
+                    backgroundColor: Colors.grey,
+                    child: Icon(Icons.person, size: 60, color: Colors.white),
                   ),
                 ),
                 const SizedBox(height: 30),
-                Text(
+                const Text(
                   "أدخل اسمك لعرضه لأصدقائك في Privoo.", 
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.privooDeepPurple,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 30),
                 TextFormField(
                   controller: _nameController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: "الاسم",
-                    hintText: "ادخل اسمك كاملاً",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    prefixIcon: const Icon(Icons.person_outline),
+                    hintText: "الاسم الكامل",
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.badge),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().length < 3) {
@@ -195,16 +123,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   onPressed: _isLoading ? null : _saveProfile,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 55),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
                   ),
                   child: _isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                           "حفظ ومتابعة",
                           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
