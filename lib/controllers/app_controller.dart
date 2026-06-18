@@ -1,5 +1,4 @@
 // lib/controllers/app_controller.dart
-// controllers/app_controller.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,10 +22,10 @@ class AppController extends ChangeNotifier {
 
   // 🌐 اللغة والثيم
   Locale _locale = const Locale('ar');
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.dark; // ✅ داكن افتراضي
   
   // ✅ إضافة دعم الثيمات المتعددة
-  String _themeName = 'Privoo Premium';  // ✅ تم التعديل هنا
+  String _themeName = 'Privoo Premium';
   ThemeData? _cachedTheme;
 
   // 👑 الاشتراك
@@ -121,14 +120,15 @@ class AppController extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _locale = Locale(prefs.getString('language') ?? 'ar');
       
-      // ✅ تحميل الثيم المختار مع التحقق من وجوده
-      String savedTheme = prefs.getString('theme_name') ?? 'Privoo Premium';  // ✅ تم التعديل هنا
+      // ✅ تحميل الثيم المختار
+      String savedTheme = prefs.getString('theme_name') ?? 'Privoo Premium';
       if (!AppTheme.isThemeAvailable(savedTheme, _isPro)) {
-        savedTheme = 'Privoo Premium';  // ✅ تم التعديل هنا
+        savedTheme = 'Privoo Premium';
       }
-      _themeName = AppTheme.allThemes.containsKey(savedTheme) ? savedTheme : 'Privoo Premium';  // ✅ تم التعديل هنا
+      _themeName = AppTheme.allThemes.containsKey(savedTheme) ? savedTheme : 'Privoo Premium';
       
-      _themeMode = (prefs.getBool('darkMode') ?? false) ? ThemeMode.dark : ThemeMode.light;
+      // ✅ تحميل الوضع (داكن/فاتح)
+      _themeMode = (prefs.getBool('darkMode') ?? true) ? ThemeMode.dark : ThemeMode.light;
       
       _chatWallpaper = prefs.getString('chatWallpaper') ?? "default";
       _chatFontSize = prefs.getDouble('chatFontSize') ?? 14.0;
@@ -198,7 +198,6 @@ class AppController extends ChangeNotifier {
     }
 
     try {
-      // ✅ استخدام SubscriptionService المعدل (بدون constructor)
       final status = await SubscriptionService.checkUserStatus();
       
       await _updateSubscriptionStatus(
@@ -223,7 +222,7 @@ class AppController extends ChangeNotifier {
 
     if (wasPro && !isPro) {
       if (!AppTheme.isThemeAvailable(_themeName, false)) {
-        _themeName = 'Privoo Premium';  // ✅ تم التعديل هنا
+        _themeName = 'Privoo Premium';
         _cachedTheme = null;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('theme_name', _themeName);
@@ -325,6 +324,7 @@ class AppController extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('language', langCode);
     notifyListeners();
+    // ❌ مفيش توجيه
   }
 
   Future<void> toggleTheme(bool isDark) async {
@@ -332,6 +332,7 @@ class AppController extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('darkMode', isDark);
     notifyListeners();
+    // ❌ مفيش توجيه
   }
 
   Future<void> toggleLockApp(bool value) async {
@@ -419,9 +420,9 @@ class AppController extends ChangeNotifier {
       await prefs.remove(key);
     }
 
-    _themeName = 'Privoo Premium';  // ✅ تم التعديل هنا
+    _themeName = 'Privoo Premium';
     _cachedTheme = null;
-    _themeMode = ThemeMode.system;
+    _themeMode = ThemeMode.dark;
     _locale = const Locale('ar');
 
     await _loadPreferences();
