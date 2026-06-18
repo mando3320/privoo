@@ -22,47 +22,27 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
   bool _isLoading = false;
   String? _cachedPhoneNumber;
-  String? _cachedEmail;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _loadPhoneNumber();
   }
 
-  Future<void> _loadUserData() async {
+  Future<void> _loadPhoneNumber() async {
     final user = _auth.currentUser;
     if (user != null) {
       try {
-        // ✅ جلب رقم الهاتف
         final doc = await _db.collection('users').doc(user.uid).get();
         if (doc.exists && doc.data()?['phoneNumber'] != null) {
           _cachedPhoneNumber = doc.data()!['phoneNumber'];
         } else if (user.phoneNumber != null) {
           _cachedPhoneNumber = user.phoneNumber;
         }
-
-        // ✅ جلب الإيميل
-        if (user.email != null && user.email!.isNotEmpty) {
-          _cachedEmail = user.email;
-        } else if (doc.exists && doc.data()?['email'] != null) {
-          _cachedEmail = doc.data()!['email'];
-        }
-
-        // ✅ جلب الاسم (لو موجود)
-        if (user.displayName != null && user.displayName!.isNotEmpty) {
-          _nameController.text = user.displayName!;
-        } else if (doc.exists && doc.data()?['name'] != null) {
-          _nameController.text = doc.data()!['name'];
-        }
-
       } catch (e) {
-        logger.e('❌ فشل جلب بيانات المستخدم: $e');
+        logger.e('❌ فشل جلب رقم الهاتف: $e');
         if (user.phoneNumber != null) {
           _cachedPhoneNumber = user.phoneNumber;
-        }
-        if (user.email != null) {
-          _cachedEmail = user.email;
         }
       }
     }
@@ -94,26 +74,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }
 
     try {
-      // ✅ حفظ في Firestore (مع رقم الهاتف والإيميل)
-      final Map<String, dynamic> data = {
+      // ✅ استخدام set مع merge: true بدلاً من update
+      await _db.collection('users').doc(user.uid).set({
         'name': name,
         'avatarUrl': '',
         'lastSeen': FieldValue.serverTimestamp(),
-      };
-
-      // ✅ أضف رقم الهاتف لو موجود
-      if (_cachedPhoneNumber != null && _cachedPhoneNumber!.isNotEmpty) {
-        data['phoneNumber'] = _cachedPhoneNumber;
-      }
-
-      // ✅ أضف الإيميل لو موجود
-      if (_cachedEmail != null && _cachedEmail!.isNotEmpty) {
-        data['email'] = _cachedEmail;
-      } else if (user.email != null && user.email!.isNotEmpty) {
-        data['email'] = user.email;
-      }
-
-      await _db.collection('users').doc(user.uid).set(data, SetOptions(merge: true));
+      }, SetOptions(merge: true));
 
       logger.i("✅ تم حفظ الملف الشخصي بنجاح: ${user.uid}");
       
