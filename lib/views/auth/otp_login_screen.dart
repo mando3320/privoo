@@ -15,25 +15,16 @@ class OTPLoginScreen extends StatefulWidget {
   State<OTPLoginScreen> createState() => _OTPLoginScreenState();
 }
 
-class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProviderStateMixin {
+class _OTPLoginScreenState extends State<OTPLoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
-  // ✅ Controllers
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _nameController = TextEditingController();
 
-  // ✅ State
   String? _verificationId;
   bool _codeSent = false;
   bool _isLoading = false;
   int _attempts = 0;
-  int _selectedTab = 0; // 0 = هاتف, 1 = إيميل
-  bool _isLogin = true; // true = تسجيل دخول, false = إنشاء حساب
 
-  // ✅ Country
   String _selectedCountryCode = '+20';
   String _selectedCountryFlag = '🇪🇬';
   String _selectedCountryName = 'مصر';
@@ -41,7 +32,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
   Timer? _cooldownTimer;
   int _cooldownSeconds = 0;
 
-  // ✅ Countries list
   final List<Map<String, String>> _allCountries = [
     {'code': '+20', 'flag': '🇪🇬', 'name': 'مصر'},
     {'code': '+966', 'flag': '🇸🇦', 'name': 'السعودية'},
@@ -137,10 +127,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
       ),
     );
   }
-
-  // ============================================================
-  // 📱 Phone Auth
-  // ============================================================
 
   Future<bool> _saveUserToFirestore(User user, String phoneNumber) async {
     print('📝 حفظ المستخدم في Firestore: ${user.uid}');
@@ -358,76 +344,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
     );
   }
 
-  // ============================================================
-  // ✉️ Email Auth
-  // ============================================================
-
-  Future<void> _emailSubmit() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-
-    if (email.isEmpty || password.isEmpty) {
-      _showSnackbar('يرجى ملء جميع الحقول', isError: true);
-      return;
-    }
-
-    if (!_isLogin && password.length < 6) {
-      _showSnackbar('كلمة المرور يجب أن تكون 6 أحرف على الأقل', isError: true);
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      UserCredential? userCredential;
-
-      if (_isLogin) {
-        // ✅ تسجيل دخول
-        userCredential = await _auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-      } else {
-        // ✅ إنشاء حساب جديد
-        userCredential = await _auth.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-
-        final name = _nameController.text.trim();
-        if (name.isNotEmpty) {
-          await userCredential.user!.updateDisplayName(name);
-        }
-      }
-
-      // ✅ حفظ الجلسة
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('current_uid', userCredential.user!.uid);
-
-      _showSnackbar(_isLogin ? '✅ تم تسجيل الدخول' : '✅ تم إنشاء الحساب');
-
-      if (mounted) {
-        await _checkTermsAndNavigate();
-      }
-    } on FirebaseAuthException catch (e) {
-      String message = 'حدث خطأ';
-      if (e.code == 'user-not-found') message = '❌ المستخدم غير موجود';
-      else if (e.code == 'wrong-password') message = '❌ كلمة المرور غير صحيحة';
-      else if (e.code == 'email-already-in-use') message = '❌ الإيميل مستخدم بالفعل';
-      else if (e.code == 'weak-password') message = '❌ كلمة المرور ضعيفة';
-      else if (e.code == 'invalid-email') message = '❌ إيميل غير صالح';
-      _showSnackbar(message, isError: true);
-    } catch (e) {
-      _showSnackbar('❌ حدث خطأ: $e', isError: true);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  // ============================================================
-  // 🚀 Navigation
-  // ============================================================
-
   Future<void> _checkTermsAndNavigate() async {
     print('🔍 بدء التوجيه...');
     
@@ -466,9 +382,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
   void dispose() {
     _phoneController.dispose();
     _otpController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _nameController.dispose();
     _searchController.dispose();
     _cooldownTimer?.cancel();
     super.dispose();
@@ -482,270 +395,143 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("تسجيل الدخول"),
+        title: const Text("تسجيل الدخول برقم الهاتف"),
         centerTitle: true,
         elevation: 0,
-        bottom: TabBar(
-          onTap: (index) => setState(() => _selectedTab = index),
-          indicatorColor: AppTheme.privooGold,
-          labelColor: AppTheme.privooGold,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(icon: Icon(Icons.phone), text: 'رقم الهاتف'),
-            Tab(icon: Icon(Icons.email), text: 'الإيميل'),
-          ],
-        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
-        child: _selectedTab == 0 
-            ? _buildPhoneAuth(resendTitle)
-            : _buildEmailAuth(),
-      ),
-    );
-  }
-
-  // ============================================================
-  // 📱 Phone Auth Widget
-  // ============================================================
-
-  Widget _buildPhoneAuth(String resendTitle) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppTheme.privooDeepPurple,
-            boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
-          ),
-          child: const Center(
-            child: Icon(Icons.phone_android, size: 40, color: Colors.white),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'رقم الهاتف',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.privooDeepPurple),
-        ),
-        const SizedBox(height: 24),
-        
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            GestureDetector(
-              onTap: _showCountryPicker,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Text(_selectedCountryFlag, style: const TextStyle(fontSize: 24)),
-                    const SizedBox(width: 4),
-                    Text(_selectedCountryCode, style: const TextStyle(fontSize: 14)),
-                    const Icon(Icons.arrow_drop_down, size: 20),
-                  ],
-                ),
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.privooDeepPurple,
+                boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
+              ),
+              child: const Center(
+                child: Icon(Icons.phone_android, size: 50, color: Colors.white),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _phoneController,
+            const SizedBox(height: 16),
+            Text(
+              'Privoo',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.privooDeepGold,
+              ),
+            ),
+            const SizedBox(height: 40),
+            
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: _showCountryPicker,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(_selectedCountryFlag, style: const TextStyle(fontSize: 24)),
+                        const SizedBox(width: 4),
+                        Text(_selectedCountryCode, style: const TextStyle(fontSize: 14)),
+                        const Icon(Icons.arrow_drop_down, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _phoneController,
+                    decoration: InputDecoration(
+                      labelText: "رقم الهاتف",
+                      hintText: "مثال: 123456789",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      prefixIcon: const Icon(Icons.phone),
+                    ),
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _sendOTP(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$_selectedCountryName • ${_selectedCountryFlag} $_selectedCountryCode',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            
+            if (_codeSent)
+              TextField(
+                controller: _otpController,
                 decoration: InputDecoration(
-                  labelText: "رقم الهاتف",
-                  hintText: "مثال: 123456789",
+                  labelText: "رمز التحقق",
+                  hintText: "أدخل الرقم المكون من 6 أرقام",
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  prefixIcon: const Icon(Icons.phone),
+                  prefixIcon: const Icon(Icons.lock),
                 ),
-                keyboardType: TextInputType.phone,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
                 textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _sendOTP(),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          '$_selectedCountryName • ${_selectedCountryFlag} $_selectedCountryCode',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        ),
-        const SizedBox(height: 16),
-        
-        if (_codeSent)
-          TextField(
-            controller: _otpController,
-            decoration: InputDecoration(
-              labelText: "رمز التحقق",
-              hintText: "أدخل الرقم المكون من 6 أرقام",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              prefixIcon: const Icon(Icons.lock),
-            ),
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _verifyOTP(),
-          ),
-          
-        const SizedBox(height: 20),
-        
-        _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : ElevatedButton(
-                onPressed: _codeSent ? _verifyOTP : _sendOTP,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 55),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child: Text(
-                  _codeSent ? "تحقق" : resendTitle,
-                  style: const TextStyle(fontSize: 16),
-                ),
+                onSubmitted: (_) => _verifyOTP(),
               ),
               
-        if (_codeSent)
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _codeSent = false;
-                _otpController.clear();
-                _verificationId = null;
-                _attempts = 0;
-              });
-            },
-            child: const Text("تغيير رقم الهاتف"),
-          ),
-          
-        const SizedBox(height: 16),
-        Text(
-          'سيتم إرسال رمز تحقق عن طريق رسالة نصية إلى رقم هاتفك',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  // ============================================================
-  // ✉️ Email Auth Widget
-  // ============================================================
-
-  Widget _buildEmailAuth() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          _isLogin ? Icons.login : Icons.person_add,
-          size: 60,
-          color: AppTheme.privooDeepPurple,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          _isLogin ? 'تسجيل الدخول' : 'إنشاء حساب جديد',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.privooDeepPurple,
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        TextField(
-          controller: _emailController,
-          decoration: const InputDecoration(
-            labelText: 'البريد الإلكتروني',
-            hintText: 'example@email.com',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.email),
-          ),
-          keyboardType: TextInputType.emailAddress,
-        ),
-        const SizedBox(height: 16),
-
-        TextField(
-          controller: _passwordController,
-          decoration: const InputDecoration(
-            labelText: 'كلمة المرور',
-            hintText: '********',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.lock),
-          ),
-          obscureText: true,
-        ),
-        const SizedBox(height: 16),
-
-        if (!_isLogin)
-          Column(
-            children: [
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'الاسم',
-                  hintText: 'أدخل اسمك',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _emailSubmit,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+            const SizedBox(height: 20),
+            
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ElevatedButton(
+                    onPressed: _codeSent ? _verifyOTP : _sendOTP,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 55),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
                     ),
-                  )
-                : Text(
-                    _isLogin ? 'تسجيل الدخول' : 'إنشاء حساب',
-                    style: const TextStyle(fontSize: 16),
+                    child: Text(
+                      _codeSent ? "تحقق" : resendTitle,
+                      style: const TextStyle(fontSize: 16),
+                    ),
                   ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              _isLogin
-                  ? 'ليس لديك حساب؟'
-                  : 'لديك حساب بالفعل؟',
-            ),
-            TextButton(
-              onPressed: () => setState(() => _isLogin = !_isLogin),
-              child: Text(
-                _isLogin ? 'إنشاء حساب' : 'تسجيل الدخول',
-                style: TextStyle(color: AppTheme.privooGold),
+                  
+            if (_codeSent)
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _codeSent = false;
+                    _otpController.clear();
+                    _verificationId = null;
+                    _attempts = 0;
+                  });
+                },
+                child: const Text("تغيير رقم الهاتف"),
               ),
+              
+            const SizedBox(height: 20),
+            
+            Text(
+              'سيتم إرسال رمز تحقق عن طريق رسالة نصية إلى رقم هاتفك',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 }
