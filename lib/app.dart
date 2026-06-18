@@ -70,6 +70,7 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
   bool _isInitialized = false;
   String _nextRoute = '/splash';
   Map<String, String>? _chatArgs;
+  bool _isAppInitialized = false; // ✅ منع إعادة التهيئة
 
   @override
   void initState() {
@@ -77,8 +78,11 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
     _initApp();
   }
 
-  // ✅ دالة التهيئة المبسطة - بدون طلب أذونات
+  // ✅ دالة التهيئة - تتسمى مرة واحدة فقط
   Future<void> _initApp() async {
+    // ✅ لو التطبيق اتهيأ قبل كده، متعملش حاجة
+    if (_isAppInitialized) return;
+    
     try {
       ref.read(notificationServiceProvider);
       _logger.i("✅ تم تهيئة NotificationService");
@@ -112,11 +116,14 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
         _logger.i("👤 التوجيه إلى شاشة تسجيل الدخول");
       }
 
+      _isAppInitialized = true; // ✅ تم التهيئة
+
       if (mounted) {
         setState(() => _isInitialized = true);
       }
     } catch (e) {
       _logger.e("❌ خطأ أثناء تهيئة التطبيق: $e");
+      _isAppInitialized = true;
       if (mounted) {
         setState(() {
           _isInitialized = true;
