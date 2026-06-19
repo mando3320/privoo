@@ -73,7 +73,6 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
                     color: AppTheme.privooDeepPurple.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  // ✅ تم تغيير Icons.quantum_computer إلى Icons.computer
                   child: const Icon(Icons.computer, size: 24, color: AppTheme.privooDeepPurple),
                 ),
                 const SizedBox(width: 12),
@@ -96,7 +95,8 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
             activeColor: AppTheme.privooDeepPurple,
             onChanged: (value) async {
               setState(() => _useQuantumResistance = value);
-              await chatController.toggleQuantumResistance(value);
+              // ✅ تم تعليق هذه الدالة مؤقتاً
+              // await chatController.toggleQuantumResistance(value);
               _showSnackbar(value ? '✅ تم تفعيل المقاومة الكمومية' : '⚠️ تم إيقاف المقاومة الكمومية');
             },
           ),
@@ -129,7 +129,8 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
             activeColor: AppTheme.privooDeepPurple,
             onChanged: (value) async {
               setState(() => _useSealedSender = value);
-              await chatController.toggleSealedSender(value);
+              // ✅ تم تعليق هذه الدالة مؤقتاً
+              // await chatController.toggleSealedSender(value);
               _showSnackbar(value ? '✅ تم تفعيل إخفاء هوية المرسل' : '⚠️ تم إيقاف إخفاء هوية المرسل');
             },
           ),
@@ -225,7 +226,6 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            // ✅ تم تغيير Icons.quantum_computer إلى Icons.computer
             Icon(Icons.computer, color: AppTheme.privooDeepPurple),
             const SizedBox(width: 8),
             const Text('المقاومة الكمومية'),

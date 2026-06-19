@@ -31,6 +31,22 @@ class ChatModel {
     );
   }
 
+  // ✅ للاستخدام مع Supabase
+  factory ChatModel.fromSupabase(Map<String, dynamic> json) {
+    return ChatModel(
+      chatId: json['id'] ?? json['chat_id'] ?? '',
+      members: List<String>.from(json['members'] ?? []),
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
+          : DateTime.now(),
+      lastMessage: json['last_message'] as String?,
+      lastMessageTime: json['last_message_time'] != null
+          ? DateTime.tryParse(json['last_message_time'])
+          : null,
+      unreadCount: Map<String, int>.from(json['unread_count'] ?? {}),
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'chat_id': chatId,

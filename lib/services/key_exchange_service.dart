@@ -145,7 +145,8 @@ class KeyExchangeService {
     List<int> myPrivate,
     SimplePublicKey peerPublic,
   ) async {
-    final keyPair = await X25519.X25519KeyPair.fromPrivateKeyBytes(myPrivate);
+    // ✅ استخدام X25519 مباشرة بدون KeyPair
+    final keyPair = await X25519.privateKeyFromBytes(myPrivate);
     final sharedSecret = await keyPair.sharedSecret(peerPublic);
     return sharedSecret.bytes;
   }
@@ -170,12 +171,13 @@ class KeyExchangeService {
     return fingerprint.map((b) => b.toRadixString(16).padLeft(2, '0')).join(':');
   }
 
+  // ✅ دوال مساعدة معدلة
   Future<SimpleKeyPair> _generateX25519KeyPair() async {
-    return await X25519.X25519KeyPair.generateRandom();
+    return await X25519.generateKeyPair();
   }
 
   Future<SimpleKeyPair> _generateEd25519KeyPair() async {
-    return await Ed25519.Ed25519KeyPair.generateRandom();
+    return await Ed25519.generateKeyPair();
   }
 
   Future<SimpleKeyPair> _importPrivateKey(
@@ -183,9 +185,9 @@ class KeyExchangeService {
     KeyPairType type,
   ) async {
     if (type == KeyPairType.x25519) {
-      return await X25519.X25519KeyPair.fromPrivateKeyBytes(bytes);
+      return await X25519.privateKeyFromBytes(bytes);
     } else {
-      return await Ed25519.Ed25519KeyPair.fromPrivateKeyBytes(bytes);
+      return await Ed25519.privateKeyFromBytes(bytes);
     }
   }
 
@@ -194,9 +196,9 @@ class KeyExchangeService {
     KeyPairType type,
   ) async {
     if (type == KeyPairType.x25519) {
-      return await X25519.X25519KeyPair.fromPublicKeyBytes(bytes);
+      return await X25519.publicKeyFromBytes(bytes);
     } else {
-      return await Ed25519.Ed25519KeyPair.fromPublicKeyBytes(bytes);
+      return await Ed25519.publicKeyFromBytes(bytes);
     }
   }
 }

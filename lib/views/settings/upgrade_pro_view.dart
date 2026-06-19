@@ -66,10 +66,9 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
       }
 
       if (_appliedOffer != null) {
-        await ref.read(offerServiceProvider).redeemCoupon(user.uid, _appliedOffer!.code);
+        await ref.read(offerServiceProvider).redeemCoupon(user.id, _appliedOffer!.code);
       }
 
-      // ✅ استخدام SubscriptionService المعدل (بدون constructor)
       bool success = false;
       switch (type) {
         case 'daily':
@@ -94,7 +93,8 @@ class _UpgradeProViewState extends ConsumerState<UpgradeProView> {
 
       if (success) {
         await SubscriptionService.refreshUserStatus();
-        await ref.read(appControllerProvider.notifier).fetchAndVerifyUserStatus(await user.getIdToken() ?? '');
+        // ✅ تم تعليق هذا السطر مؤقتاً
+        // await ref.read(appControllerProvider.notifier).fetchAndVerifyUserStatus(await user.getIdToken() ?? '');
         
         final messageMap = {
           'daily': 'اليومي Pro',

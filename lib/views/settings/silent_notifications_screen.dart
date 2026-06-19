@@ -32,10 +32,11 @@ class _SilentNotificationsScreenState extends ConsumerState<SilentNotificationsS
     }
 
     try {
+      final userId = _currentUserId!; // ✅ non-nullable
       final response = await _supabase
           .from('chat_settings')
           .select()
-          .eq('user_id', _currentUserId)
+          .eq('user_id', userId)
           .eq('silent_notifications', true);
 
       final chats = <Map<String, dynamic>>[];
@@ -44,7 +45,6 @@ class _SilentNotificationsScreenState extends ConsumerState<SilentNotificationsS
         final otherId = _getOtherUserId(chatId);
         String chatName = 'محادثة';
         
-        // جلب اسم المستخدم الآخر
         try {
           final userResponse = await _supabase
               .from('users')
@@ -86,15 +86,15 @@ class _SilentNotificationsScreenState extends ConsumerState<SilentNotificationsS
     if (_currentUserId == null) return;
 
     try {
+      final userId = _currentUserId!; // ✅ non-nullable
       await _supabase.from('chat_settings').upsert({
-        'user_id': _currentUserId,
+        'user_id': userId,
         'chat_id': chatId,
         'silent_notifications': value,
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'user_id,chat_id');
 
       if (value) {
-        // إضافة إلى القائمة المحلية
         final otherId = _getOtherUserId(chatId);
         String chatName = 'محادثة';
         try {
@@ -120,7 +120,6 @@ class _SilentNotificationsScreenState extends ConsumerState<SilentNotificationsS
           });
         });
       } else {
-        // إزالة من القائمة المحلية
         setState(() {
           _silentChats.removeWhere((c) => c['chatId'] == chatId);
         });
@@ -180,7 +179,6 @@ class _SilentNotificationsScreenState extends ConsumerState<SilentNotificationsS
     );
 
     if (result != null && result.isNotEmpty) {
-      // إنشاء معرف محادثة
       final chatId = [_currentUserId, result]..sort();
       final chatIdStr = '${chatId[0]}_${chatId[1]}';
       await _toggleSilent(chatIdStr, true);

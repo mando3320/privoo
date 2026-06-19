@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../main.dart';
 import 'app_controller.dart';
@@ -33,6 +34,9 @@ class AuthController extends ChangeNotifier {
   bool get isSuperAdmin => _currentAdmin?.role == AdminRole.superAdmin;
 
   AppController get _appController => _ref.read(appControllerProvider);
+
+  // ✅ currentUser باستخدام Supabase
+  User? get currentUser => _supabase.client.auth.currentUser;
 
   Future<void> sendOTP(String phoneNumber) async {
     isLoading = true;
@@ -80,7 +84,7 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> saveProfile(String name, String status, {String avatarUrl = ""}) async {
-    final user = _supabase.currentUser;
+    final user = currentUser;
     if (user == null) return;
     
     try {
@@ -99,7 +103,7 @@ class AuthController extends ChangeNotifier {
 
   Future<void> logout() async {
     try {
-      final user = _supabase.currentUser;
+      final user = currentUser;
       if (user != null) {
         await QuantumResistantService.deleteQuantumKeys(user.id);
         await _supabase.updateUser(user.id, {
@@ -241,13 +245,11 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<String?> getMyFingerprint() async {
-    final user = _supabase.currentUser;
+    final user = currentUser;
     if (user == null) return null;
     final keyService = KeyExchangeService();
     final pair = await keyService.getIdentityKeyPair(user.id);
     final pub = await pair.extractPublicKey();
     return await KeyExchangeService.pubFingerprint(pub.bytes, bytes: 16);
   }
-
-  User? get currentUser => _supabase.currentUser;
 }

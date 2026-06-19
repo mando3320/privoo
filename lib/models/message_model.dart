@@ -1,4 +1,4 @@
-// models/message_model.dart
+// lib/models/message_model.dart
 
 /// 🔹 أنواع الرسائل المدعومة في التطبيق
 enum MessageType { text, image, gif, video, voice, audio, file }

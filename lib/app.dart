@@ -36,9 +36,10 @@ import 'views/call/call_screen.dart';
 import 'views/call/group_call_screen.dart';
 import 'views/incoming_call_screen.dart';
 import 'views/block_list_screen.dart';
-import 'views/channels/channel_list_screen.dart';
-import 'views/channels/channel_screen.dart';
-import 'views/channels/create_channel_screen.dart';
+// ✅ المسارات الصحيحة - الملفات موجودة في views/ مباشرة
+import 'views/channel_list_screen.dart';
+import 'views/channel_screen.dart';
+import 'views/create_channel_screen.dart';
 import 'views/search_screen.dart';
 import 'views/sticker/sticker_maker_screen.dart';
 import 'views/users/users_list_screen.dart';
@@ -78,7 +79,6 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
       if (user != null) {
         _logger.i("🔍 المستخدم مسجل: ${user.id}");
         
-        // ✅ جلب بيانات المستخدم من Supabase
         final userData = await SupabaseService().getUser(user.id);
         
         if (userData != null) {
