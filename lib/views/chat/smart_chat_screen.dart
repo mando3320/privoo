@@ -69,7 +69,6 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
   final ChannelService _channelService = ChannelService();
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // ✅ دالة موحدة لعرض الإشعارات
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -176,10 +175,8 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
           .limit(30);
 
       if (loadMore && _lastDocument != null) {
-        // استخدام cursor-based pagination مع timestamp
         final lastTimestamp = _lastDocument?['timestamp'] as String?;
         if (lastTimestamp != null) {
-          // ✅ تم تعليق lt مؤقتاً
           // query = query.lt('timestamp', lastTimestamp);
         }
       }
@@ -193,7 +190,6 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
         _hasMore = false;
       }
 
-      // ✅ معالجة الرسائل الفردية فقط (غير القنوات والمجموعات)
       if (!widget.isGroup && !widget.isChannel) {
         final newMessages = <MessageModel>[];
         
@@ -272,7 +268,6 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
           _isLoadingMore = false;
         });
       } else {
-        // ✅ للمجموعات والقنوات (غير مشفرة)
         final newMessages = response
             .map((data) => MessageModel.fromSupabase(data))
             .toList();
@@ -319,9 +314,6 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
     }
   }
 
-  // ============================================================
-  // 🎥 مكالمة فيديو جماعية
-  // ============================================================
   Future<void> _startVideoGroupCall() async {
     if (_group == null) return;
     
@@ -383,9 +375,6 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
     }
   }
 
-  // ============================================================
-  // 📞 مكالمة صوتية جماعية
-  // ============================================================
   Future<void> _startVoiceGroupCall() async {
     if (_group == null) return;
     
@@ -672,7 +661,6 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
       ),
       body: Column(
         children: [
-          // ✅ تم تعليق ReplyPreviewWidget مؤقتاً
           // if (chatState.replyingTo != null)
           //   ReplyPreviewWidget(
           //     replyingTo: chatState.replyingTo!,
@@ -765,7 +753,6 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
                                       senderName: senderName,
                                       isPinned: msg.isPinned,
                                       onReaction: (reaction) => _addReaction(msg, reaction),
-                                      // ✅ تم تعليق onReply مؤقتاً
                                       // onReply: () => chatController.setReplyingTo(msg),
                                       onPin: () => chatController.togglePinMessage(
                                         widget.chatId,
@@ -778,13 +765,13 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
                                               .from('messages')
                                               .delete()
                                               .eq('id', msg.id)
-                                              .eq('chat_id', widget.groupId);
+                                              .eq('chat_id', widget.groupId!);
                                         } else if (widget.isChannel && widget.channelId != null) {
                                           await _supabase
                                               .from('messages')
                                               .delete()
                                               .eq('id', msg.id)
-                                              .eq('chat_id', widget.channelId);
+                                              .eq('chat_id', widget.channelId!);
                                         } else {
                                           await _supabase
                                               .from('messages')
