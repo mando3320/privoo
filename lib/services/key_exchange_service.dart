@@ -145,7 +145,7 @@ class KeyExchangeService {
     List<int> myPrivate,
     SimplePublicKey peerPublic,
   ) async {
-    final keyPair = await X25519.privateKeyFromBytes(myPrivate);
+    final keyPair = await X25519.X25519KeyPair.fromPrivateKeyBytes(myPrivate);
     final sharedSecret = await keyPair.sharedSecret(peerPublic);
     return sharedSecret.bytes;
   }
@@ -171,11 +171,11 @@ class KeyExchangeService {
   }
 
   Future<SimpleKeyPair> _generateX25519KeyPair() async {
-    return await X25519.generateKeyPair();
+    return await X25519.X25519KeyPair.generateRandom();
   }
 
   Future<SimpleKeyPair> _generateEd25519KeyPair() async {
-    return await Ed25519.generateKeyPair();
+    return await Ed25519.Ed25519KeyPair.generateRandom();
   }
 
   Future<SimpleKeyPair> _importPrivateKey(
@@ -183,9 +183,9 @@ class KeyExchangeService {
     KeyPairType type,
   ) async {
     if (type == KeyPairType.x25519) {
-      return await X25519.privateKeyFromBytes(bytes);
+      return await X25519.X25519KeyPair.fromPrivateKeyBytes(bytes);
     } else {
-      return await Ed25519.privateKeyFromBytes(bytes);
+      return await Ed25519.Ed25519KeyPair.fromPrivateKeyBytes(bytes);
     }
   }
 
@@ -194,9 +194,9 @@ class KeyExchangeService {
     KeyPairType type,
   ) async {
     if (type == KeyPairType.x25519) {
-      return await X25519.publicKeyFromBytes(bytes);
+      return await X25519.X25519KeyPair.fromPublicKeyBytes(bytes);
     } else {
-      return await Ed25519.publicKeyFromBytes(bytes);
+      return await Ed25519.Ed25519KeyPair.fromPublicKeyBytes(bytes);
     }
   }
 }

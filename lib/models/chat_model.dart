@@ -1,59 +1,43 @@
 // lib/models/chat_model.dart
 class ChatModel {
-  final String id;
-  final String? name;
-  final String? avatarUrl;
-  final bool isGroup;
-  final bool isChannel;
-  final String createdBy;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final String chatId;
   final List<String> members;
+  final DateTime createdAt;
+  final String? lastMessage;
+  final DateTime? lastMessageTime;
   final Map<String, int> unreadCount;
 
   ChatModel({
-    required this.id,
-    this.name,
-    this.avatarUrl,
-    this.isGroup = false,
-    this.isChannel = false,
-    required this.createdBy,
+    required this.chatId,
+    required this.members,
     required this.createdAt,
-    required this.updatedAt,
-    this.members = const [],
+    this.lastMessage,
+    this.lastMessageTime,
     this.unreadCount = const {},
   });
 
-  factory ChatModel.fromSupabase(Map<String, dynamic> data) {
+  factory ChatModel.fromJson(Map<String, dynamic> json) {
     return ChatModel(
-      id: data['id'] ?? '',
-      name: data['name'],
-      avatarUrl: data['avatar_url'],
-      isGroup: data['is_group'] ?? false,
-      isChannel: data['is_channel'] ?? false,
-      createdBy: data['created_by'] ?? '',
-      createdAt: data['created_at'] != null
-          ? DateTime.tryParse(data['created_at']) ?? DateTime.now()
+      chatId: json['id'] ?? json['chat_id'] ?? '',
+      members: List<String>.from(json['members'] ?? []),
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
           : DateTime.now(),
-      updatedAt: data['updated_at'] != null
-          ? DateTime.tryParse(data['updated_at']) ?? DateTime.now()
-          : DateTime.now(),
-      members: List<String>.from(data['members'] ?? []),
-      unreadCount: Map<String, int>.from(data['unread_count'] ?? {}),
+      lastMessage: json['last_message'] as String?,
+      lastMessageTime: json['last_message_time'] != null
+          ? DateTime.tryParse(json['last_message_time'])
+          : null,
+      unreadCount: Map<String, int>.from(json['unread_count'] ?? {}),
     );
   }
 
-  Map<String, dynamic> toSupabase() {
+  Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'name': name,
-      'avatar_url': avatarUrl,
-      'is_group': isGroup,
-      'is_channel': isChannel,
-      'created_by': createdBy,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'chat_id': chatId,
       'members': members,
+      'created_at': createdAt.toIso8601String(),
+      if (lastMessage != null) 'last_message': lastMessage,
+      if (lastMessageTime != null) 'last_message_time': lastMessageTime!.toIso8601String(),
       'unread_count': unreadCount,
     };
   }

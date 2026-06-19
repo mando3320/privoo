@@ -1,4 +1,4 @@
-// views/chat/message_bubble.dart
+// lib/views/chat/message_bubble.dart
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
@@ -427,9 +427,7 @@ class MessageBubble extends StatelessWidget {
   }
 }
 
-// -------------------------------------------------------------
 // 🎞️ مشغل الفيديو
-// -------------------------------------------------------------
 class _VideoPlayerWidget extends StatefulWidget {
   final String url;
   const _VideoPlayerWidget({required this.url});
@@ -523,9 +521,7 @@ class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> {
   }
 }
 
-// -------------------------------------------------------------
 // 🎤 رسالة صوتية
-// -------------------------------------------------------------
 class _VoiceMessageBubble extends StatefulWidget {
   final String audioUrl;
   final Color iconColor;

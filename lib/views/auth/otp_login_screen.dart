@@ -19,13 +19,15 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
-  String? _verificationId;
   bool _codeSent = false;
   bool _isLoading = false;
   int _attempts = 0;
   int _selectedTab = 0;
   bool _isLogin = true;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   String _selectedCountryCode = '+20';
   String _selectedCountryFlag = '🇪🇬';
@@ -72,7 +74,7 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
   ];
 
   List<Map<String, String>> _filteredCountries = [];
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -130,10 +132,7 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
     );
   }
 
-  // ============================================================
   // 📱 Phone Auth (Supabase)
-  // ============================================================
-
   Future<void> _sendOTP() async {
     final phone = _getFullPhoneNumber();
     
@@ -184,7 +183,7 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
         return;
       }
       
-      // ✅ حفظ المستخدم في Supabase
+      // حفظ المستخدم في Supabase
       await SupabaseService().createUser(UserModel(
         id: user.id,
         authId: user.id,
@@ -208,16 +207,32 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
     }
   }
 
-  // ============================================================
   // ✉️ Email Auth
-  // ============================================================
-
   Future<void> _emailSubmit() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
       _showSnackbar('يرجى ملء جميع الحقول', isError: true);
+      return;
+    }
+
+    // ✅ التحقق من البريد الإلكتروني
+    if (!_isValidEmail(email)) {
+      _showSnackbar('❌ البريد الإلكتروني غير صالح', isError: true);
+      return;
+    }
+
+    // ✅ التحقق من كلمة المرور (في حالة التسجيل)
+    if (!_isLogin && password.length < 6) {
+      _showSnackbar('❌ كلمة المرور يجب أن تكون 6 أحرف على الأقل', isError: true);
+      return;
+    }
+
+    // ✅ تأكيد كلمة المرور (في حالة التسجيل)
+    if (!_isLogin && password != confirmPassword) {
+      _showSnackbar('❌ كلمة المرور غير متطابقة', isError: true);
       return;
     }
 
@@ -225,8 +240,20 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
 
     try {
       if (_isLogin) {
-        await SupabaseService().signInWithEmail(email, password);
+        // ✅ تسجيل الدخول
+        final response = await SupabaseService().signInWithEmail(email, password);
+        final user = response.user;
+        
+        if (user != null) {
+          _showSnackbar('✅ تم تسجيل الدخول بنجاح');
+          if (mounted) {
+            await _checkTermsAndNavigate();
+          }
+        } else {
+          _showSnackbar('❌ فشل تسجيل الدخول', isError: true);
+        }
       } else {
+        // ✅ إنشاء حساب جديد
         final response = await SupabaseService().signUpWithEmail(email, password);
         final user = response.user;
         
@@ -235,17 +262,19 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
           await SupabaseService().createUser(UserModel(
             id: user.id,
             authId: user.id,
-            name: name.isNotEmpty ? name : email,
+            name: name.isNotEmpty ? name : email.split('@').first,
             email: email,
             isActive: true,
             createdAt: DateTime.now(),
           ));
+          
+          _showSnackbar('✅ تم إنشاء الحساب بنجاح');
+          if (mounted) {
+            await _checkTermsAndNavigate();
+          }
+        } else {
+          _showSnackbar('❌ فشل إنشاء الحساب', isError: true);
         }
-      }
-
-      _showSnackbar(_isLogin ? '✅ تم تسجيل الدخول' : '✅ تم إنشاء الحساب');
-      if (mounted) {
-        await _checkTermsAndNavigate();
       }
     } catch (e) {
       _showSnackbar('❌ حدث خطأ: $e', isError: true);
@@ -254,10 +283,12 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
     }
   }
 
-  // ============================================================
-  // 🚀 Navigation
-  // ============================================================
+  bool _isValidEmail(String email) {
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    return emailRegex.hasMatch(email);
+  }
 
+  // 🚀 Navigation
   Future<void> _checkTermsAndNavigate() async {
     final prefs = await SharedPreferences.getInstance();
     final termsAccepted = prefs.getBool('terms_accepted') ?? false;
@@ -345,6 +376,7 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _confirmPasswordController.dispose();
     _searchController.dispose();
     _cooldownTimer?.cancel();
     super.dispose();
@@ -369,8 +401,8 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
             labelColor: AppTheme.privooGold,
             unselectedLabelColor: Colors.white70,
             tabs: const [
-              Tab(icon: Icon(Icons.phone), text: 'رقم الهاتف'),
-              Tab(icon: Icon(Icons.email), text: 'الإيميل'),
+              Tab(icon: Icon(Icons.phone), text: '📱 رقم الهاتف'),
+              Tab(icon: Icon(Icons.email), text: '✉️ الإيميل'),
             ],
           ),
         ),
@@ -402,8 +434,13 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
         ),
         const SizedBox(height: 16),
         Text(
-          'رقم الهاتف',
+          '📱 تسجيل الدخول برقم الهاتف',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.privooDeepPurple),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'سيتم إرسال رمز تحقق إلى رقم هاتفك',
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 24),
         
@@ -484,7 +521,7 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
                   ),
                 ),
                 child: Text(
-                  _codeSent ? "تحقق" : resendTitle,
+                  _codeSent ? "🔑 تحقق" : resendTitle,
                   style: const TextStyle(fontSize: 16),
                 ),
               ),
@@ -515,22 +552,48 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
-          _isLogin ? Icons.login : Icons.person_add,
-          size: 60,
-          color: AppTheme.privooDeepPurple,
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppTheme.privooDeepPurple,
+            boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
+          ),
+          child: const Center(
+            child: Icon(Icons.email, size: 40, color: Colors.white),
+          ),
         ),
         const SizedBox(height: 16),
         Text(
-          _isLogin ? 'تسجيل الدخول' : 'إنشاء حساب جديد',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.privooDeepPurple,
-          ),
+          _isLogin ? '✉️ تسجيل الدخول بالإيميل' : '✉️ إنشاء حساب جديد',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.privooDeepPurple),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _isLogin ? 'سجل الدخول باستخدام بريدك الإلكتروني' : 'أنشئ حساباً جديداً باستخدام بريدك الإلكتروني',
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 24),
 
+        // ✅ حقل الاسم (يظهر فقط في التسجيل)
+        if (!_isLogin)
+          Column(
+            children: [
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'الاسم الكامل',
+                  hintText: 'أدخل اسمك الكامل',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+
+        // ✅ حقل البريد الإلكتروني
         TextField(
           controller: _emailController,
           decoration: const InputDecoration(
@@ -540,37 +603,50 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
             prefixIcon: Icon(Icons.email),
           ),
           keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
         ),
         const SizedBox(height: 16),
 
+        // ✅ حقل كلمة المرور
         TextField(
           controller: _passwordController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'كلمة المرور',
             hintText: '********',
             border: OutlineInputBorder(),
             prefixIcon: Icon(Icons.lock),
+            suffixIcon: IconButton(
+              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            ),
           ),
-          obscureText: true,
+          obscureText: _obscurePassword,
+          textInputAction: !_isLogin ? TextInputAction.next : TextInputAction.done,
         ),
         const SizedBox(height: 16),
 
+        // ✅ حقل تأكيد كلمة المرور (يظهر فقط في التسجيل)
         if (!_isLogin)
-          Column(
-            children: [
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'الاسم',
-                  hintText: 'أدخل اسمك',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
-                ),
+          TextField(
+            controller: _confirmPasswordController,
+            decoration: InputDecoration(
+              labelText: 'تأكيد كلمة المرور',
+              hintText: 'أعد كتابة كلمة المرور',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
               ),
-              const SizedBox(height: 16),
-            ],
+            ),
+            obscureText: _obscureConfirmPassword,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _emailSubmit(),
           ),
 
+        const SizedBox(height: 24),
+
+        // ✅ زر تسجيل الدخول / إنشاء حساب
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
@@ -598,6 +674,7 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
         ),
         const SizedBox(height: 16),
 
+        // ✅ التبديل بين تسجيل الدخول وإنشاء حساب
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -605,12 +682,17 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
               _isLogin
                   ? 'ليس لديك حساب؟'
                   : 'لديك حساب بالفعل؟',
+              style: TextStyle(color: Colors.grey.shade600),
             ),
             TextButton(
-              onPressed: () => setState(() => _isLogin = !_isLogin),
+              onPressed: () => setState(() {
+                _isLogin = !_isLogin;
+                _passwordController.clear();
+                _confirmPasswordController.clear();
+              }),
               child: Text(
                 _isLogin ? 'إنشاء حساب' : 'تسجيل الدخول',
-                style: TextStyle(color: AppTheme.privooGold),
+                style: TextStyle(color: AppTheme.privooGold, fontWeight: FontWeight.bold),
               ),
             ),
           ],

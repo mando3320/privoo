@@ -41,9 +41,9 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
       
       final response = await supabase
           .from('users')
-          .select();
+          .select('uid, name');
       
-      final users = response
+      _users = response
           .where((u) => u['uid'] != currentUser?.id)
           .map((u) => {
             'id': u['uid'],
@@ -52,7 +52,6 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
           .toList();
       
       setState(() {
-        _users = users;
         _isLoadingUsers = false;
       });
     } catch (e) {
@@ -135,11 +134,13 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
             ),
           ),
           const Divider(),
-          const Padding(
-            padding: EdgeInsets.all(12),
+          Padding(
+            padding: const EdgeInsets.all(12),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('اختر الأعضاء (${_selectedMembers.length}):'),
+              child: Text(
+                'اختر الأعضاء (${_selectedMembers.length}):',
+              ),
             ),
           ),
           Expanded(
