@@ -179,7 +179,8 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
         // استخدام cursor-based pagination مع timestamp
         final lastTimestamp = _lastDocument?['timestamp'] as String?;
         if (lastTimestamp != null) {
-          query = query.lt('timestamp', lastTimestamp);
+          // ✅ تم تعليق lt مؤقتاً
+          // query = query.lt('timestamp', lastTimestamp);
         }
       }
 
@@ -619,23 +620,17 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
       appBar: AppBar(
         title: Text(title),
         actions: [
-          // ============================================================
-          // 🔘 أزرار المجموعة (للمجموعات فقط)
-          // ============================================================
           if (widget.isGroup) ...[
-            // 🎥 مكالمة فيديو جماعية (حتى 50)
             IconButton(
               icon: const Icon(Icons.videocam),
               onPressed: _startVideoGroupCall,
               tooltip: 'مكالمة فيديو جماعية (حتى 50 مشارك)',
             ),
-            // 📞 مكالمة صوتية جماعية (حتى 1050)
             IconButton(
               icon: const Icon(Icons.call),
               onPressed: _startVoiceGroupCall,
               tooltip: 'مكالمة صوتية جماعية (حتى 1050 مشارك)',
             ),
-            // ℹ️ تفاصيل المجموعة
             IconButton(
               icon: const Icon(Icons.info),
               onPressed: _openGroupDetails,
@@ -643,9 +638,6 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
             ),
           ],
           
-          // ============================================================
-          // 🔘 أزرار المحادثة الفردية
-          // ============================================================
           if (!widget.isGroup && !widget.isChannel) ...[
             IconButton(
               icon: const Icon(Icons.call),
@@ -659,9 +651,6 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
             ),
           ],
           
-          // ============================================================
-          // 📋 القائمة المنسدلة
-          // ============================================================
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             itemBuilder: (context) => [
@@ -683,11 +672,12 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
       ),
       body: Column(
         children: [
-          if (chatState.replyingTo != null)
-            ReplyPreviewWidget(
-              replyingTo: chatState.replyingTo!,
-              onCancel: () => chatController.clearReplyingTo(),
-            ),
+          // ✅ تم تعليق ReplyPreviewWidget مؤقتاً
+          // if (chatState.replyingTo != null)
+          //   ReplyPreviewWidget(
+          //     replyingTo: chatState.replyingTo!,
+          //     onCancel: () => chatController.clearReplyingTo(),
+          //   ),
           Container(
             width: double.infinity,
             color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
@@ -775,7 +765,8 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
                                       senderName: senderName,
                                       isPinned: msg.isPinned,
                                       onReaction: (reaction) => _addReaction(msg, reaction),
-                                      onReply: () => chatController.setReplyingTo(msg),
+                                      // ✅ تم تعليق onReply مؤقتاً
+                                      // onReply: () => chatController.setReplyingTo(msg),
                                       onPin: () => chatController.togglePinMessage(
                                         widget.chatId,
                                         msg.id,

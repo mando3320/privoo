@@ -1,4 +1,4 @@
-// lib/views/channels/channel_list_screen.dart
+// lib/views/channel_list_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/channel_service.dart';
@@ -16,11 +16,12 @@ class ChannelListScreen extends ConsumerStatefulWidget {
 
 class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
   final ChannelService _channelService = ChannelService();
-  int _selectedTab = 0; // 0: My Channels, 1: Public Channels
+  int _selectedTab = 0;
 
   @override
   Widget build(BuildContext context) {
-    final userId = ref.read(authControllerProvider).currentUser?.uid;
+    // ✅ استخدم id بدلاً من uid
+    final userId = ref.read(authControllerProvider).currentUser?.id;
     
     return Scaffold(
       appBar: AppBar(
@@ -34,7 +35,7 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         ),
       ),
       body: _selectedTab == 0
-          ? _buildMyChannels(userId!)
+          ? _buildMyChannels(userId ?? '')
           : _buildPublicChannels(),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -106,9 +107,9 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
           itemCount: channels.length,
           itemBuilder: (context, index) {
             final channel = channels[index];
-            final isSubscribed = channel.subscribers.contains(
-              ref.read(authControllerProvider).currentUser?.uid
-            );
+            // ✅ استخدم id بدلاً من uid
+            final currentUserId = ref.read(authControllerProvider).currentUser?.id;
+            final isSubscribed = channel.subscribers.contains(currentUserId);
             
             return ListTile(
               leading: CircleAvatar(

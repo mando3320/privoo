@@ -1,4 +1,4 @@
-// views/channel_screen.dart
+// lib/views/channel_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/channel_service.dart';
@@ -29,7 +29,8 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   Future<void> _loadChannel() async {
     _channelFuture = _channelService.getChannel(widget.channelId);
     final channel = await _channelFuture;
-    final userId = ref.read(authControllerProvider).currentUser?.uid;
+    // ✅ استخدم id بدلاً من uid
+    final userId = ref.read(authControllerProvider).currentUser?.id;
     setState(() {
       _isSubscribed = channel.subscribers.contains(userId);
     });
@@ -53,7 +54,8 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
         }
 
         final channel = snapshot.data!;
-        final userId = ref.read(authControllerProvider).currentUser?.uid;
+        // ✅ استخدم id بدلاً من uid
+        final userId = ref.read(authControllerProvider).currentUser?.id;
         final isOwner = channel.ownerId == userId;
 
         return Scaffold(
@@ -86,7 +88,6 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
           ),
           body: Column(
             children: [
-              // معلومات القناة
               Container(
                 padding: const EdgeInsets.all(16),
                 color: Colors.grey.shade100,
@@ -112,7 +113,6 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                   ],
                 ),
               ),
-              // زر الذهاب إلى الدردشة
               if (_isSubscribed || isOwner)
                 Padding(
                   padding: const EdgeInsets.all(16),

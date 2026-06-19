@@ -17,7 +17,7 @@ class PinnedMessagesScreen extends StatelessWidget {
             .from('messages')
             .stream(primaryKey: ['id'])
             .eq('chat_id', chatId)
-            .eq('is_pinned', true)
+            .filter('is_pinned', 'eq', true)  // ✅ استخدم filter بدلاً من eq
             .order('timestamp', ascending: false),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

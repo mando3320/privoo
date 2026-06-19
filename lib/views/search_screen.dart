@@ -1,4 +1,4 @@
-// lib/views/search/search_screen.dart
+// lib/views/search_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/user_search_service.dart';
@@ -49,7 +49,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Future<void> _startChat(String userId, String name) async {
-    final currentUserId = ref.read(authControllerProvider).currentUser?.uid;
+    // ✅ استخدم id بدلاً من uid
+    final currentUserId = ref.read(authControllerProvider).currentUser?.id;
     if (currentUserId == null) return;
     
     final chatId = [currentUserId, userId]..sort();

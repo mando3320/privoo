@@ -145,7 +145,7 @@ class KeyExchangeService {
     List<int> myPrivate,
     SimplePublicKey peerPublic,
   ) async {
-    // ✅ استخدام X25519 مباشرة بدون KeyPair
+    // ✅ استخدام X25519 مباشرة
     final keyPair = await X25519.privateKeyFromBytes(myPrivate);
     final sharedSecret = await keyPair.sharedSecret(peerPublic);
     return sharedSecret.bytes;

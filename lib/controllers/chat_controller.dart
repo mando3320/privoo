@@ -1,4 +1,4 @@
-// controllers/chat_controller.dart
+// lib/controllers/chat_controller.dart
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -290,7 +290,6 @@ class ChatController extends ChangeNotifier {
       id: const Uuid().v4(),
       senderId: currentUserId,
       receiverId: receiverId,
-      chatId: chatId,
       content: plainText,
       timestamp: DateTime.now(),
       type: MessageType.text,
@@ -355,7 +354,6 @@ class ChatController extends ChangeNotifier {
         id: const Uuid().v4(),
         senderId: "PrivooAI",
         receiverId: currentUserId,
-        chatId: chatId,
         content: warning,
         timestamp: DateTime.now(),
         type: MessageType.text,
@@ -386,7 +384,6 @@ class ChatController extends ChangeNotifier {
       id: const Uuid().v4(),
       senderId: "PrivooAI",
       receiverId: currentUserId,
-      chatId: chatId,
       content: botReply,
       timestamp: DateTime.now(),
       type: MessageType.text,
@@ -422,7 +419,6 @@ class ChatController extends ChangeNotifier {
       id: const Uuid().v4(),
       senderId: currentUserId,
       receiverId: receiverId,
-      chatId: chatId,
       content: plainText,
       timestamp: DateTime.now(),
       type: MessageType.text,
@@ -476,7 +472,6 @@ class ChatController extends ChangeNotifier {
       id: const Uuid().v4(),
       senderId: currentUserId,
       receiverId: receiverId,
-      chatId: chatId,
       content: plainText,
       timestamp: DateTime.now(),
       type: MessageType.text,
@@ -577,7 +572,6 @@ class ChatController extends ChangeNotifier {
       id: const Uuid().v4(),
       senderId: currentUserId,
       receiverId: receiverId,
-      chatId: chatId,
       content: url,
       timestamp: DateTime.now(),
       type: messageType,
@@ -617,7 +611,6 @@ class ChatController extends ChangeNotifier {
       id: const Uuid().v4(),
       senderId: currentUserId,
       receiverId: receiverId,
-      chatId: chatId,
       content: payload,
       timestamp: DateTime.now(),
       type: MessageType.file,
@@ -707,7 +700,6 @@ class ChatController extends ChangeNotifier {
         id: const Uuid().v4(),
         senderId: currentUserId,
         receiverId: receiverId,
-        chatId: chatId,
         content: payload,
         timestamp: DateTime.now(),
         type: MessageType.file,
@@ -997,7 +989,7 @@ class ChatController extends ChangeNotifier {
     return _supabase
         .from('chats')
         .stream(primaryKey: ['id'])
-        .eq('members.user_id', currentUserId)
+        .filter('members.user_id', 'eq', currentUserId)
         .order('updated_at', ascending: false)
         .map((data) {
           return data.map((doc) => ChatModel.fromSupabase(doc)).toList();
@@ -1022,18 +1014,18 @@ class ChatController extends ChangeNotifier {
     
     final lastReadAt = lastRead?['last_read_at'] as String?;
     
-    final query = _supabase
+    var query = _supabase
         .from('messages')
-        .select('count', count: CountOption.exact)
+        .select('id')
         .eq('chat_id', chatId)
         .neq('sender_id', currentUserId);
     
     if (lastReadAt != null) {
-      query.gt('timestamp', lastReadAt);
+      query = query.gt('timestamp', lastReadAt);
     }
     
     final response = await query;
-    return response.count ?? 0;
+    return response.length;
   }
 
   @override
