@@ -1,8 +1,9 @@
 // lib/views/settings/change_credentials_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_theme.dart';
+import '../../services/supabase_service.dart';
 
 class ChangeCredentialsScreen extends ConsumerStatefulWidget {
   const ChangeCredentialsScreen({super.key});
@@ -17,6 +18,7 @@ class _ChangeCredentialsScreenState extends ConsumerState<ChangeCredentialsScree
   final TextEditingController _confirmController = TextEditingController();
   bool _isLoading = false;
   String? _currentEmail;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   @override
   void initState() {
@@ -25,7 +27,7 @@ class _ChangeCredentialsScreenState extends ConsumerState<ChangeCredentialsScree
   }
 
   Future<void> _loadCurrentEmail() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseService().currentUser;
     if (user != null) {
       setState(() {
         _currentEmail = user.email;
@@ -39,7 +41,6 @@ class _ChangeCredentialsScreenState extends ConsumerState<ChangeCredentialsScree
     final password = _passwordController.text.trim();
     final confirm = _confirmController.text.trim();
 
-    // التحقق من صحة الإدخال
     if (email.isEmpty && password.isEmpty) {
       _showSnackbar('الرجاء إدخال بريد إلكتروني أو كلمة مرور جديدة', isError: true);
       return;
@@ -57,23 +58,26 @@ class _ChangeCredentialsScreenState extends ConsumerState<ChangeCredentialsScree
 
     setState(() => _isLoading = true);
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = SupabaseService().currentUser;
       if (user == null) throw Exception('المستخدم غير مسجل');
 
       // تحديث البريد الإلكتروني
       if (email.isNotEmpty && email != _currentEmail) {
-        await user.verifyBeforeUpdateEmail(email);
-        _showSnackbar('✅ تم إرسال رابط تأكيد إلى البريد الإلكتروني الجديد');
+        await _supabase.auth.updateUser(UserAttributes(email: email));
+        await _supabase
+            .from('users')
+            .update({'email': email})
+            .eq('uid', user.id);
+        _showSnackbar('✅ تم تحديث البريد الإلكتروني بنجاح');
       }
 
       // تحديث كلمة المرور
       if (password.isNotEmpty) {
-        await user.updatePassword(password);
+        await _supabase.auth.updateUser(UserAttributes(password: password));
         _showSnackbar('✅ تم تغيير كلمة المرور بنجاح');
       }
 
       if (mounted) {
-        // العودة للشاشة السابقة بعد نجاح التحديث
         Future.delayed(const Duration(seconds: 1), () {
           if (mounted) Navigator.pop(context);
         });

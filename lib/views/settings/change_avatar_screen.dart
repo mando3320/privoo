@@ -2,11 +2,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../../config/app_theme.dart';
+import '../../services/supabase_service.dart';
 
 class ChangeAvatarScreen extends ConsumerStatefulWidget {
   const ChangeAvatarScreen({super.key});
@@ -20,6 +19,7 @@ class _ChangeAvatarScreenState extends ConsumerState<ChangeAvatarScreen> {
   bool _isLoading = false;
   String? _currentAvatarUrl;
   final ImagePicker _picker = ImagePicker();
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   @override
   void initState() {
@@ -28,17 +28,19 @@ class _ChangeAvatarScreenState extends ConsumerState<ChangeAvatarScreen> {
   }
 
   Future<void> _loadCurrentAvatar() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseService().currentUser;
     if (user == null) return;
 
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      if (doc.exists) {
+      final response = await _supabase
+          .from('users')
+          .select()
+          .eq('uid', user.id)
+          .maybeSingle();
+      
+      if (response != null) {
         setState(() {
-          _currentAvatarUrl = doc.data()?['avatarUrl'];
+          _currentAvatarUrl = response['avatar_url'];
         });
       }
     } catch (e) {
@@ -61,36 +63,29 @@ class _ChangeAvatarScreenState extends ConsumerState<ChangeAvatarScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = SupabaseService().currentUser;
       if (user == null) throw Exception('المستخدم غير مسجل');
 
-      // حذف الصورة القديمة إذا وجدت
-      if (_currentAvatarUrl != null && _currentAvatarUrl!.isNotEmpty) {
-        try {
-          final oldRef = FirebaseStorage.instance.refFromURL(_currentAvatarUrl!);
-          await oldRef.delete();
-        } catch (e) {
-          // تجاهل إذا لم توجد الصورة القديمة
-        }
-      }
-
-      // رفع الصورة الجديدة
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('avatars')
-          .child('${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      // ✅ رفع الصورة إلى Supabase Storage
+      final fileName = '${user.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final filePath = 'avatars/$fileName';
       
-      await ref.putFile(_selectedImage!);
-      final downloadUrl = await ref.getDownloadURL();
+      final response = await _supabase.storage
+          .from('avatars')
+          .upload(filePath, _selectedImage!);
       
-      // تحديث في Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
+      final downloadUrl = _supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+      
+      // ✅ تحديث في Supabase
+      await _supabase
+          .from('users')
           .update({
-        'avatarUrl': downloadUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'avatar_url': downloadUrl,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('uid', user.id);
       
       if (mounted) {
         _showSnackbar('✅ تم تغيير الصورة بنجاح');
@@ -130,25 +125,16 @@ class _ChangeAvatarScreenState extends ConsumerState<ChangeAvatarScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = SupabaseService().currentUser;
       if (user == null) throw Exception('المستخدم غير مسجل');
 
-      if (_currentAvatarUrl != null && _currentAvatarUrl!.isNotEmpty) {
-        try {
-          final oldRef = FirebaseStorage.instance.refFromURL(_currentAvatarUrl!);
-          await oldRef.delete();
-        } catch (e) {
-          // تجاهل
-        }
-      }
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
+      await _supabase
+          .from('users')
           .update({
-        'avatarUrl': null,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'avatar_url': null,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('uid', user.id);
 
       if (mounted) {
         _showSnackbar('✅ تم حذف الصورة بنجاح');
@@ -277,7 +263,7 @@ class _ChangeAvatarScreenState extends ConsumerState<ChangeAvatarScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'يُفضل استخدام صورة مربعة清晰ة',
+              'يُفضل استخدام صورة مربعة واضحة',
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
             ),
             

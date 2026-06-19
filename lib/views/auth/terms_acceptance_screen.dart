@@ -2,11 +2,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
 import '../../config/app_theme.dart';
+import '../../services/supabase_service.dart';
 
 final _logger = Logger();
 
@@ -302,22 +302,17 @@ class _TermsAcceptanceScreenState extends ConsumerState<TermsAcceptanceScreen> {
       await prefs.setBool('terms_accepted', true);
       _logger.i('✅ Terms saved to SharedPreferences');
       
-      final user = FirebaseAuth.instance.currentUser;
+      final user = SupabaseService().currentUser;
       if (user != null) {
         unawaited(
-          FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .set({
-                'termsAccepted': true,
-                'privacyAccepted': true,
-                'ageConfirmed': true,
-                'termsAcceptedAt': FieldValue.serverTimestamp(),
-                'termsVersion': '1.0',
-              }, SetOptions(merge: true))
-              .timeout(const Duration(seconds: 5))
-              .then((_) => _logger.i('✅ Terms saved to Firestore'))
-              .catchError((e) => _logger.w('⚠️ Firestore save failed: $e'))
+          SupabaseService().updateUser(user.id, {
+            'terms_accepted': true,
+            'privacy_accepted': true,
+            'age_confirmed': true,
+            'terms_accepted_at': DateTime.now().toIso8601String(),
+            'terms_version': '1.0',
+          }).then((_) => _logger.i('✅ Terms saved to Supabase'))
+            .catchError((e) => _logger.w('⚠️ Supabase save failed: $e'))
         );
       }
       

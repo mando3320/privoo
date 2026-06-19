@@ -1,9 +1,10 @@
 // lib/views/chat/group_details_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/group_service.dart';
 import '../../models/group_model.dart';
+import '../../services/supabase_service.dart';
 
 class GroupDetailsScreen extends ConsumerStatefulWidget {
   final String groupId;
@@ -56,8 +57,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
     );
     
     if (userId != null && userId.isNotEmpty) {
-      // ✅ إصلاح: استخدام FirebaseAuth.instance مباشرة
-      final currentUser = FirebaseAuth.instance.currentUser;
+      final currentUser = SupabaseService().currentUser;
       if (currentUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('يجب تسجيل الدخول أولاً')),
@@ -65,7 +65,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
         return;
       }
       try {
-        await _groupService.addMember(widget.groupId, userId, currentUser.uid);
+        await _groupService.addMember(widget.groupId, userId, currentUser.id);
         _loadGroup();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تمت إضافة العضو بنجاح')),
@@ -103,12 +103,11 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
           }
           
           final group = snapshot.data!;
-          // ✅ إصلاح: استخدام FirebaseAuth.instance مباشرة
-          final currentUser = FirebaseAuth.instance.currentUser;
+          final currentUser = SupabaseService().currentUser;
           if (currentUser == null) {
             return const Center(child: Text('يجب تسجيل الدخول'));
           }
-          final currentUserId = currentUser.uid;
+          final currentUserId = currentUser.id;
           final isAdmin = group.isAdmin(currentUserId);
           
           return Column(
@@ -208,8 +207,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
   }
 
   void _showDeleteConfirmDialog(GroupModel group) {
-    // ✅ إصلاح: استخدام FirebaseAuth.instance مباشرة
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUser = SupabaseService().currentUser;
     if (currentUser == null) return;
     
     showDialog(
@@ -225,9 +223,9 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await _groupService.deleteGroup(widget.groupId, currentUser.uid);
+              await _groupService.deleteGroup(widget.groupId, currentUser.id);
               if (mounted) {
-                Navigator.pop(context); // العودة إلى الشاشة السابقة
+                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('تم حذف المجموعة')),
                 );

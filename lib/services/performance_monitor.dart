@@ -1,26 +1,33 @@
 // lib/services/performance_monitor.dart
-import 'package:firebase_performance/firebase_performance.dart';
-import '../main.dart';
+import 'dart:developer' as dev;
+import 'package:logger/logger.dart';
 
 class PerformanceMonitor {
-  static final FirebasePerformance _performance = FirebasePerformance.instance;
-  
-  static Future<Trace?> startTrace(String name) async {
-    try {
-      final trace = _performance.newTrace(name);
-      await trace.start();
-      return trace;
-    } catch (e) {
-      logger.e('خطأ في بدء Trace: $e');
-      return null;
-    }
+  static final PerformanceMonitor _instance = PerformanceMonitor._internal();
+  factory PerformanceMonitor() => _instance;
+  PerformanceMonitor._internal();
+
+  final Logger _logger = Logger();
+
+  void startTrace(String name) {
+    dev.debugTimelineSync(name, () {});
+    _logger.d('🔍 Trace started: $name');
   }
-  
-  static Future<void> endTrace(Trace trace) async {
-    try {
-      await trace.stop();
-    } catch (e) {
-      logger.e('خطأ في إنهاء Trace: $e');
-    }
+
+  void stopTrace(String name) {
+    dev.debugTimelineSync('$name:end', () {});
+    _logger.d('🔍 Trace stopped: $name');
+  }
+
+  void logPerformance(String name, Duration duration) {
+    _logger.d('⏱️ $name: ${duration.inMilliseconds}ms');
+  }
+
+  void logMetric(String name, num value, {String? unit}) {
+    _logger.d('📊 $name: $value${unit ?? ''}');
+  }
+
+  void logCustomEvent(String name, Map<String, dynamic> attributes) {
+    _logger.d('📊 Event: $name, Attributes: $attributes');
   }
 }

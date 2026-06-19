@@ -1,9 +1,9 @@
 // lib/views/chat/create_group_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/group_service.dart';
+import '../../services/supabase_service.dart';
 
 class CreateGroupScreen extends ConsumerStatefulWidget {
   const CreateGroupScreen({super.key});
@@ -16,8 +16,16 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
   final TextEditingController _nameController = TextEditingController();
   final List<String> _selectedMembers = [];
   bool _isLoading = false;
+  List<Map<String, dynamic>> _users = [];
+  bool _isLoadingUsers = true;
   
   final GroupService _groupService = GroupService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
 
   @override
   void dispose() {
@@ -25,10 +33,45 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
     super.dispose();
   }
 
+  Future<void> _loadUsers() async {
+    setState(() => _isLoadingUsers = true);
+    try {
+      final supabase = Supabase.instance.client;
+      final currentUser = SupabaseService().currentUser;
+      
+      final response = await supabase
+          .from('users')
+          .select();
+      
+      final users = response
+          .where((u) => u['uid'] != currentUser?.id)
+          .map((u) => {
+            'id': u['uid'],
+            'name': u['name'] ?? 'مستخدم',
+          })
+          .toList();
+      
+      setState(() {
+        _users = users;
+        _isLoadingUsers = false;
+      });
+    } catch (e) {
+      print('❌ Failed to load users: $e');
+      setState(() => _isLoadingUsers = false);
+    }
+  }
+
   Future<void> _createGroup() async {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('الرجاء إدخال اسم المجموعة')),
+      );
+      return;
+    }
+    
+    if (_selectedMembers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الرجاء اختيار عضو واحد على الأقل')),
       );
       return;
     }
@@ -58,8 +101,6 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    
     return Scaffold(
       appBar: AppBar(
         title: const Text('إنشاء مجموعة جديدة'),
@@ -98,64 +139,44 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
             padding: EdgeInsets.all(12),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('اختر الأعضاء:'),
+              child: Text('اختر الأعضاء (${_selectedMembers.length}):'),
             ),
           ),
           Expanded(
-            child: _buildMemberPicker(currentUserId),
+            child: _isLoadingUsers
+                ? const Center(child: CircularProgressIndicator())
+                : _users.isEmpty
+                    ? const Center(child: Text('لا يوجد مستخدمون آخرون'))
+                    : ListView.builder(
+                        itemCount: _users.length,
+                        itemBuilder: (context, index) {
+                          final user = _users[index];
+                          final userId = user['id'] as String;
+                          final userName = user['name'] as String;
+                          final isSelected = _selectedMembers.contains(userId);
+                          
+                          return CheckboxListTile(
+                            title: Text(userName),
+                            subtitle: Text(userId),
+                            value: isSelected,
+                            onChanged: (selected) {
+                              setState(() {
+                                if (selected == true) {
+                                  _selectedMembers.add(userId);
+                                } else {
+                                  _selectedMembers.remove(userId);
+                                }
+                              });
+                            },
+                            secondary: const CircleAvatar(
+                              child: Icon(Icons.person),
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildMemberPicker(String? currentUserId) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        
-        final users = snapshot.data?.docs ?? [];
-        
-        if (users.isEmpty) {
-          return const Center(child: Text('لا يوجد مستخدمون آخرون'));
-        }
-        
-        return ListView.builder(
-          itemCount: users.length,
-          itemBuilder: (context, index) {
-            final data = users[index].data() as Map<String, dynamic>;
-            final userId = users[index].id;
-            
-            if (userId == currentUserId) return const SizedBox.shrink();
-            
-            final userName = data['name'] ?? 'مستخدم';
-            final isSelected = _selectedMembers.contains(userId);
-            
-            return CheckboxListTile(
-              title: Text(userName),
-              subtitle: Text(userId),
-              value: isSelected,
-              onChanged: (selected) {
-                setState(() {
-                  if (selected == true) {
-                    _selectedMembers.add(userId);
-                  } else {
-                    _selectedMembers.remove(userId);
-                  }
-                });
-              },
-              secondary: const CircleAvatar(
-                child: Icon(Icons.person),
-              ),
-            );
-          },
-        );
-      },
     );
   }
 }

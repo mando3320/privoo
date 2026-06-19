@@ -1,9 +1,9 @@
 // lib/views/settings/change_name_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_theme.dart';
+import '../../services/supabase_service.dart';
 
 class ChangeNameScreen extends ConsumerStatefulWidget {
   const ChangeNameScreen({super.key});
@@ -16,6 +16,7 @@ class _ChangeNameScreenState extends ConsumerState<ChangeNameScreen> {
   final TextEditingController _nameController = TextEditingController();
   bool _isLoading = false;
   String? _originalName;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   @override
   void initState() {
@@ -24,29 +25,31 @@ class _ChangeNameScreenState extends ConsumerState<ChangeNameScreen> {
   }
 
   Future<void> _loadCurrentName() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseService().currentUser;
     if (user != null) {
       try {
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        if (doc.exists) {
-          final name = doc.data()?['name'] ?? user.displayName ?? '';
+        final response = await _supabase
+            .from('users')
+            .select()
+            .eq('uid', user.id)
+            .maybeSingle();
+        
+        if (response != null) {
+          final name = response['name'] ?? '';
           setState(() {
             _originalName = name;
             _nameController.text = name;
           });
         } else {
           setState(() {
-            _originalName = user.displayName ?? '';
-            _nameController.text = user.displayName ?? '';
+            _originalName = '';
+            _nameController.text = '';
           });
         }
       } catch (e) {
         setState(() {
-          _originalName = user.displayName ?? '';
-          _nameController.text = user.displayName ?? '';
+          _originalName = '';
+          _nameController.text = '';
         });
       }
     }
@@ -73,20 +76,17 @@ class _ChangeNameScreenState extends ConsumerState<ChangeNameScreen> {
     setState(() => _isLoading = true);
     
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = SupabaseService().currentUser;
       if (user == null) throw Exception('المستخدم غير مسجل');
 
-      // تحديث في Firebase Auth
-      await user.updateDisplayName(newName);
-      
-      // تحديث في Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
+      // ✅ تحديث في Supabase
+      await _supabase
+          .from('users')
           .update({
-        'name': newName,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'name': newName,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('uid', user.id);
 
       if (mounted) {
         _showSnackbar('✅ تم تغيير الاسم بنجاح');

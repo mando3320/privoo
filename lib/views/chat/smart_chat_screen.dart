@@ -1,8 +1,8 @@
-// views/chat/smart_chat_screen.dart
+// lib/views/chat/smart_chat_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../controllers/auth_controller.dart';
 import '../../controllers/chat_controller.dart';
@@ -15,6 +15,7 @@ import '../../services/reaction_service.dart';
 import '../../services/ai/ai_service.dart';
 import '../../services/ratchet_service.dart';
 import '../../services/encryption_service.dart';
+import '../../services/supabase_service.dart';
 import 'message_bubble.dart';
 import '../../main.dart';
 import 'reply_preview_widget.dart';
@@ -51,7 +52,7 @@ class SmartChatScreen extends ConsumerStatefulWidget {
 class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<MessageModel> _messages = [];
-  DocumentSnapshot? _lastDocument;
+  Map<String, dynamic>? _lastDocument;
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _hasMore = true;
@@ -66,6 +67,7 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
   final ReactionService _reactionService = ReactionService();
   final GroupService _groupService = GroupService();
   final ChannelService _channelService = ChannelService();
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   // ✅ دالة موحدة لعرض الإشعارات
   void _showSnackBar(String message, {bool isError = false}) {
@@ -126,7 +128,7 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
   }
 
   void _listenToTyping() {
-    final userId = ref.read(authControllerProvider).currentUser?.uid;
+    final userId = ref.read(authControllerProvider).currentUser?.id;
     if (userId == null) return;
     
     if (!widget.isGroup && !widget.isChannel) {
@@ -163,232 +165,129 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
     });
 
     try {
-      final userId = ref.read(authControllerProvider).currentUser?.uid;
+      final userId = ref.read(authControllerProvider).currentUser?.id;
       if (userId == null) return;
 
-      late QuerySnapshot snapshot;
-
-      if (widget.isChannel && widget.channelId != null) {
-        var query = FirebaseFirestore.instance
-            .collection('channels')
-            .doc(widget.channelId)
-            .collection('posts')
-            .orderBy('timestamp', descending: true)
-            .limit(30);
-
-        if (loadMore && _lastDocument != null) {
-          query = query.startAfterDocument(_lastDocument!);
-        }
-
-        snapshot = await query.get();
-        
-        if (snapshot.docs.isNotEmpty) {
-          _lastDocument = snapshot.docs.last;
-          _hasMore = snapshot.docs.length == 30;
-        } else {
-          _hasMore = false;
-        }
-
-        final newMessages = <MessageModel>[];
-        for (var doc in snapshot.docs) {
-              final docDataObj = doc.data();
-              final Map<String, dynamic> data = (docDataObj is Map<String, dynamic>)
-                  ? Map<String, dynamic>.from(docDataObj)
-                  : <String, dynamic>{};
-          final message = MessageModel(
-            id: doc.id,
-            senderId: data['senderId'] ?? '',
-            receiverId: '',
-            content: data['content'] ?? '',
-            timestamp: DateTime.fromMillisecondsSinceEpoch(data['timestamp'] ?? 0),
-            type: MessageType.text,
-            groupId: widget.channelId,
-          );
-          newMessages.add(message);
-        }
-
-        if (!mounted) return;
-        setState(() {
-          if (loadMore) {
-            _messages.addAll(newMessages);
-          } else {
-            _messages.clear();
-            _messages.addAll(newMessages);
-          }
-          _isLoading = false;
-          _isLoadingMore = false;
-        });
-        return;
-      }
-
-      if (widget.isGroup && widget.groupId != null) {
-        var query = FirebaseFirestore.instance
-            .collection('groups')
-            .doc(widget.groupId)
-            .collection('messages')
-            .orderBy('timestamp', descending: true)
-            .limit(30);
-
-        if (loadMore && _lastDocument != null) {
-          query = query.startAfterDocument(_lastDocument!);
-        }
-
-        snapshot = await query.get();
-        
-        if (snapshot.docs.isNotEmpty) {
-          _lastDocument = snapshot.docs.last;
-          _hasMore = snapshot.docs.length == 30;
-        } else {
-          _hasMore = false;
-        }
-
-        final newMessages = <MessageModel>[];
-        for (var doc in snapshot.docs) {
-              final docDataObj = doc.data();
-              final Map<String, dynamic> data = (docDataObj is Map<String, dynamic>)
-                  ? Map<String, dynamic>.from(docDataObj)
-                  : <String, dynamic>{};
-          final message = MessageModel(
-            id: doc.id,
-            senderId: data['senderId'] ?? '',
-            receiverId: '',
-            content: data['content'] ?? '',
-            timestamp: DateTime.fromMillisecondsSinceEpoch(data['timestamp'] ?? 0),
-            type: MessageType.text,
-            groupId: widget.groupId,
-          );
-          newMessages.add(message);
-        }
-
-        if (!mounted) return;
-        setState(() {
-          if (loadMore) {
-            _messages.addAll(newMessages);
-          } else {
-            _messages.clear();
-            _messages.addAll(newMessages);
-          }
-          _isLoading = false;
-          _isLoadingMore = false;
-        });
-        return;
-      }
-
-      // المحادثات الفردية
-      var query = FirebaseFirestore.instance
-          .collection('chats')
-          .doc(widget.chatId)
-          .collection('messages')
-          .orderBy('timestamp', descending: true)
+      var query = _supabase
+          .from('messages')
+          .select()
+          .eq('chat_id', widget.chatId)
+          .order('timestamp', ascending: false)
           .limit(30);
 
       if (loadMore && _lastDocument != null) {
-        query = query.startAfterDocument(_lastDocument!);
+        // استخدام cursor-based pagination مع timestamp
+        final lastTimestamp = _lastDocument?['timestamp'] as String?;
+        if (lastTimestamp != null) {
+          query = query.lt('timestamp', lastTimestamp);
+        }
       }
 
-      snapshot = await query.get();
+      final response = await query;
       
-      if (snapshot.docs.isNotEmpty) {
-        _lastDocument = snapshot.docs.last;
-        _hasMore = snapshot.docs.length == 30;
+      if (response.isNotEmpty) {
+        _lastDocument = response.last;
+        _hasMore = response.length == 30;
       } else {
         _hasMore = false;
       }
 
-      final peerUserId = widget.chatId.split('_').firstWhere(
-        (id) => id != userId,
-        orElse: () => widget.receiverId,
-      );
-      final newMessages = <MessageModel>[];
-      
-      for (var doc in snapshot.docs) {
-            final docDataObj = doc.data();
-            final Map<String, dynamic> data = (docDataObj is Map<String, dynamic>)
-                ? Map<String, dynamic>.from(docDataObj)
-                : <String, dynamic>{};
-        try {
-          final ratchetN = data['ratchetN'] as int?;
-          if (ratchetN == null) {
-            final safeData = Map<String, dynamic>.from(data);
-            final message = MessageModel.fromMap(doc.id, safeData);
-            newMessages.add(message);
-            continue;
-          }
-          
-          final cacheKey = '${widget.chatId}:$ratchetN';
-          List<int>? mk = _keyCache[cacheKey];
-          
-          if (mk == null) {
-            final dhPubStr = data['dhPub'] as String?;
-            final senderDhPub = dhPubStr != null ? base64Decode(dhPubStr) : null;
-            mk = await RatchetService.keyForReceived(
-              chatId: widget.chatId,
-              myUserId: userId,
-              ratchetN: ratchetN,
-              senderDhPub: senderDhPub,
-            );
-            if (_keyCache.length > 100) {
-              _keyCache.remove(_keyCache.keys.first);
+      // ✅ معالجة الرسائل الفردية فقط (غير القنوات والمجموعات)
+      if (!widget.isGroup && !widget.isChannel) {
+        final newMessages = <MessageModel>[];
+        
+        for (var data in response) {
+          try {
+            final ratchetN = data['ratchet_n'] as int?;
+            if (ratchetN == null) {
+              final message = MessageModel.fromSupabase(data);
+              newMessages.add(message);
+              continue;
             }
-            _keyCache[cacheKey] = mk;
+            
+            final cacheKey = '${widget.chatId}:$ratchetN';
+            List<int>? mk = _keyCache[cacheKey];
+            
+            if (mk == null) {
+              final dhPubStr = data['dh_pub'] as String?;
+              final senderDhPub = dhPubStr != null ? base64Decode(dhPubStr) : null;
+              mk = await RatchetService.keyForReceived(
+                chatId: widget.chatId,
+                myUserId: userId,
+                ratchetN: ratchetN,
+                senderDhPub: senderDhPub,
+              );
+              if (_keyCache.length > 100) {
+                _keyCache.remove(_keyCache.keys.first);
+              }
+              _keyCache[cacheKey] = mk;
+            }
+
+            final senderId = data['sender_id'] as String? ?? '';
+            final recipientId = data['recipient_id'] as String? ?? '';
+            final timestamp = data['timestamp'] as String? ?? DateTime.now().toIso8601String();
+            final messageType = data['message_type'] as String? ?? 'text';
+            final protocolVersion = data['protocol_version'] as int? ?? 1;
+            final dhPubStr = data['dh_pub'] as String? ?? '';
+            final encryptedContent = data['content'] as String? ?? '';
+
+            final aad = utf8.encode(
+              'chat:${widget.chatId};sender:$senderId;recv:$recipientId;'
+              'n:$ratchetN;ts:$timestamp;type:$messageType;'
+              'v:$protocolVersion;dh:$dhPubStr',
+            );
+
+            final clear = await EncryptionService.decrypt(
+              encrypted: encryptedContent,
+              keyBytes: mk,
+              aad: aad,
+            );
+
+            final safeData = {
+              ...data,
+              'content': clear,
+            };
+
+            final message = MessageModel.fromSupabase(safeData);
+            newMessages.add(message);
+          } catch (e) {
+            logger.e('❌ فشل فك الرسالة: $e');
+            newMessages.add(MessageModel.fromSupabase({
+              ...data,
+              'content': '[فشل فك التشفير]',
+            }));
           }
-
-          final senderId = data['senderId'] as String? ?? '';
-          final recipientId = data['recipientId'] as String? ?? '';
-          final timestamp = data['timestamp'] as int? ?? 0;
-          final messageType = data['messageType'] as String? ?? 'text';
-          final protocolVersion = data['protocolVersion'] as int? ?? 1;
-          final dhPubStr = data['dhPub'] as String? ?? '';
-          final encryptedContent = data['content'] as String? ?? '';
-
-          final aad = utf8.encode(
-            'chat:${widget.chatId};sender:$senderId;recv:$recipientId;'
-            'n:$ratchetN;ts:$timestamp;type:$messageType;'
-            'v:$protocolVersion;dh:$dhPubStr',
-          );
-
-          final clear = await EncryptionService.decrypt(
-            encrypted: encryptedContent,
-            keyBytes: mk,
-            aad: aad,
-          );
-
-          final safeData = {
-            'senderId': senderId,
-            'recipientId': recipientId,
-            'timestamp': timestamp,
-            'messageType': messageType,
-            'protocolVersion': protocolVersion,
-            'dhPub': dhPubStr,
-            'content': clear,
-          };
-
-          final message = MessageModel.fromMap(doc.id, safeData);
-          newMessages.add(message);
-        } catch (e) {
-          logger.e('❌ فشل فك الرسالة ${doc.id}: $e');
-          newMessages.add(MessageModel(
-            id: doc.id,
-            senderId: data['senderId'] as String? ?? '',
-            receiverId: data['recipientId'] as String? ?? '',
-            content: '[فشل فك التشفير]',
-            timestamp: DateTime.fromMillisecondsSinceEpoch(data['timestamp'] as int? ?? 0),
-            type: MessageType.text,
-          ));
         }
+
+        if (!mounted) return;
+        setState(() {
+          if (loadMore) {
+            _messages.addAll(newMessages);
+          } else {
+            _messages.clear();
+            _messages.addAll(newMessages);
+          }
+          _isLoading = false;
+          _isLoadingMore = false;
+        });
+      } else {
+        // ✅ للمجموعات والقنوات (غير مشفرة)
+        final newMessages = response
+            .map((data) => MessageModel.fromSupabase(data))
+            .toList();
+
+        if (!mounted) return;
+        setState(() {
+          if (loadMore) {
+            _messages.addAll(newMessages);
+          } else {
+            _messages.clear();
+            _messages.addAll(newMessages);
+          }
+          _isLoading = false;
+          _isLoadingMore = false;
+        });
       }
-
-      if (!mounted) return;
-      setState(() {
-        if (loadMore) {
-          _messages.addAll(newMessages);
-        } else {
-          _messages.clear();
-          _messages.addAll(newMessages);
-        }
-        _isLoading = false;
-        _isLoadingMore = false;
-      });
 
     } catch (e) {
       logger.e('❌ فشل تحميل الرسائل: $e');
@@ -420,12 +319,12 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
   }
 
   // ============================================================
-  // 🎥 مكالمة فيديو جماعية (حتى 50 مشارك)
+  // 🎥 مكالمة فيديو جماعية
   // ============================================================
   Future<void> _startVideoGroupCall() async {
     if (_group == null) return;
     
-    final userId = ref.read(authControllerProvider).currentUser?.uid;
+    final userId = ref.read(authControllerProvider).currentUser?.id;
     if (userId == null) return;
     
     final participants = _group!.members.where((id) => id != userId).toList();
@@ -484,12 +383,12 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
   }
 
   // ============================================================
-  // 📞 مكالمة صوتية جماعية (حتى 1050 مشارك)
+  // 📞 مكالمة صوتية جماعية
   // ============================================================
   Future<void> _startVoiceGroupCall() async {
     if (_group == null) return;
     
-    final userId = ref.read(authControllerProvider).currentUser?.uid;
+    final userId = ref.read(authControllerProvider).currentUser?.id;
     if (userId == null) return;
     
     final participants = _group!.members.where((id) => id != userId).toList();
@@ -548,7 +447,7 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
   }
 
   Future<void> _addReaction(MessageModel message, String reaction) async {
-    final userId = ref.read(authControllerProvider).currentUser?.uid;
+    final userId = ref.read(authControllerProvider).currentUser?.id;
     if (userId == null) return;
     
     if (widget.isGroup && widget.groupId != null) {
@@ -588,7 +487,7 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
 
     try {
       final aiService = AIService();
-      final currentUserId = ref.read(authControllerProvider).currentUser?.uid;
+      final currentUserId = ref.read(authControllerProvider).currentUser?.id;
       if (currentUserId == null) return;
       final messagesText = _messages.map((m) =>
         '${m.senderId == currentUserId ? 'أنا' : 'الآخر'}: ${m.content}'
@@ -675,7 +574,7 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
   Future<List<String>> _generateReplies(String message) async {
     try {
       final aiService = AIService();
-      final currentUserId = ref.read(authControllerProvider).currentUser?.uid;
+      final currentUserId = ref.read(authControllerProvider).currentUser?.id;
       if (currentUserId == null) return [];
       final response = await aiService.chat(
         user: currentUserId,
@@ -698,7 +597,7 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
     final chatController = ref.watch(chatControllerProvider.notifier);
     final chatState = ref.watch(chatControllerProvider);
     final authState = ref.watch(authControllerProvider);
-    final userId = authState.currentUser?.uid;
+    final userId = authState.currentUser?.id;
     final isPro = ref.watch(appControllerProvider).isPro;
 
     if (userId == null) {
@@ -884,26 +783,23 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
                                       ),
                                       onDelete: () async {
                                         if (widget.isGroup && widget.groupId != null) {
-                                          await FirebaseFirestore.instance
-                                              .collection('groups')
-                                              .doc(widget.groupId)
-                                              .collection('messages')
-                                              .doc(msg.id)
-                                              .delete();
+                                          await _supabase
+                                              .from('messages')
+                                              .delete()
+                                              .eq('id', msg.id)
+                                              .eq('chat_id', widget.groupId);
                                         } else if (widget.isChannel && widget.channelId != null) {
-                                          await FirebaseFirestore.instance
-                                              .collection('channels')
-                                              .doc(widget.channelId)
-                                              .collection('posts')
-                                              .doc(msg.id)
-                                              .delete();
+                                          await _supabase
+                                              .from('messages')
+                                              .delete()
+                                              .eq('id', msg.id)
+                                              .eq('chat_id', widget.channelId);
                                         } else {
-                                          await FirebaseFirestore.instance
-                                              .collection('chats')
-                                              .doc(widget.chatId)
-                                              .collection('messages')
-                                              .doc(msg.id)
-                                              .delete();
+                                          await _supabase
+                                              .from('messages')
+                                              .delete()
+                                              .eq('id', msg.id)
+                                              .eq('chat_id', widget.chatId);
                                         }
                                         _refreshMessages();
                                       },

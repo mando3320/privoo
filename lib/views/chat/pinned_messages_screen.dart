@@ -1,5 +1,6 @@
+// lib/views/chat/pinned_messages_screen.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../models/message_model.dart';
 
 class PinnedMessagesScreen extends StatelessWidget {
@@ -11,20 +12,19 @@ class PinnedMessagesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('الرسائل المثبتة')),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('chats')
-            .doc(chatId)
-            .collection('messages')
-            .where('isPinned', isEqualTo: true)
-            .orderBy('timestamp', descending: true)
-            .snapshots(),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: Supabase.instance.client
+            .from('messages')
+            .stream(primaryKey: ['id'])
+            .eq('chat_id', chatId)
+            .eq('is_pinned', true)
+            .order('timestamp', ascending: false),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final messages = snapshot.data?.docs ?? [];
+          final messages = snapshot.data ?? [];
 
           if (messages.isEmpty) {
             return const Center(child: Text('لا توجد رسائل مثبتة'));
@@ -33,8 +33,8 @@ class PinnedMessagesScreen extends StatelessWidget {
           return ListView.builder(
             itemCount: messages.length,
             itemBuilder: (context, index) {
-              final data = messages[index].data() as Map<String, dynamic>;
-              final message = MessageModel.fromMap(messages[index].id, data);
+              final data = messages[index];
+              final message = MessageModel.fromSupabase(data);
               return ListTile(
                 title: Text(message.content.length > 50
                     ? '${message.content.substring(0, 50)}...'
@@ -43,7 +43,10 @@ class PinnedMessagesScreen extends StatelessWidget {
                 trailing: IconButton(
                   icon: const Icon(Icons.push_pin, color: Colors.amber),
                   onPressed: () async {
-                    await messages[index].reference.update({'isPinned': false});
+                    await Supabase.instance.client
+                        .from('messages')
+                        .update({'is_pinned': false})
+                        .eq('id', message.id);
                   },
                 ),
                 onTap: () {

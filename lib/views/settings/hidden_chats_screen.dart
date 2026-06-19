@@ -1,10 +1,10 @@
 // lib/views/settings/hidden_chats_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:local_auth/local_auth.dart';
 import '../../config/app_theme.dart';
+import '../../services/supabase_service.dart';
 
 class HiddenChatsScreen extends ConsumerStatefulWidget {
   const HiddenChatsScreen({super.key});
@@ -19,6 +19,8 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
   bool _isBiometricAvailable = false;
   String? _errorMessage;
   final LocalAuthentication _localAuth = LocalAuthentication();
+  final SupabaseClient _supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> _hiddenChats = [];
 
   @override
   void initState() {
@@ -65,11 +67,38 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
         _isAuthenticated = authenticated;
         _isLoading = false;
       });
+      
+      if (authenticated) {
+        _loadHiddenChats();
+      }
     } catch (e) {
       setState(() {
         _isAuthenticated = false;
         _isLoading = false;
         _errorMessage = e.toString();
+      });
+    }
+  }
+
+  Future<void> _loadHiddenChats() async {
+    final user = SupabaseService().currentUser;
+    if (user == null) return;
+
+    try {
+      final response = await _supabase
+          .from('hidden_chats')
+          .select()
+          .eq('user_id', user.id)
+          .order('hidden_at', ascending: false);
+
+      setState(() {
+        _hiddenChats = List<Map<String, dynamic>>.from(response);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
       });
     }
   }
@@ -99,16 +128,17 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
 
     if (confirmed != true) return;
 
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
+    final user = SupabaseService().currentUser;
+    if (user == null) return;
 
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('hidden_chats')
-          .doc(chatId)
-          .delete();
+      await _supabase
+          .from('hidden_chats')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('chat_id', chatId);
+
+      _loadHiddenChats();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -198,65 +228,38 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
                     ],
                   ),
                 )
-              : StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(FirebaseAuth.instance.currentUser?.uid)
-                      .collection('hidden_chats')
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.error_outline, size: 48, color: AppTheme.privooError),
-                            const SizedBox(height: 16),
-                            Text('حدث خطأ: ${snapshot.error}'),
-                          ],
-                        ),
-                      );
-                    }
-
-                    final chats = snapshot.data?.docs ?? [];
-
-                    if (chats.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.lock_outline, size: 80, color: AppTheme.privooDeepPurple.withValues(alpha: 0.3)),
-                            const SizedBox(height: 16),
-                            Text(
-                              'لا توجد محادثات مخفية',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey.shade600,
-                              ),
+              : _hiddenChats.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.lock_outline, size: 80, color: AppTheme.privooDeepPurple.withValues(alpha: 0.3)),
+                          const SizedBox(height: 16),
+                          Text(
+                            'لا توجد محادثات مخفية',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade600,
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'يمكنك إخفاء المحادثات من داخل أي محادثة',
-                              style: TextStyle(color: Colors.grey.shade500),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'يمكنك إخفاء المحادثات من داخل أي محادثة',
+                            style: TextStyle(color: Colors.grey.shade500),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
                       padding: const EdgeInsets.all(16),
-                      itemCount: chats.length,
+                      itemCount: _hiddenChats.length,
                       itemBuilder: (context, index) {
-                        final doc = chats[index];
-                        final data = doc.data() as Map<String, dynamic>;
-                        final chatName = data['chatName'] ?? 'محادثة مخفية';
-                        final timestamp = (data['hiddenAt'] as Timestamp?)?.toDate();
+                        final chat = _hiddenChats[index];
+                        final chatName = chat['chat_name'] ?? 'محادثة مخفية';
+                        final timestamp = chat['hidden_at'] != null 
+                            ? DateTime.tryParse(chat['hidden_at'])
+                            : null;
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -288,15 +291,13 @@ class _HiddenChatsScreenState extends ConsumerState<HiddenChatsScreen> {
                                 : null,
                             trailing: IconButton(
                               icon: Icon(Icons.visibility, color: AppTheme.privooSuccess),
-                              onPressed: () => _unhideChat(doc.id, chatName),
+                              onPressed: () => _unhideChat(chat['chat_id'], chatName),
                               tooltip: 'إظهار المحادثة',
                             ),
                           ),
                         );
                       },
-                    );
-                  },
-                ),
+                    ),
     );
   }
 }

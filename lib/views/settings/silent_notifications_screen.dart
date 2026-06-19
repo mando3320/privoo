@@ -1,9 +1,9 @@
 // lib/views/settings/silent_notifications_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_theme.dart';
+import '../../services/supabase_service.dart';
 
 class SilentNotificationsScreen extends ConsumerStatefulWidget {
   const SilentNotificationsScreen({super.key});
@@ -16,11 +16,12 @@ class _SilentNotificationsScreenState extends ConsumerState<SilentNotificationsS
   bool _isLoading = true;
   List<Map<String, dynamic>> _silentChats = [];
   String? _currentUserId;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   @override
   void initState() {
     super.initState();
-    _currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    _currentUserId = SupabaseService().currentUser?.id;
     _loadSilentChats();
   }
 
@@ -31,27 +32,28 @@ class _SilentNotificationsScreenState extends ConsumerState<SilentNotificationsS
     }
 
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_currentUserId)
-          .collection('chat_settings')
-          .where('silentNotifications', isEqualTo: true)
-          .get();
+      final response = await _supabase
+          .from('chat_settings')
+          .select()
+          .eq('user_id', _currentUserId)
+          .eq('silent_notifications', true);
 
       final chats = <Map<String, dynamic>>[];
-      for (var doc in snapshot.docs) {
-        final chatId = doc.id;
+      for (var doc in response) {
+        final chatId = doc['chat_id'];
         final otherId = _getOtherUserId(chatId);
         String chatName = 'محادثة';
         
         // جلب اسم المستخدم الآخر
         try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(otherId)
-              .get();
-          if (userDoc.exists) {
-            chatName = userDoc.data()?['name'] ?? 'مستخدم';
+          final userResponse = await _supabase
+              .from('users')
+              .select()
+              .eq('uid', otherId)
+              .maybeSingle();
+          
+          if (userResponse != null) {
+            chatName = userResponse['name'] ?? 'مستخدم';
           }
         } catch (e) {
           chatName = otherId.substring(0, 8);
@@ -62,7 +64,6 @@ class _SilentNotificationsScreenState extends ConsumerState<SilentNotificationsS
           'otherId': otherId,
           'name': chatName,
           'silent': true,
-          'docId': doc.id,
         });
       }
 
@@ -85,24 +86,26 @@ class _SilentNotificationsScreenState extends ConsumerState<SilentNotificationsS
     if (_currentUserId == null) return;
 
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_currentUserId)
-          .collection('chat_settings')
-          .doc(chatId)
-          .set({'silentNotifications': value}, SetOptions(merge: true));
+      await _supabase.from('chat_settings').upsert({
+        'user_id': _currentUserId,
+        'chat_id': chatId,
+        'silent_notifications': value,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'user_id,chat_id');
 
       if (value) {
         // إضافة إلى القائمة المحلية
         final otherId = _getOtherUserId(chatId);
         String chatName = 'محادثة';
         try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(otherId)
-              .get();
-          if (userDoc.exists) {
-            chatName = userDoc.data()?['name'] ?? 'مستخدم';
+          final userResponse = await _supabase
+              .from('users')
+              .select()
+              .eq('uid', otherId)
+              .maybeSingle();
+          
+          if (userResponse != null) {
+            chatName = userResponse['name'] ?? 'مستخدم';
           }
         } catch (e) {
           chatName = otherId.substring(0, 8);

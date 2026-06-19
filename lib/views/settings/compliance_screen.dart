@@ -1,11 +1,11 @@
 // lib/views/settings/compliance_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/region_compliance_service.dart';
 import '../../config/app_theme.dart';
 import '../../main.dart';
+import '../../services/supabase_service.dart';
 import 'export_data_screen.dart';
 import 'delete_account_screen.dart';
 
@@ -21,6 +21,7 @@ class _ComplianceScreenState extends ConsumerState<ComplianceScreen> {
   ComplianceRequirements? _requirements;
   bool _optOutSale = false;
   bool _isLoading = true;
+  final SupabaseClient _supabase = Supabase.instance.client;
   
   @override
   void initState() {
@@ -33,13 +34,15 @@ class _ComplianceScreenState extends ConsumerState<ComplianceScreen> {
     try {
       _userRegion = await RegionComplianceService.getUserRegion();
       _requirements = RegionComplianceService.getRequirements(_userRegion);
-      final user = FirebaseAuth.instance.currentUser;
+      
+      final user = SupabaseService().currentUser;
       if (user != null) {
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        _optOutSale = doc.data()?['optOutSale'] ?? false;
+        final response = await _supabase
+            .from('users')
+            .select()
+            .eq('uid', user.id)
+            .maybeSingle();
+        _optOutSale = response?['opt_out_sale'] ?? false;
       }
     } catch (e) {
       logger.e('خطأ في تحميل المنطقة: $e');
@@ -49,7 +52,7 @@ class _ComplianceScreenState extends ConsumerState<ComplianceScreen> {
   
   @override
   Widget build(BuildContext context) {
-    final regionInfo = RegionInfo.getAllRegions()
+    final regionInfo = RegionInfo.allRegions
         .firstWhere((r) => r.region == _userRegion);
     
     return Scaffold(
@@ -192,8 +195,8 @@ class _ComplianceScreenState extends ConsumerState<ComplianceScreen> {
                         onChanged: (value) async {
                           setState(() => _optOutSale = value);
                           final service = RegionComplianceService();
-                          final user = FirebaseAuth.instance.currentUser;
-                          if (user != null) await service.recordOptOutSale(user.uid, value);
+                          final user = SupabaseService().currentUser;
+                          if (user != null) await service.recordOptOutSale(user.id, value);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(value ? '✅ تم تفعيل "لا تبيع بياناتي"' : '❌ تم إلغاء "لا تبيع بياناتي"'),

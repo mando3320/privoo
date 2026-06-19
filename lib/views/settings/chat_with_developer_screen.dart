@@ -1,13 +1,11 @@
-// views/settings/chat_with_developer_screen.dart
-// views/settings/chat_with_developer_screen.dart (النسخة الآمنة والمحسنة)
-
+// lib/views/settings/chat_with_developer_screen.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/logger.dart';
 import 'package:privoo/services/encryption_service.dart';
+import '../../services/supabase_service.dart';
 
-// Local wrappers to ensure analyzer resolves helper usages reliably
+// Local wrappers
 Future<String> _encryptSupportMessage(String message) async {
   try {
     return await EncryptionService.encryptSupportMessage(message);
@@ -37,6 +35,7 @@ class _ChatWithDeveloperScreenState extends State<ChatWithDeveloperScreen> {
   String? _confirmation;
   DateTime? _lastSentTime;
   final _logger = Logger();
+  final SupabaseClient _supabase = Supabase.instance.client;
   
   static const maxMessageLength = 500;
   static const minInterval = Duration(seconds: 30);
@@ -111,19 +110,19 @@ class _ChatWithDeveloperScreenState extends State<ChatWithDeveloperScreen> {
     _lastSentTime = DateTime.now();
     
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = SupabaseService().currentUser;
       
-      // ✅ تشفير الرسالة (باستخدام الغلاف المحلي)
+      // ✅ تشفير الرسالة
       final encryptedMessage = await _encryptSupportMessage(message);
       final userIdentifier = await _hashEmail(user?.email ?? '');
 
-      await FirebaseFirestore.instance.collection('support_messages').add({
-        'encrypted_message': encryptedMessage, // ✅ مشفر
-        'timestamp': FieldValue.serverTimestamp(),
-        'userId': user?.uid,
-        'userIdentifier': userIdentifier, // ✅ مخفي
+      await _supabase.from('support_messages').insert({
+        'encrypted_message': encryptedMessage,
+        'created_at': DateTime.now().toIso8601String(),
+        'user_id': user?.id,
+        'user_identifier': userIdentifier,
         'status': 'new',
-        'messageLength': message.length,
+        'message_length': message.length,
       });
       
       _logger.i('تم إرسال رسالة دعم جديدة');
@@ -242,7 +241,7 @@ class _ChatWithDeveloperScreenState extends State<ChatWithDeveloperScreen> {
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
                   ),
-                  counterText: '', // إخفاء العداد الافتراضي
+                  counterText: '',
                 ),
               ),
               const SizedBox(height: 20),

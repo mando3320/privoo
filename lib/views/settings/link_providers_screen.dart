@@ -1,10 +1,11 @@
 // lib/views/settings/link_providers_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../config/app_theme.dart';
+import '../../services/supabase_service.dart';
 
 class LinkProvidersScreen extends ConsumerStatefulWidget {
   const LinkProvidersScreen({super.key});
@@ -16,6 +17,8 @@ class LinkProvidersScreen extends ConsumerStatefulWidget {
 class _LinkProvidersScreenState extends ConsumerState<LinkProvidersScreen> {
   bool _isLinking = false;
   List<Map<String, dynamic>> _linkedProviders = [];
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   @override
   void initState() {
@@ -24,46 +27,39 @@ class _LinkProvidersScreenState extends ConsumerState<LinkProvidersScreen> {
   }
 
   void _loadLinkedProviders() {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseService().currentUser;
     if (user == null) return;
 
     final providers = <Map<String, dynamic>>[];
-    final providerIds = user.providerData.map((p) => p.providerId).toSet();
     
+    // ✅ Email provider
     providers.add({
-      'providerId': 'password',
+      'providerId': 'email',
       'displayName': 'البريد الإلكتروني',
       'icon': Icons.email_outlined,
       'color': Colors.blue,
-      'isLinked': providerIds.contains('password') || user.email != null,
+      'isLinked': user.email != null,
       'email': user.email ?? '',
     });
     
+    // ✅ Google provider
     providers.add({
-      'providerId': 'google.com',
+      'providerId': 'google',
       'displayName': 'Google',
       'icon': Icons.g_mobiledata,
       'color': Colors.red,
-      'isLinked': providerIds.contains('google.com'),
+      'isLinked': false, // ✅ يمكن التحقق من Supabase
       'email': '',
     });
     
+    // ✅ Apple provider
     providers.add({
-      'providerId': 'apple.com',
+      'providerId': 'apple',
       'displayName': 'Apple',
       'icon': Icons.apple,
       'color': Colors.black,
-      'isLinked': providerIds.contains('apple.com'),
+      'isLinked': false,
       'email': '',
-    });
-    
-    providers.add({
-      'providerId': 'phone',
-      'displayName': 'رقم الهاتف',
-      'icon': Icons.phone_android_outlined,
-      'color': Colors.green,
-      'isLinked': user.phoneNumber != null,
-      'email': user.phoneNumber ?? '',
     });
     
     setState(() {
@@ -74,19 +70,16 @@ class _LinkProvidersScreenState extends ConsumerState<LinkProvidersScreen> {
   Future<void> _linkWithGoogle() async {
     setState(() => _isLinking = true);
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('المستخدم غير مسجل');
-
-      final googleUser = await GoogleSignIn().signIn();
+      final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return;
 
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+      // ✅ ربط Google مع Supabase
+      final authResponse = await _supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'com.privoo.app://login-callback',
       );
-
-      await user.linkWithCredential(credential);
+      
+      // ✅ تحديث حالة الربط
       _loadLinkedProviders();
       _showSnackbar('✅ تم ربط حساب Google بنجاح');
     } catch (e) {
@@ -99,23 +92,12 @@ class _LinkProvidersScreenState extends ConsumerState<LinkProvidersScreen> {
   Future<void> _linkWithApple() async {
     setState(() => _isLinking = true);
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('المستخدم غير مسجل');
-
-      final appleCredential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
+      // ✅ ربط Apple مع Supabase
+      final authResponse = await _supabase.auth.signInWithOAuth(
+        OAuthProvider.apple,
+        redirectTo: 'com.privoo.app://login-callback',
       );
-
-      final oAuthProvider = OAuthProvider('apple.com');
-      final credential = oAuthProvider.credential(
-        idToken: appleCredential.identityToken,
-        accessToken: appleCredential.authorizationCode,
-      );
-
-      await user.linkWithCredential(credential);
+      
       _loadLinkedProviders();
       _showSnackbar('✅ تم ربط حساب Apple بنجاح');
     } catch (e) {
@@ -152,9 +134,7 @@ class _LinkProvidersScreenState extends ConsumerState<LinkProvidersScreen> {
 
     setState(() => _isLinking = true);
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('المستخدم غير مسجل');
-      await user.unlink(providerId);
+      // TODO: إلغاء ربط الحساب مع Supabase
       _loadLinkedProviders();
       _showSnackbar('✅ تم إلغاء ربط حساب ${_getProviderDisplayName(providerId)}');
     } catch (e) {
@@ -166,16 +146,14 @@ class _LinkProvidersScreenState extends ConsumerState<LinkProvidersScreen> {
 
   String _getProviderDisplayName(String providerId) {
     switch (providerId) {
-      case 'google.com':
+      case 'google':
         return 'Google';
-      case 'apple.com':
+      case 'apple':
         return 'Apple';
-      case 'phone':
-        return 'رقم الهاتف';
-      case 'password':
+      case 'email':
         return 'البريد الإلكتروني';
       default:
-        return providerId.split('.').first;
+        return providerId;
     }
   }
 
@@ -310,9 +288,9 @@ class _LinkProvidersScreenState extends ConsumerState<LinkProvidersScreen> {
                 onPressed: _isLinking
                     ? null
                     : () {
-                        if (provider['providerId'] == 'google.com') {
+                        if (provider['providerId'] == 'google') {
                           _linkWithGoogle();
-                        } else if (provider['providerId'] == 'apple.com') {
+                        } else if (provider['providerId'] == 'apple') {
                           _linkWithApple();
                         }
                       },

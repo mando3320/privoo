@@ -1,7 +1,7 @@
 // lib/views/admin/manage_admins_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/admin_model.dart';
 import '../../core/permissions.dart';
 
@@ -16,6 +16,7 @@ class _ManageAdminsScreenState extends ConsumerState<ManageAdminsScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   AdminRole? _selectedRole;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   @override
   Widget build(BuildContext context) {
@@ -24,23 +25,21 @@ class _ManageAdminsScreenState extends ConsumerState<ManageAdminsScreen> {
         title: const Text('إدارة المشرفين'),
         backgroundColor: Colors.deepPurple,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('admins')
-            .snapshots(),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _supabase
+            .from('admins')
+            .stream(primaryKey: ['phoneNumber']),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           
-          final admins = snapshot.data!.docs.map((doc) {
-            return AdminModel.fromMap(doc.data() as Map<String, dynamic>);
-          }).toList();
+          final admins = snapshot.data ?? [];
           
           return ListView.builder(
             itemCount: admins.length,
             itemBuilder: (context, index) {
-              final admin = admins[index];
+              final admin = AdminModel.fromMap(admins[index]);
               return Card(
                 margin: const EdgeInsets.all(8),
                 child: ListTile(
@@ -53,10 +52,10 @@ class _ManageAdminsScreenState extends ConsumerState<ManageAdminsScreen> {
                   trailing: PopupMenuButton(
                     onSelected: (value) async {
                       if (value == 'delete') {
-                        await FirebaseFirestore.instance
-                            .collection('admins')
-                            .doc(admin.phoneNumber)
-                            .delete();
+                        await _supabase
+                            .from('admins')
+                            .delete()
+                            .eq('phoneNumber', admin.phoneNumber);
                       }
                     },
                     itemBuilder: (context) => [
@@ -120,10 +119,9 @@ class _ManageAdminsScreenState extends ConsumerState<ManageAdminsScreen> {
                   assignedAt: DateTime.now(),
                   permissions: RolePermissions.getPermissionsForRole(_selectedRole!),
                 );
-                await FirebaseFirestore.instance
-                    .collection('admins')
-                    .doc(_phoneController.text)
-                    .set(admin.toMap());
+                await _supabase
+                    .from('admins')
+                    .insert(admin.toMap());
                 Navigator.pop(ctx);
               }
             },

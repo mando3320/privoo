@@ -1,121 +1,75 @@
 // lib/services/sealed_sender.dart
 import 'dart:convert';
-import 'dart:math';
-import 'package:http/http.dart' as http;
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:crypto/crypto.dart';
-import 'package:cryptography/cryptography.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'encryption_service.dart';
+import 'supabase_service.dart';
 
 class SealedSenderService {
-  static const String _workerUrl = 'https://privoo-sealed-sender.saberb45.workers.dev/';
-  
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
-  // ✅ المهمة 9: تشفير AES-GCM بدلاً من XOR
-  Future<String> _encryptAESGCM(String plaintext, String key) async {
-    final keyBytes = utf8.encode(key);
-    final algorithm = AesGcm.with256bits();
-    final secretKey = SecretKey(keyBytes);
-    final nonce = List<int>.generate(12, (_) => Random.secure().nextInt(256));
-    
-    final secretBox = await algorithm.encrypt(
-      utf8.encode(plaintext),
-      secretKey: secretKey,
-      nonce: nonce,
-    );
-    
-    final combined = [...nonce, ...secretBox.cipherText, ...secretBox.mac.bytes];
-    return base64Encode(combined);
-  }
-  
-  Future<String> _decryptAESGCM(String encryptedBase64, String key) async {
-    final combined = base64Decode(encryptedBase64);
-    final nonce = combined.sublist(0, 12);
-    final cipherText = combined.sublist(12, combined.length - 16);
-    final mac = Mac(combined.sublist(combined.length - 16));
-    
-    final algorithm = AesGcm.with256bits();
-    final secretKey = SecretKey(utf8.encode(key));
-    final secretBox = SecretBox(cipherText, nonce: nonce, mac: mac);
-    
-    final decrypted = await algorithm.decrypt(secretBox, secretKey: secretKey);
-    return utf8.decode(decrypted);
-  }
-  
-  /// إرسال رسالة مخفية (الخادم لا يرى senderId)
+  final SupabaseClient _supabase = Supabase.instance.client;
+
   Future<void> sendSealedMessage({
     required String chatId,
     required String message,
     required String recipientId,
   }) async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) throw Exception('User not authenticated');
-    
-    // ✅ استخدام AES-GCM بدلاً من XOR
-    final encryptedContent = await _encryptAESGCM(message, recipientId);
-    
-    // حساب hash للتوقيع
-    final messageHash = await _hashMessage(encryptedContent);
-    
-    // طلب توقيع من Cloudflare Worker
-    final response = await http.post(
-      Uri.parse(_workerUrl),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'messageHash': messageHash,
-        'recipientId': recipientId,
-        'userId': userId,
-      }),
-    ).timeout(const Duration(seconds: 10));
-    
-    if (response.statusCode != 200) {
-      throw Exception('Failed to get blind signature: ${response.body}');
-    }
-    
-    final data = jsonDecode(response.body);
-    
-    // تخزين في Firestore (بدون senderId!)
-    await _firestore.collection('sealed_messages').doc(chatId).set({
-      'encryptedContent': encryptedContent,
-      'recipientId': recipientId,
-      'blindSignature': data['blindSignature'],
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-      'chatId': chatId,
+    final sender = SupabaseService().currentUser;
+    if (sender == null) throw Exception('User not authenticated');
+
+    final sealedMessage = await _sealMessage(message, sender.id, recipientId);
+
+    await _supabase.from('sealed_messages').insert({
+      'chat_id': chatId,
+      'sender_id': sender.id,
+      'recipient_id': recipientId,
+      'sealed_content': sealedMessage,
+      'created_at': DateTime.now().toIso8601String(),
     });
-    
-    print('✅ Sealed message sent to $recipientId');
   }
-  
-  /// استلام الرسائل المخفية للمستخدم
-  Stream<Map<String, dynamic>> receiveSealedMessages(String recipientId) {
-    return _firestore
-        .collection('sealed_messages')
-        .where('recipientId', isEqualTo: recipientId)
-        .snapshots()
-        .asyncMap((snapshot) async {
-          final messages = <String, dynamic>{};
-          for (var doc in snapshot.docs) {
-            final data = doc.data();
-            final decrypted = await _decryptAESGCM(data['encryptedContent'], recipientId);
-            messages[doc.id] = {
-              'content': decrypted,
-              'timestamp': data['timestamp'],
-              'chatId': data['chatId'],
-            };
-          }
-          return messages;
-        });
+
+  Future<String> _sealMessage(String message, String senderId, String recipientId) async {
+    final sealed = {
+      'sender': senderId,
+      'recipient': recipientId,
+      'message': message,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    };
+
+    final jsonString = jsonEncode(sealed);
+    return base64Encode(utf8.encode(jsonString));
   }
-  
-  /// حذف رسالة مخفية
-  Future<void> deleteSealedMessage(String messageId) async {
-    await _firestore.collection('sealed_messages').doc(messageId).delete();
+
+  Future<String?> unsealMessage(String sealedMessage) async {
+    try {
+      final decoded = base64Decode(sealedMessage);
+      final jsonString = utf8.decode(decoded);
+      final data = jsonDecode(jsonString) as Map<String, dynamic>;
+      
+      return data['message'] as String?;
+    } catch (e) {
+      print('❌ Failed to unseal message: $e');
+      return null;
+    }
   }
-  
-  Future<String> _hashMessage(String message) async {
-    final bytes = utf8.encode(message);
-    final digest = sha256.convert(bytes);
-    return base64Encode(digest.bytes);
+
+  Future<bool> verifySealedSender(String sealedMessage) async {
+    try {
+      final decoded = base64Decode(sealedMessage);
+      final jsonString = utf8.decode(decoded);
+      final data = jsonDecode(jsonString) as Map<String, dynamic>;
+      
+      final senderId = data['sender'] as String?;
+      if (senderId == null) return false;
+
+      final userExists = await _supabase
+          .from('users')
+          .select()
+          .eq('uid', senderId)
+          .maybeSingle();
+
+      return userExists != null;
+    } catch (e) {
+      print('❌ Failed to verify sealed sender: $e');
+      return false;
+    }
   }
 }
