@@ -23,15 +23,19 @@ dependencies:
   connectivity_plus: ^6.0.0
   flutter_dotenv: ^5.1.0
 
-  # 🔥 Firebase
-  firebase_core: ^3.15.2
-  firebase_auth: ^5.7.0
-  cloud_firestore: ^5.6.12
-  firebase_messaging: ^15.1.0
-  cloud_functions: ^5.1.0
-  firebase_performance: ^0.10.0+1
-  firebase_storage: ^12.3.0
-  firebase_database: ^11.3.10
+  # 🆕 Supabase (بدلاً من Firebase)
+  supabase_flutter: ^2.5.0
+  uuid: ^4.5.1
+
+  # ❌ إزالة Firebase
+  # firebase_core: ^3.15.2
+  # firebase_auth: ^5.7.0
+  # cloud_firestore: ^5.6.12
+  # firebase_messaging: ^15.1.0
+  # cloud_functions: ^5.1.0
+  # firebase_performance: ^0.10.0+1
+  # firebase_storage: ^12.3.0
+  # firebase_database: ^11.3.10
 
   # 💾 التخزين
   shared_preferences: ^2.2.0

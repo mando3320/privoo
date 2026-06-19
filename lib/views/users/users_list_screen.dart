@@ -1,13 +1,12 @@
 // lib/views/users/users_list_screen.dart
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import '../../main.dart';
 import '../../services/contact_service.dart';
 import '../../config/app_theme.dart';
+import '../../services/supabase_service.dart';
 
 class UsersListScreen extends StatefulWidget {
   const UsersListScreen({super.key});
@@ -18,13 +17,12 @@ class UsersListScreen extends StatefulWidget {
 
 class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> _users = [];
-  List<Map<String, dynamic>> _filteredUsers = [];
+  List<UserModel> _users = [];
+  List<UserModel> _filteredUsers = [];
   List<Contact> _phoneContacts = [];
   bool _isLoading = true;
   bool _isContactsLoading = false;
   bool _hasPhonePermission = false;
-  String? _currentUserPhone;
   String? _currentUserId;
   late TabController _tabController;
   int _selectedTab = 0;
@@ -38,49 +36,27 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
         _selectedTab = _tabController.index;
       });
     });
-    final user = FirebaseAuth.instance.currentUser;
-    _currentUserPhone = user?.phoneNumber;
-    _currentUserId = user?.uid;
+    final user = SupabaseService().currentUser;
+    _currentUserId = user?.id;
     _loadUsers();
     _loadContacts();
   }
 
-  // ✅ دالة تحميل المستخدمين (معدلة - استخدام UID للمقارنة)
   Future<void> _loadUsers() async {
     setState(() => _isLoading = true);
     try {
-      final usersSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .limit(100)
-          .get();
-
-      final users = <Map<String, dynamic>>[];
-      for (var doc in usersSnapshot.docs) {
-        final data = doc.data();
-        final userPhone = data['phoneNumber'] ?? data['phone'] ?? '';
-        
-        // ✅ استخدام UID للمقارنة بدلاً من رقم الهاتف
-        if (doc.id != _currentUserId) {
-          users.add({
-            'id': doc.id,
-            'uid': doc.id,
-            'name': data['name'] ?? 'مستخدم',
-            'phone': userPhone,
-            'avatarUrl': data['avatarUrl'],
-            'isActive': data['isActive'] ?? true,
-            'lastSeen': data['lastSeen'],
-            'about': data['about'] ?? 'مرحباً، أنا أستخدم Privoo',
-          });
-        }
-      }
+      final users = await SupabaseService().getAllUsers();
+      
+      // ✅ استبعاد المستخدم الحالي
+      final filteredUsers = users.where((u) => u.authId != _currentUserId).toList();
 
       setState(() {
-        _users = users;
-        _filteredUsers = users;
+        _users = filteredUsers;
+        _filteredUsers = filteredUsers;
         _isLoading = false;
       });
       
-      logger.i('✅ تم تحميل ${users.length} مستخدم من Firebase');
+      logger.i('✅ تم تحميل ${filteredUsers.length} مستخدم من Supabase');
     } catch (e) {
       logger.e('❌ فشل تحميل المستخدمين: $e');
       setState(() => _isLoading = false);
@@ -106,38 +82,23 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
     final lowerQuery = query.toLowerCase();
     setState(() {
       _filteredUsers = _users.where((user) {
-        final name = (user['name'] ?? '').toLowerCase();
-        final phone = (user['phone'] ?? '').toLowerCase();
+        final name = (user.name ?? '').toLowerCase();
+        final phone = (user.phoneNumber ?? '').toLowerCase();
         return name.contains(lowerQuery) || phone.contains(lowerQuery);
       }).toList();
     });
   }
 
-  Future<void> _startChat(String targetUid, String name, String avatarUrl) async {
+  Future<void> _startChat(String targetUid, String name) async {
     final currentUserId = _currentUserId;
     if (currentUserId == null) {
       _showSnackbar('الرجاء تسجيل الدخول أولاً');
       return;
     }
 
-    final chatId = currentUserId.compareTo(targetUid) < 0
-        ? '${currentUserId}_$targetUid'
-        : '${targetUid}_$currentUserId';
-
     try {
-      final chatDoc = await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(chatId)
-          .get();
-
-      if (!chatDoc.exists) {
-        await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
-          'participants': [currentUserId, targetUid],
-          'createdAt': FieldValue.serverTimestamp(),
-          'lastMessage': '',
-          'lastMessageTime': FieldValue.serverTimestamp(),
-        });
-      }
+      // ✅ إنشاء محادثة
+      final chatId = await SupabaseService().createChat([currentUserId, targetUid]);
 
       if (mounted) {
         Navigator.pushNamed(
@@ -147,7 +108,6 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
             'chatId': chatId,
             'receiverId': targetUid,
             'name': name,
-            'avatarUrl': avatarUrl,
           },
         );
       }
@@ -260,8 +220,7 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
     );
   }
 
-  // ✅ دالة عرض بطاقة المستخدم (معدلة)
-  Widget _buildUserCard(Map<String, dynamic> user) {
+  Widget _buildUserCard(UserModel user) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
@@ -282,15 +241,15 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
             CircleAvatar(
               radius: 28,
               backgroundColor: AppTheme.privooLightPurple.withValues(alpha: 0.2),
-              backgroundImage: user['avatarUrl'] != null ? NetworkImage(user['avatarUrl']) : null,
-              child: user['avatarUrl'] == null
+              backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+              child: user.avatarUrl == null
                   ? Text(
-                      (user['name']?.substring(0, 1) ?? 'U'),
+                      (user.name?.substring(0, 1) ?? 'U'),
                       style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                     )
                   : null,
             ),
-            if (user['isActive'] == true)
+            if (user.isOnline)
               Positioned(
                 right: 2,
                 bottom: 2,
@@ -306,19 +265,19 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
           ],
         ),
         title: Text(
-          user['name'],
+          user.name ?? 'مستخدم',
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              user['phone'] ?? '',
+              user.phoneNumber ?? '',
               style: const TextStyle(fontSize: 13, color: Colors.grey),
             ),
-            if (user['about'] != null)
+            if (user.about != null)
               Text(
-                user['about'],
+                user.about!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
@@ -326,7 +285,7 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
           ],
         ),
         trailing: ElevatedButton(
-          onPressed: () => _startChat(user['uid'], user['name'], user['avatarUrl']),
+          onPressed: () => _startChat(user.authId, user.name ?? 'مستخدم'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppTheme.privooLightPurple,
             foregroundColor: Colors.white,
@@ -341,7 +300,6 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
     );
   }
 
-  // ✅ دالة عرض بطاقة جهة الاتصال (معدلة - التحقق من null)
   Widget _buildContactCard(Contact contact) {
     final phones = contact.phones.where((p) => p.number != null && p.number.isNotEmpty);
     if (phones.isEmpty) {
@@ -349,7 +307,7 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
     }
     
     final phone = phones.first.number;
-    final isRegistered = _users.any((u) => u['phone'] == phone);
+    final isRegistered = _users.any((u) => u.phoneNumber == phone);
     
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),

@@ -1,22 +1,15 @@
 // lib/app.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
-import 'services/firebase/notification_service.dart';
-import 'services/permission_service.dart';
 import 'config/app_theme.dart';
+import 'services/supabase_service.dart';
 
 // استيراد جميع الشاشات
 import 'views/auth/otp_login_screen.dart';
-import 'views/auth/login_screen.dart';
 import 'views/auth/profile_setup_screen.dart';
-import 'views/auth/age_verification_screen.dart';
 import 'views/auth/terms_acceptance_screen.dart';
-import 'views/auth/verify_screen.dart';
-import 'views/auth/invite_screen.dart';
 import 'views/home_screen.dart';
 import 'views/settings/setting_screen.dart';
 import 'views/settings/splash_screen.dart';
@@ -52,12 +45,6 @@ import 'views/admin/manage_offers_screen.dart';
 
 final _logger = Logger();
 
-final notificationServiceProvider = Provider((ref) {
-  final service = NotificationService();
-  _logger.i("🔔 تم تهيئة NotificationService");
-  return service;
-});
-
 class PrivooApp extends ConsumerStatefulWidget {
   final Function(Locale)? onLocaleChange;
   
@@ -70,7 +57,7 @@ class PrivooApp extends ConsumerStatefulWidget {
 class _PrivooAppState extends ConsumerState<PrivooApp> {
   bool _isInitialized = false;
   String _nextRoute = '/splash';
-  Map<String, String>? _chatArgs;
+  bool _isAppInitialized = false;
 
   @override
   void initState() {
@@ -79,59 +66,43 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
   }
 
   Future<void> _initApp() async {
+    if (_isAppInitialized) return;
+    
     try {
-      ref.read(notificationServiceProvider);
-      _logger.i("✅ تم تهيئة NotificationService");
-
-      // ✅ طلب الأذونات تلقائياً
-      await _requestPermissionsIfNeeded();
-
-      final user = FirebaseAuth.instance.currentUser;
+      final user = SupabaseService().currentUser;
       
       if (user != null) {
-        _logger.i("🔍 المستخدم مسجل: ${user.uid}");
+        _logger.i("🔍 المستخدم مسجل: ${user.id}");
         
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get(const GetOptions(source: Source.server));
-
-        if (userDoc.exists) {
-          final data = userDoc.data();
-          final name = data?['name'] as String?;
+        // ✅ جلب بيانات المستخدم من Supabase
+        final userData = await SupabaseService().getUser(user.id);
+        
+        if (userData != null) {
+          final name = userData.name;
           _nextRoute = (name != null && name.trim().isNotEmpty) ? '/home' : '/profile';
+          _logger.i("✅ التوجيه إلى: $_nextRoute");
         } else {
           _nextRoute = '/profile';
+          _logger.i("✅ التوجيه إلى: $_nextRoute (مستخدم جديد)");
         }
       } else {
         _nextRoute = '/login';
+        _logger.i("👤 التوجيه إلى شاشة تسجيل الدخول");
       }
 
-      setState(() => _isInitialized = true);
+      _isAppInitialized = true;
+      if (mounted) {
+        setState(() => _isInitialized = true);
+      }
     } catch (e) {
       _logger.e("❌ خطأ أثناء تهيئة التطبيق: $e");
-      setState(() {
-        _isInitialized = true;
-        _nextRoute = '/login';
-      });
-    }
-  }
-
-  Future<void> _requestPermissionsIfNeeded() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final hasRequestedPermissions = prefs.getBool('permissions_requested') ?? false;
-      
-      if (!hasRequestedPermissions && mounted) {
-        _logger.i('🔔 طلب الأذونات لأول مرة');
-        final granted = await PermissionService.requestPermissionsWithUI(context);
-        if (granted) {
-          await prefs.setBool('permissions_requested', true);
-          _logger.i('✅ تم منح جميع الأذونات');
-        }
+      _isAppInitialized = true;
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+          _nextRoute = '/login';
+        });
       }
-    } catch (e) {
-      _logger.e('❌ خطأ في طلب الأذونات: $e');
     }
   }
 

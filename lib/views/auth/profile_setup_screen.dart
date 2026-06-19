@@ -1,12 +1,11 @@
 // lib/views/auth/profile_setup_screen.dart
-// (الكود كامل مع التعديل - استبدل ملفك بهذا)
-
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../main.dart';
 import '../../config/app_theme.dart';
+import '../../services/supabase_service.dart';
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -19,35 +18,53 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final TextEditingController _nameController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  final _db = FirebaseFirestore.instance;
-  final _auth = FirebaseAuth.instance;
-
   bool _isLoading = false;
-  String? _cachedPhoneNumber; // ✅ تخزين رقم الهاتف مؤقتاً
+  File? _selectedImage;
+  String? _cachedPhoneNumber;
+  String? _cachedEmail;
 
   @override
   void initState() {
     super.initState();
-    _loadPhoneNumber();
+    _loadUserData();
   }
 
-  Future<void> _loadPhoneNumber() async {
-    final user = _auth.currentUser;
+  Future<void> _loadUserData() async {
+    final user = SupabaseService().currentUser;
     if (user != null) {
-      // ✅ محاولة جلب رقم الهاتف من Firestore أولاً
       try {
-        final doc = await _db.collection('users').doc(user.uid).get();
-        if (doc.exists && doc.data()?['phoneNumber'] != null) {
-          _cachedPhoneNumber = doc.data()!['phoneNumber'];
-        } else if (user.phoneNumber != null) {
-          _cachedPhoneNumber = user.phoneNumber;
+        final userData = await SupabaseService().getUser(user.id);
+        if (userData != null) {
+          if (userData.phoneNumber != null) {
+            _cachedPhoneNumber = userData.phoneNumber;
+          }
+          if (userData.email != null) {
+            _cachedEmail = userData.email;
+          }
+          if (userData.name != null && userData.name!.isNotEmpty) {
+            _nameController.text = userData.name!;
+          }
         }
       } catch (e) {
-        logger.e('❌ فشل جلب رقم الهاتف: $e');
-        if (user.phoneNumber != null) {
-          _cachedPhoneNumber = user.phoneNumber;
-        }
+        logger.e('❌ فشل جلب بيانات المستخدم: $e');
       }
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 500,
+        maxHeight: 500,
+        imageQuality: 80,
+      );
+      if (picked != null) {
+        setState(() => _selectedImage = File(picked.path));
+      }
+    } catch (e) {
+      print('❌ فشل اختيار الصورة: $e');
     }
   }
 
@@ -69,37 +86,38 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     setState(() => _isLoading = true);
     final name = _nameController.text.trim();
     
-    final user = _auth.currentUser;
+    final user = SupabaseService().currentUser;
     if (user == null) {
-      logger.e("❌ لا يوجد مستخدم مصادق حاليًا.");
       _showSnackbar("خطأ: يرجى تسجيل الدخول أولاً.", isError: true);
       setState(() => _isLoading = false);
       return;
     }
 
     try {
-      // ✅ استخدام رقم الهاتف المخزن مؤقتاً أو من Firebase Auth
-      final phoneNumber = _cachedPhoneNumber ?? user.phoneNumber ?? '';
-      
-      await _db.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'name': name,
-        'phoneNumber': phoneNumber,
-        'avatarUrl': '',
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastSeen': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // ✅ حفظ الصورة محلياً
+      String? avatarUrl;
+      if (_selectedImage != null) {
+        // TODO: رفع الصورة لـ Supabase Storage
+        // مؤقتاً نخزن المسار المحلي
+        avatarUrl = _selectedImage!.path;
+      }
 
-      logger.i("✅ تم حفظ ملف المستخدم بنجاح: ${user.uid}");
+      // ✅ تحديث في Supabase
+      await SupabaseService().updateUser(user.id, {
+        'name': name,
+        if (avatarUrl != null) 'avatar_url': avatarUrl,
+        'last_seen': DateTime.now().toIso8601String(),
+      });
+
+      logger.i("✅ تم حفظ الملف الشخصي بنجاح: ${user.id}");
 
       if (mounted) {
         setState(() => _isLoading = false);
         Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
-      logger.e("❌ فشل حفظ ملف المستخدم في Firestore: $e");
-      _showSnackbar("فشل حفظ الملف الشخصي: ${e.toString()}", isError: true);
+      logger.e("❌ فشل حفظ الملف الشخصي: $e");
+      _showSnackbar("فشل حفظ الملف الشخصي", isError: true);
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -128,41 +146,30 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppTheme.privooDeepPurple,
-                    boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.person_add, size: 50, color: Colors.white),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Privoo',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.privooDeepPurple,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 40),
-                
-                Center(
+                GestureDetector(
+                  onTap: _pickImage,
                   child: Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
                     ),
-                    child: const CircleAvatar(
+                    child: CircleAvatar(
                       radius: 60,
                       backgroundColor: AppTheme.privooLightPurple,
-                      child: Icon(Icons.person, size: 60, color: Colors.white),
+                      backgroundImage: _selectedImage != null 
+                          ? FileImage(_selectedImage!) 
+                          : null,
+                      child: _selectedImage == null
+                          ? Icon(Icons.add_a_photo, size: 40, color: Colors.white)
+                          : null,
                     ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    "اضغط لتغيير الصورة",
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ),
                 const SizedBox(height: 30),

@@ -1,10 +1,8 @@
 // lib/views/settings/setting_screen.dart
-// (الكود كامل مع التعديل - استبدل ملفك بهذا)
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ✅ إضافة هذا الـ import
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../l10n/app_localizations.dart';
 import '../../config/app_theme.dart';
 import '../../controllers/app_controller.dart';
@@ -34,7 +32,7 @@ import 'hidden_chats_screen.dart';
 import 'parental_control_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  final Function(String)? onChangeLanguage; // ✅ إضافة معامل اختياري
+  final Function(String)? onChangeLanguage;
   
   const SettingsScreen({super.key, this.onChangeLanguage});
 
@@ -77,23 +75,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  // ✅ دالة تغيير اللغة المحسنة - تعيد بناء الواجهة فوراً
   void _changeLanguage(String code, String label, dynamic appNotifier) {
-    // حفظ اللغة في SharedPreferences
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setString('app_language', code);
-    });
-    
-    // تحديث اللغة في AppController
     appNotifier.updateLanguage(code);
-    
-    // ✅ استدعاء دالة تغيير اللغة من الوالد إذا كانت موجودة
     widget.onChangeLanguage?.call(code);
-    
-    // عرض رسالة تأكيد
     _showSnack(context, "تم تغيير اللغة إلى $label");
-    
-    // ✅ إعادة بناء الواجهة
     setState(() {});
   }
 
@@ -113,11 +98,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          // ---------- اللغة (معدل) ----------
           _buildLanguageTile(context, app, appNotifier),
           const Divider(),
 
-          // ✅ ---------- الثيمات ----------
           ListTile(
             leading: Icon(Icons.palette, color: AppTheme.privooDeepPurple),
             title: const Text('الثيمات', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
@@ -154,7 +137,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const Divider(),
 
-          // ---------- الوضع الليلي ----------
           SwitchListTile(
             title: const Text('الوضع الليلي', style: TextStyle(fontSize: 16)),
             value: app.themeMode == ThemeMode.dark,
@@ -166,7 +148,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const Divider(),
 
-          // ---------- النسخ الاحتياطي ----------
           ListTile(
             leading: Icon(Icons.backup, color: AppTheme.privooDeepPurple),
             title: const Text('نسخ احتياطي'),
@@ -181,7 +162,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const Divider(),
 
-          // ---------- الاشتراك ----------
           ListTile(
             leading: Icon(
               app.isPro ? Icons.verified : Icons.workspace_premium,
@@ -199,7 +179,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const Divider(),
 
-          // ---------- الخصوصية والأمان ----------
           ExpansionTile(
             leading: Icon(Icons.lock, color: AppTheme.privooDeepPurple),
             title: const Text("الخصوصية والأمان"),
@@ -248,7 +227,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
 
-          // ---------- الرقابة الأبوية ----------
           ListTile(
             leading: Icon(Icons.family_restroom, color: AppTheme.privooDeepPurple),
             title: const Text('الرقابة الأبوية'),
@@ -261,7 +239,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const Divider(),
 
-          // ---------- الإشعارات ----------
           ExpansionTile(
             leading: Icon(Icons.notifications, color: AppTheme.privooDeepPurple),
             title: const Text("الإشعارات"),
@@ -295,7 +272,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
 
-          // ---------- الحساب ----------
           ExpansionTile(
             leading: Icon(Icons.person, color: AppTheme.privooDeepPurple),
             title: const Text("إدارة الحساب"),
@@ -329,7 +305,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
 
-          // ---------- المحادثات ----------
           ExpansionTile(
             leading: Icon(Icons.chat, color: AppTheme.privooDeepPurple),
             title: const Text("إعدادات المحادثات"),
@@ -360,7 +335,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
 
-          // ---------- إعدادات متقدمة ----------
           ExpansionTile(
             leading: Icon(Icons.settings_applications, color: AppTheme.privooDeepPurple),
             title: const Text("إعدادات متقدمة"),
@@ -392,7 +366,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
 
-          // ✅ ---------- لوحة تحكم المشرفين ----------
           if (user != null)
             FutureBuilder<bool>(
               future: _isAdmin(user.phoneNumber ?? ''),
@@ -472,7 +445,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const Divider(),
 
-          // ✅ ---------- الامتثال القانوني ----------
           ListTile(
             leading: Icon(Icons.gavel, color: AppTheme.privooDeepPurple),
             title: const Text('الامتثال القانوني وحقوقي'),
@@ -482,7 +454,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const Divider(),
 
-          // ✅ ---------- الإنجازات العلمية ----------
           ListTile(
             leading: Icon(Icons.science, color: AppTheme.privooDeepPurple),
             title: const Text('الإنجازات العلمية'),
@@ -492,7 +463,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const Divider(),
 
-          // ---------- روابط وسياسة ----------
           ListTile(
             leading: Icon(Icons.privacy_tip, color: AppTheme.privooDeepPurple),
             title: const Text('سياسة الخصوصية'),
@@ -529,7 +499,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  // ✅ دالة بناء خيار اللغة المعدلة
   Widget _buildLanguageTile(BuildContext context, dynamic app, dynamic appNotifier) {
     final currentCode = app.locale.languageCode;
     return ListTile(

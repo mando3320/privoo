@@ -1,21 +1,17 @@
 // lib/main.dart
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logger/logger.dart';
-import 'package:firebase_performance/firebase_performance.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
-import 'firebase/firebase_options.dart';
 import 'config/app_theme.dart';
 import 'controllers/app_controller.dart';
 import 'l10n/app_localizations.dart';
 import 'services/hive_storage_service.dart';
+import 'services/supabase_service.dart';
 
 final logger = Logger();
 
@@ -26,25 +22,12 @@ Future<void> main() async {
     await dotenv.load(fileName: ".env");
     logger.i('✅ تم تحميل ملف .env بنجاح');
 
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    logger.i('✅ تم تهيئة Firebase بنجاح');
-
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: 100 * 1024 * 1024,
-    );
-    logger.i('✅ تم تهيئة Firestore Settings');
+    // ✅ تهيئة Supabase
+    await SupabaseService().init();
+    logger.i('✅ تم تهيئة Supabase بنجاح');
 
     await HiveStorageService.init();
     logger.i('✅ تم تهيئة Hive Storage بنجاح');
-
-    const isReleaseMode = bool.fromEnvironment('dart.vm.product');
-    if (isReleaseMode) {
-      await FirebasePerformance.instance.setPerformanceCollectionEnabled(true);
-      logger.i('📊 Firebase Performance Monitoring enabled');
-    }
 
     runApp(
       const ProviderScope(

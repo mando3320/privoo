@@ -1,13 +1,12 @@
 // lib/views/home_screen.dart
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../main.dart';
 import '../../config/app_theme.dart';
 import '../../services/security_checker.dart';
 import '../../services/contact_service.dart';
+import '../../services/supabase_service.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -67,47 +66,41 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _loadUserData() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseService().currentUser;
     print('🔵🔵🔵 جاري تشغيل _loadUserData... 🔵🔵🔵');
     
     if (user != null) {
-      print('🆔 Current user UID: ${user.uid}');
+      print('🆔 Current user UID: ${user.id}');
       if (mounted) {
         setState(() {
-          _userUid = user.uid;
+          _userUid = user.id;
         });
       }
       
       try {
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get(const GetOptions(source: Source.server));
+        final userData = await SupabaseService().getUser(user.id);
         
-        print('📄 المستند موجود في السيرفر؟: ${doc.exists}');
-        
-        if (doc.exists && doc.data() != null) {
-          final data = doc.data()!;
+        if (userData != null) {
           if (mounted) {
             setState(() {
-              _userName = data['name'] ?? user.phoneNumber ?? 'المستخدم';
-              _userAvatar = data['avatarUrl'];
+              _userName = userData.name ?? 'المستخدم';
+              _userAvatar = userData.avatarUrl;
             });
           }
-          print('✅ تم تحميل بيانات Firestore بنجاح: name=$_userName');
+          print('✅ تم تحميل بيانات Supabase بنجاح: name=$_userName');
         } else {
-          print('⚠️ المستند غير موجود في Firestore! سيتم استخدام بيانات الهاتف مؤقتاً.');
+          print('⚠️ المستخدم غير موجود في Supabase!');
           if (mounted) {
             setState(() {
-              _userName = user.phoneNumber ?? 'المستخدم الجديد';
+              _userName = 'المستخدم الجديد';
             });
           }
         }
       } catch (e) {
-        print('❌ خطأ في طلب Firestore (جلب بيانات المستخدم): $e');
+        print('❌ خطأ في جلب بيانات المستخدم: $e');
         if (mounted) {
           setState(() {
-            _userName = user.phoneNumber ?? 'المستخدم';
+            _userName = 'المستخدم';
           });
         }
       }
@@ -117,53 +110,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _loadRecentChats() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseService().currentUser;
     if (user == null) return;
 
     try {
-      final chatsRef = FirebaseFirestore.instance.collection('chats');
-      final querySnapshot = await chatsRef
-          .where('participants', arrayContains: user.uid)
-          .limit(50)
-          .get();
-
-      final chats = <Map<String, dynamic>>[];
-      for (var doc in querySnapshot.docs) {
-        final data = doc.data();
-        final participants = List<String>.from(data['participants'] ?? []);
-        final otherId = participants.firstWhere((id) => id != user.uid);
-        
-        String otherName = 'مستخدم';
-        String? otherAvatar;
-        try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(otherId)
-              .get();
-          if (userDoc.exists) {
-            otherName = userDoc.data()?['name'] ?? 'مستخدم';
-            otherAvatar = userDoc.data()?['avatarUrl'];
-          }
-        } catch (e) {
-          logger.e('❌ فشل تحميل اسم المستخدم الآخر: $e');
-        }
-
-        chats.add({
-          'chatId': doc.id,
+      final chats = await SupabaseService().getUserChats(user.id);
+      
+      final chatList = chats.map((chat) {
+        final otherId = chat.members.firstWhere((id) => id != user.id);
+        return {
+          'chatId': chat.chatId,
           'receiverId': otherId,
-          'name': otherName,
-          'avatar': otherAvatar,
-          'lastMessage': data['lastMessage'] ?? 'ابدأ المحادثة',
-          'timestamp': data['lastMessageTime'],
-          'unreadCount': data['unreadCount']?[user.uid] ?? 0,
-        });
-      }
-
-      chats.sort((a, b) => (b['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0
-          .compareTo((a['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0));
+          'name': 'مستخدم', // TODO: جلب اسم المستخدم الآخر
+          'avatar': null,
+          'lastMessage': chat.lastMessage ?? 'ابدأ المحادثة',
+          'timestamp': chat.lastMessageTime ?? chat.createdAt,
+          'unreadCount': chat.unreadCount[user.id] ?? 0,
+        };
+      }).toList();
 
       setState(() {
-        _recentChats = chats;
+        _recentChats = chatList;
         _isLoading = false;
       });
     } catch (e) {
@@ -217,21 +184,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
     
     if (confirmed == true) {
-      await FirebaseAuth.instance.signOut();
+      await SupabaseService().signOut();
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/login');
       }
     }
   }
 
-  String _formatTime(Timestamp? timestamp) {
+  String _formatTime(DateTime? timestamp) {
     if (timestamp == null) return '';
-    final date = timestamp.toDate();
     final now = DateTime.now();
-    if (date.day == now.day && date.month == now.month) {
-      return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    if (timestamp.day == now.day && timestamp.month == now.month) {
+      return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
     }
-    return '${date.day}/${date.month}';
+    return '${timestamp.day}/${timestamp.month}';
   }
 
   @override
@@ -398,10 +364,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: const Icon(Icons.delete, color: Colors.white),
             ),
             onDismissed: (direction) async {
-              await FirebaseFirestore.instance
-                  .collection('chats')
-                  .doc(chat['chatId'])
-                  .delete();
+              // TODO: حذف المحادثة من Supabase
               _loadRecentChats();
             },
             child: ListTile(
@@ -542,13 +505,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         return [];
       }
       
-      final usersSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .limit(100)
-          .get();
-      
-      final registeredPhones = usersSnapshot.docs
-          .map((doc) => doc.data()['phoneNumber'] ?? '')
+      final users = await SupabaseService().getAllUsers();
+      final registeredPhones = users
+          .map((u) => u.phoneNumber ?? '')
           .where((phone) => phone.isNotEmpty)
           .toSet();
       
@@ -565,7 +524,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       }
       
-      logger.i('📱 تم تحميل ${result.length} جهة اتصال (${result.where((c) => c['isRegistered'] == true).length} مسجل)');
+      logger.i('📱 تم تحميل ${result.length} جهة اتصال');
       return result;
     } catch (e) {
       logger.e('❌ فشل تحميل جهات الاتصال: $e');
@@ -676,42 +635,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _startChatWithContact(Map<String, dynamic> contact) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final currentUserId = currentUser?.uid;
+    final currentUser = SupabaseService().currentUser;
+    final currentUserId = currentUser?.id;
     if (currentUserId == null) return;
 
-    final usersSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('phoneNumber', isEqualTo: contact['phone'])
-        .limit(1)
-        .get();
-
-    if (usersSnapshot.docs.isEmpty) {
+    // ✅ البحث عن المستخدم برقم الهاتف
+    final users = await SupabaseService().getAllUsers();
+    final targetUser = users.firstWhere(
+      (u) => u.phoneNumber == contact['phone'],
+      orElse: () => null,
+    );
+    
+    if (targetUser == null) {
       _showSnackbar('لم يتم العثور على المستخدم');
       return;
     }
 
-    final targetUser = usersSnapshot.docs.first;
-    final targetUid = targetUser.id;
-    final targetName = targetUser.data()['name'] ?? contact['name'];
+    final targetUid = targetUser.authId;
+    final targetName = targetUser.name ?? contact['name'];
 
-    final chatId = currentUserId.compareTo(targetUid) < 0
-        ? '${currentUserId}_$targetUid'
-        : '${targetUid}_$currentUserId';
-
-    final chatDoc = await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(chatId)
-        .get();
-
-    if (!chatDoc.exists) {
-      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
-        'participants': [currentUserId, targetUid],
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastMessage': '',
-        'lastMessageTime': FieldValue.serverTimestamp(),
-      });
-    }
+    // ✅ إنشاء محادثة
+    final chatId = await SupabaseService().createChat([currentUserId, targetUid]);
 
     if (mounted) {
       Navigator.pushNamed(
