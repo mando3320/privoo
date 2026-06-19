@@ -43,7 +43,6 @@ class MessageModel {
   final String? alg;
   final String? dhPub;
 
-  // ✅ الميزات المتقدمة
   final int? disappearAfterSeconds;
   final DateTime? disappearAt;
   final bool isPinned;
@@ -81,10 +80,7 @@ class MessageModel {
     this.pollId,
   });
 
-  /// هل هذه رسالة فردية؟
   bool get isPrivate => groupId == null;
-
-  /// هل هذه رسالة جماعية؟
   bool get isGroup => groupId != null;
 
   factory MessageModel.fromMap(String id, Map<String, dynamic> data) {
@@ -120,7 +116,7 @@ class MessageModel {
   }
 
   factory MessageModel.fromSupabase(Map<String, dynamic> data) {
-    return fromMap(data['id'] ?? '', data);
+    return MessageModel.fromMap(data['id'] ?? '', data);
   }
 
   Map<String, dynamic> toMap() {

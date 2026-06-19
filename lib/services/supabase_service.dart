@@ -1,6 +1,7 @@
 // lib/services/supabase_service.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/message_model.dart';
 import '../models/chat_model.dart';
 import '../models/chat_member_model.dart';
@@ -86,9 +87,9 @@ class SupabaseService {
 
   SupabaseClient get client => _client;
 
-  // ⚠️ استبدل بالقيم من Supabase Dashboard
-  static const String _supabaseUrl = 'https://YOUR_PROJECT_ID.supabase.co';
-  static const String _supabaseAnonKey = 'YOUR_ANON_KEY';
+  // ✅ استخدام المتغيرات من .env
+  static String get _supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
+  static String get _supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   // ============================================================
   // 🔥 Initialization
@@ -383,11 +384,6 @@ class SupabaseService {
           .order('created_at', ascending: false)
           .limit(limit);
       
-      // ✅ cursor pagination - تم تعليقها مؤقتاً لأن lt غير مدعومة
-      // if (cursor != null) {
-      //   query = query.lt('created_at', cursor);
-      // }
-      
       final response = await query;
       return List<Map<String, dynamic>>.from(response)
           .map((json) => MessageModel.fromJson(json))
@@ -489,28 +485,6 @@ class SupabaseService {
           if (data.isEmpty) return null;
           return UserModel.fromJson(data.first);
         });
-  }
-
-  // ✅ تعديل subscribeToTyping - إزالة asStream
-  Stream<Map<String, dynamic>> subscribeToTyping(String chatId) {
-    return _client
-        .channel('typing:$chatId')
-        .onBroadcast(event: 'typing', callback: (payload) {})
-        .subscribe()
-        .map((event) {
-          if (event.payload == null) return <String, dynamic>{};
-          return Map<String, dynamic>.from(event.payload as Map);
-        });
-  }
-
-  // ✅ تعديل sendTypingIndicator
-  Future<void> sendTypingIndicator(String chatId, String userId, bool isTyping) async {
-    await _client
-        .channel('typing:$chatId')
-        .sendBroadcast(
-          event: 'typing',
-          payload: {'userId': userId, 'isTyping': isTyping, 'timestamp': DateTime.now().toIso8601String()},
-        );
   }
 
   // ============================================================

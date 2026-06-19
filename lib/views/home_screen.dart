@@ -639,14 +639,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final currentUserId = currentUser?.id;
     if (currentUserId == null) return;
 
-    // ✅ البحث عن المستخدم برقم الهاتف
     final users = await SupabaseService().getAllUsers();
     final targetUser = users.firstWhere(
       (u) => u.phoneNumber == contact['phone'],
-      orElse: () => null,
+      orElse: () => UserModel(
+        id: '',
+        authId: '',
+        name: '',
+        phoneNumber: '',
+        createdAt: DateTime.now(),
+      ),
     );
     
-    if (targetUser == null) {
+    if (targetUser.authId.isEmpty) {
       _showSnackbar('لم يتم العثور على المستخدم');
       return;
     }
@@ -654,7 +659,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final targetUid = targetUser.authId;
     final targetName = targetUser.name ?? contact['name'];
 
-    // ✅ إنشاء محادثة
     final chatId = await SupabaseService().createChat([currentUserId, targetUid]);
 
     if (mounted) {

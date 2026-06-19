@@ -145,7 +145,6 @@ class KeyExchangeService {
     List<int> myPrivate,
     SimplePublicKey peerPublic,
   ) async {
-    // ✅ استخدام X25519 مباشرة
     final keyPair = await X25519.privateKeyFromBytes(myPrivate);
     final sharedSecret = await keyPair.sharedSecret(peerPublic);
     return sharedSecret.bytes;
@@ -171,7 +170,6 @@ class KeyExchangeService {
     return fingerprint.map((b) => b.toRadixString(16).padLeft(2, '0')).join(':');
   }
 
-  // ✅ دوال مساعدة معدلة
   Future<SimpleKeyPair> _generateX25519KeyPair() async {
     return await X25519.generateKeyPair();
   }

@@ -68,10 +68,6 @@ class ChatController extends ChangeNotifier {
   final SealedSenderService _sealedSender = SealedSenderService();
   bool _useSealedSender = true;
 
-  // ============================================================
-  // 🔬 المقاومة الكمومية (Quantum Resistance)
-  // ============================================================
-  
   bool _useQuantumResistance = true;
   bool _isQuantumSession = false;
   String _quantumFingerprint = '';
@@ -95,10 +91,6 @@ class ChatController extends ChangeNotifier {
   bool get _isProUser => _ref.read(appControllerProvider).isPro;
   bool get _isLifetimeUser => _ref.read(appControllerProvider).isLifetime;
 
-  // ============================================================
-  // 🏗️ المنشئ
-  // ============================================================
-
   ChatController({required Ref ref}) : _ref = ref {
     _loadSealedSenderPreference();
     _loadQuantumResistancePreference();
@@ -120,7 +112,6 @@ class ChatController extends ChangeNotifier {
   // 📨 استقبال الرسائل من Supabase
   // ============================================================
   
-  /// ✅ جلب رسائل المحادثة مع معلومات المرسل
   Stream<List<MessageModel>> getMessages(String chatId) {
     return _supabase
         .from('messages')
@@ -132,7 +123,6 @@ class ChatController extends ChangeNotifier {
         });
   }
 
-  /// ✅ جلب معلومات المحادثة
   Future<ChatModel?> getChat(String chatId) async {
     try {
       final response = await _supabase
@@ -149,7 +139,6 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  /// ✅ جلب أعضاء المحادثة
   Future<List<ChatMemberModel>> getChatMembers(String chatId) async {
     try {
       final response = await _supabase
@@ -164,7 +153,6 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  /// ✅ إنشاء محادثة جديدة
   Future<String> createChat({
     required String chatName,
     required List<String> memberIds,
@@ -175,7 +163,6 @@ class ChatController extends ChangeNotifier {
       final chatId = const Uuid().v4();
       final now = DateTime.now().toIso8601String();
 
-      // ✅ إنشاء المحادثة
       await _supabase.from('chats').insert({
         'id': chatId,
         'name': chatName,
@@ -186,7 +173,6 @@ class ChatController extends ChangeNotifier {
         'updated_at': now,
       });
 
-      // ✅ إضافة الأعضاء
       final members = [
         {'chat_id': chatId, 'user_id': currentUserId, 'role': 'admin', 'joined_at': now},
         ...memberIds.map((uid) => {
@@ -207,7 +193,6 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  /// ✅ إضافة عضو إلى محادثة
   Future<void> addMemberToChat(String chatId, String userId) async {
     try {
       await _supabase.from('chat_members').insert({
@@ -223,7 +208,6 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  /// ✅ إزالة عضو من محادثة
   Future<void> removeMemberFromChat(String chatId, String userId) async {
     try {
       await _supabase
@@ -239,7 +223,6 @@ class ChatController extends ChangeNotifier {
   }
 
   String _extractPeerUserId(String chatId) {
-    // ✅ في حالة المحادثات الفردية، نستخرج الطرف الآخر
     final ids = chatId.split('_');
     return ids.firstWhere((id) => id != currentUserId,
         orElse: () => ids.isEmpty ? '' : ids[0]);
@@ -520,7 +503,6 @@ class ChatController extends ChangeNotifier {
     final fileName = "${DateTime.now().millisecondsSinceEpoch}_${path.basename(localPath)}.enc";
     final filePath = "$folder/$currentUserId/$chatId/$fileName";
     
-    // ✅ رفع إلى Supabase Storage
     final url = await _storage.uploadFile(
       bucket: 'chat_files',
       path: filePath,
@@ -749,7 +731,6 @@ class ChatController extends ChangeNotifier {
           keyBytes: sessionKey,
         );
         
-        // ✅ تخزين الموقع الحي في Supabase
         await _supabase.from('live_locations').upsert({
           'chat_id': chatId,
           'user_id': currentUserId,
@@ -967,7 +948,6 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  // ✅ Typing Indicator Methods
   void onTypingStart(String chatId) {
     _typingService.startTyping(chatId);
   }
@@ -984,26 +964,23 @@ class ChatController extends ChangeNotifier {
   // 📚 دوال إضافية لإدارة المحادثات
   // ============================================================
 
-  /// ✅ الحصول على قائمة محادثات المستخدم
   Stream<List<ChatModel>> getUserChats() {
     return _supabase
         .from('chats')
         .stream(primaryKey: ['id'])
-        .filter('members.user_id', 'eq', currentUserId)
+        .eq('members.user_id', currentUserId)
         .order('updated_at', ascending: false)
         .map((data) {
           return data.map((doc) => ChatModel.fromSupabase(doc)).toList();
         });
   }
 
-  /// ✅ تحديث آخر قراءة للرسائل
   Future<void> updateLastRead(String chatId) async {
     await _supabase.from('chat_members').update({
       'last_read_at': DateTime.now().toIso8601String(),
     }).eq('chat_id', chatId).eq('user_id', currentUserId);
   }
 
-  /// ✅ الحصول على عدد الرسائل غير المقروءة
   Future<int> getUnreadCount(String chatId) async {
     final lastRead = await _supabase
         .from('chat_members')
