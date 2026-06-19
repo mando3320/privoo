@@ -6,10 +6,6 @@ import '../models/message_model.dart';
 import '../models/chat_model.dart';
 import '../models/chat_member_model.dart';
 
-// ============================================================
-// 📦 Models
-// ============================================================
-
 class UserModel {
   final String id;
   final String authId;
@@ -73,10 +69,6 @@ class UserModel {
   };
 }
 
-// ============================================================
-// 🚀 SupabaseService
-// ============================================================
-
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
   factory SupabaseService() => _instance;
@@ -87,7 +79,6 @@ class SupabaseService {
 
   SupabaseClient get client => _client;
 
-  // ✅ استخدام المتغيرات من .env
   static String get _supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
   static String get _supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
@@ -196,10 +187,9 @@ class SupabaseService {
   }
 
   // ============================================================
-  // 💬 Chats (مع chat_members)
+  // 💬 Chats
   // ============================================================
 
-  /// ✅ إنشاء محادثة جديدة
   Future<String> createChat(List<String> members) async {
     final chatId = _uuid.v4();
     final now = DateTime.now().toIso8601String();
@@ -224,9 +214,10 @@ class SupabaseService {
     return chatId;
   }
 
-  /// ✅ جلب محادثات المستخدم
+  // ✅ جلب محادثات المستخدم - طريقة Supabase الصحيحة
   Future<List<ChatModel>> getUserChats(String authId) async {
     try {
+      // ✅ جلب جميع chat_ids التي يكون فيها المستخدم عضواً
       final memberResponse = await _client
           .from('chat_members')
           .select('chat_id')
@@ -238,6 +229,7 @@ class SupabaseService {
       
       if (chatIds.isEmpty) return [];
       
+      // ✅ جلب بيانات المحادثات
       final response = await _client
           .from('chats')
           .select()
@@ -259,7 +251,6 @@ class SupabaseService {
     }
   }
 
-  /// ✅ جلب أعضاء المحادثة
   Future<List<String>> _getChatMembers(String chatId) async {
     try {
       final response = await _client
@@ -276,7 +267,6 @@ class SupabaseService {
     }
   }
 
-  /// ✅ جلب محادثة محددة
   Future<ChatModel?> getChat(String chatId) async {
     try {
       final response = await _client.from('chats').select().eq('id', chatId).maybeSingle();
@@ -294,7 +284,6 @@ class SupabaseService {
     }
   }
 
-  /// ✅ تحديث آخر رسالة
   Future<void> updateChatLastMessage(String chatId, String message, DateTime time) async {
     await _client.from('chats').update({
       'last_message': message,
@@ -303,7 +292,6 @@ class SupabaseService {
     }).eq('id', chatId);
   }
 
-  /// ✅ زيادة unread
   Future<void> incrementUnreadCount(String chatId, String userId) async {
     final chat = await getChat(chatId);
     if (chat == null) return;
@@ -317,7 +305,6 @@ class SupabaseService {
     }).eq('id', chatId);
   }
 
-  /// ✅ إعادة تعيين unread
   Future<void> resetUnreadCount(String chatId, String userId) async {
     final chat = await getChat(chatId);
     if (chat == null) return;
@@ -375,16 +362,16 @@ class SupabaseService {
     return MessageModel.fromJson(response);
   }
 
+  // ✅ جلب الرسائل - طريقة Supabase الصحيحة
   Future<List<MessageModel>> getMessages(String chatId, {int limit = 50, String? cursor}) async {
     try {
-      var query = _client
+      final response = await _client
           .from('messages')
           .select()
           .eq('chat_id', chatId)
           .order('created_at', ascending: false)
           .limit(limit);
       
-      final response = await query;
       return List<Map<String, dynamic>>.from(response)
           .map((json) => MessageModel.fromJson(json))
           .toList()
@@ -437,43 +424,51 @@ class SupabaseService {
         .from('chats')
         .stream(primaryKey: ['id'])
         .eq('id', chatId)
-        .map((data) async {
+        .map((data) {
           if (data.isEmpty) return null;
-          final members = await _getChatMembers(chatId);
-          return ChatModel.fromJson({
-            ...data.first,
-            'members': members,
-          });
+          return ChatModel.fromJson(data.first);
         });
   }
 
+  // ✅ طريقة Supabase الصحيحة للـ Stream
   Stream<List<ChatModel>> subscribeToUserChats(String authId) {
     return _client
         .from('chat_members')
         .stream(primaryKey: ['chat_id', 'user_id'])
         .eq('user_id', authId)
-        .map((data) async {
+        .map((data) {
           final chatIds = List<Map<String, dynamic>>.from(data)
               .map((e) => e['chat_id'] as String)
               .toList();
           
           if (chatIds.isEmpty) return [];
           
-          final chats = await _client
-              .from('chats')
-              .select()
-              .inFilter('id', chatIds)
-              .order('last_message_time', ascending: false);
-          
-          final List<ChatModel> result = [];
-          for (var json in chats) {
-            result.add(ChatModel.fromJson({
-              ...json,
-              'members': chatIds,
-            }));
-          }
-          return result;
+          // ✅ جلب بيانات المحادثات بشكل متزامن
+          return _getChatsStream(chatIds);
         });
+  }
+
+  // ✅ دالة مساعدة لجلب المحادثات
+  Stream<List<ChatModel>> _getChatsStream(List<String> chatIds) async* {
+    try {
+      final response = await _client
+          .from('chats')
+          .select()
+          .inFilter('id', chatIds)
+          .order('last_message_time', ascending: false);
+      
+      final List<ChatModel> result = [];
+      for (var json in response) {
+        result.add(ChatModel.fromJson({
+          ...json,
+          'members': chatIds,
+        }));
+      }
+      yield result;
+    } catch (e) {
+      print('❌ _getChatsStream error: $e');
+      yield [];
+    }
   }
 
   Stream<UserModel?> subscribeToUserStatus(String authId) {

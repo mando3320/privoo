@@ -1,4 +1,4 @@
-// services/channel_service.dart
+// lib/services/channel_service.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../models/channel_model.dart';
@@ -8,7 +8,6 @@ class ChannelService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final _uuid = const Uuid();
 
-  /// إنشاء قناة جديدة
   Future<ChannelModel> createChannel({
     required String name,
     required String description,
@@ -54,19 +53,38 @@ class ChannelService {
     return channel;
   }
 
-  /// الحصول على قنوات المستخدم
+  // ✅ طريقة Supabase الصحيحة للـ Stream
   Stream<List<ChannelModel>> getUserChannels(String userId) {
     return _supabase
-        .from('channels')
-        .stream(primaryKey: ['id'])
-        .eq('subscribers.user_id', userId)
-        .order('created_at', ascending: false)
+        .from('channel_subscribers')
+        .stream(primaryKey: ['channel_id', 'user_id'])
+        .eq('user_id', userId)
         .map((data) {
-          return data.map((doc) => ChannelModel.fromSupabase(doc)).toList();
+          final channelIds = List<Map<String, dynamic>>.from(data)
+              .map((e) => e['channel_id'] as String)
+              .toList();
+          
+          if (channelIds.isEmpty) return [];
+          
+          return _getChannelsStream(channelIds);
         });
   }
 
-  /// الحصول على بيانات قناة واحدة
+  Stream<List<ChannelModel>> _getChannelsStream(List<String> channelIds) async* {
+    try {
+      final response = await _supabase
+          .from('channels')
+          .select()
+          .inFilter('id', channelIds)
+          .order('created_at', ascending: false);
+      
+      yield response.map((doc) => ChannelModel.fromSupabase(doc)).toList();
+    } catch (e) {
+      print('❌ _getChannelsStream error: $e');
+      yield [];
+    }
+  }
+
   Future<ChannelModel> getChannel(String channelId) async {
     final response = await _supabase
         .from('channels')
@@ -78,7 +96,6 @@ class ChannelService {
     return ChannelModel.fromSupabase(response);
   }
 
-  /// الحصول على جميع القنوات العامة
   Stream<List<ChannelModel>> getPublicChannels() {
     return _supabase
         .from('channels')
@@ -90,7 +107,6 @@ class ChannelService {
         });
   }
 
-  /// الاشتراك في قناة
   Future<void> subscribeToChannel(String channelId) async {
     final user = SupabaseService().currentUser;
     if (user == null) return;
@@ -104,7 +120,6 @@ class ChannelService {
     await _supabase.rpc('increment_subscriber_count', params: {'channel_id': channelId});
   }
 
-  /// إلغاء الاشتراك من قناة
   Future<void> unsubscribeFromChannel(String channelId) async {
     final user = SupabaseService().currentUser;
     if (user == null) return;
@@ -118,7 +133,6 @@ class ChannelService {
     await _supabase.rpc('decrement_subscriber_count', params: {'channel_id': channelId});
   }
 
-  /// إرسال منشور في قناة
   Future<void> sendChannelPost({
     required String channelId,
     required String content,
@@ -135,7 +149,6 @@ class ChannelService {
     });
   }
 
-  /// استلام منشورات القناة
   Stream<List<Map<String, dynamic>>> getChannelPosts(String channelId) {
     return _supabase
         .from('messages')
@@ -146,7 +159,6 @@ class ChannelService {
         .map((data) => List<Map<String, dynamic>>.from(data));
   }
 
-  /// إعجاب بمنشور
   Future<void> likePost(String channelId, String postId) async {
     final user = SupabaseService().currentUser;
     if (user == null) return;
@@ -159,7 +171,6 @@ class ChannelService {
     });
   }
 
-  /// حذف قناة (للمالك فقط)
   Future<void> deleteChannel(String channelId, String ownerId) async {
     final user = SupabaseService().currentUser;
     if (user == null) throw Exception('User not authenticated');

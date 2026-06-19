@@ -9,7 +9,6 @@ class TypingService {
   bool _isTyping = false;
   String? _currentChatId;
   
-  /// بدء الكتابة (يرسل إشارة "يكتب..." كل 2 ثانية)
   void startTyping(String chatId) {
     final user = SupabaseService().currentUser;
     if (user == null) return;
@@ -17,10 +16,8 @@ class TypingService {
     _currentChatId = chatId;
     _typingTimer?.cancel();
     
-    // إرسال إشارة الكتابة فوراً
     _setTypingStatus(chatId, user.id, true);
     
-    // إرسال إشارة كل 2 ثانية أثناء الكتابة
     _typingTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
       if (_isTyping) {
         _setTypingStatus(chatId, user.id, true);
@@ -30,7 +27,6 @@ class TypingService {
     _isTyping = true;
   }
   
-  /// إيقاف الكتابة
   void stopTyping() {
     if (!_isTyping) return;
     
@@ -52,7 +48,6 @@ class TypingService {
     }, onConflict: 'chat_id,user_id');
   }
   
-  /// الاستماع لحالة الكتابة لطرف آخر
   Stream<bool> listenToTyping(String chatId, String otherUserId) {
     return _supabase
         .from('typing_indicators')
@@ -69,7 +64,6 @@ class TypingService {
           final updatedDate = DateTime.tryParse(updatedAt);
           if (updatedDate == null) return false;
           
-          // إذا مر أكثر من 5 ثوانٍ على آخر تحديث، نعتبر أنه توقف عن الكتابة
           final isRecent = DateTime.now().difference(updatedDate).inSeconds < 5;
           return doc['is_typing'] == true && isRecent;
         });

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 // 🔒 Auth & Setup
 import '../views/auth/otp_login_screen.dart';  // ✅ أصبحت الأساسية
 import '../views/auth/profile_setup_screen.dart';
-import '../views/auth/login_screen.dart';      // 📦 احتياطي
 import '../views/auth/terms_acceptance_screen.dart';
 import '../views/auth/age_verification_screen.dart';
 import '../views/auth/verify_screen.dart';

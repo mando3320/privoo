@@ -18,8 +18,8 @@ class KeyExchangeService {
 
     if (response != null) return;
 
-    final identityKey = await _generateX25519KeyPair();
-    final signKey = await _generateEd25519KeyPair();
+    final identityKey = await X25519.generateKeyPair();
+    final signKey = await Ed25519.generateKeyPair();
 
     final identityPub = await identityKey.extractPublicKey();
     final signPub = await signKey.extractPublicKey();
@@ -54,7 +54,7 @@ class KeyExchangeService {
     if (response == null) throw Exception('Identity key not found');
 
     final privateKey = base64Decode(response['private_key']);
-    return await _importPrivateKey(privateKey, KeyPairType.x25519);
+    return await X25519.privateKeyFromBytes(privateKey);
   }
 
   Future<SimpleKeyPair> getSignatureKeyPair(String userId) async {
@@ -68,7 +68,7 @@ class KeyExchangeService {
     if (response == null) throw Exception('Signature key not found');
 
     final privateKey = base64Decode(response['private_key']);
-    return await _importPrivateKey(privateKey, KeyPairType.ed25519);
+    return await Ed25519.privateKeyFromBytes(privateKey);
   }
 
   Future<List<int>> fetchPeerIdentityPublicKey(String peerId) async {
@@ -104,7 +104,7 @@ class KeyExchangeService {
     final myPrivate = await myKeys.extractPrivateKeyBytes();
 
     final peerPubBytes = await fetchPeerIdentityPublicKey(peerUserId);
-    final peerPub = await _importPublicKey(peerPubBytes, KeyPairType.x25519);
+    final peerPub = await X25519.publicKeyFromBytes(peerPubBytes);
 
     final sharedSecret = await _x25519SharedSecret(myPrivate, peerPub);
     final msgKey = await _deriveMessageKey(sharedSecret, chatId, 'msg_key');
@@ -127,7 +127,7 @@ class KeyExchangeService {
     final myPrivate = await myKeys.extractPrivateKeyBytes();
 
     final peerPubBytes = await fetchPeerIdentityPublicKey(peerUserId);
-    final peerPub = await _importPublicKey(peerPubBytes, KeyPairType.x25519);
+    final peerPub = await X25519.publicKeyFromBytes(peerPubBytes);
 
     final sharedSecret = await _x25519SharedSecret(myPrivate, peerPub);
     final msgKey = await _deriveMessageKey(sharedSecret, chatId, 'msg_key');
@@ -145,7 +145,6 @@ class KeyExchangeService {
     List<int> myPrivate,
     SimplePublicKey peerPublic,
   ) async {
-    // ✅ استخدم X25519
     final keyPair = await X25519.privateKeyFromBytes(myPrivate);
     final sharedSecret = await keyPair.sharedSecret(peerPublic);
     return sharedSecret.bytes;
@@ -169,36 +168,6 @@ class KeyExchangeService {
     final hash = await Sha256().hash(pubBytes);
     final fingerprint = hash.bytes.take(bytes).toList();
     return fingerprint.map((b) => b.toRadixString(16).padLeft(2, '0')).join(':');
-  }
-
-  Future<SimpleKeyPair> _generateX25519KeyPair() async {
-    return await X25519.generateKeyPair();
-  }
-
-  Future<SimpleKeyPair> _generateEd25519KeyPair() async {
-    return await Ed25519.generateKeyPair();
-  }
-
-  Future<SimpleKeyPair> _importPrivateKey(
-    List<int> bytes,
-    KeyPairType type,
-  ) async {
-    if (type == KeyPairType.x25519) {
-      return await X25519.privateKeyFromBytes(bytes);
-    } else {
-      return await Ed25519.privateKeyFromBytes(bytes);
-    }
-  }
-
-  Future<SimplePublicKey> _importPublicKey(
-    List<int> bytes,
-    KeyPairType type,
-  ) async {
-    if (type == KeyPairType.x25519) {
-      return await X25519.publicKeyFromBytes(bytes);
-    } else {
-      return await Ed25519.publicKeyFromBytes(bytes);
-    }
   }
 }
 

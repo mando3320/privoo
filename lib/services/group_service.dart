@@ -56,16 +56,37 @@ class GroupService {
     return group;
   }
 
+  // ✅ طريقة Supabase الصحيحة للـ Stream
   Stream<List<GroupModel>> getUserGroups(String userId) {
     return _supabase
-        .from('chats')
-        .stream(primaryKey: ['id'])
-        .eq('is_group', true)
-        .eq('members.user_id', userId)
-        .order('updated_at', ascending: false)
+        .from('chat_members')
+        .stream(primaryKey: ['chat_id', 'user_id'])
+        .eq('user_id', userId)
         .map((data) {
-          return data.map((doc) => GroupModel.fromSupabase(doc)).toList();
+          final chatIds = List<Map<String, dynamic>>.from(data)
+              .map((e) => e['chat_id'] as String)
+              .toList();
+          
+          if (chatIds.isEmpty) return [];
+          
+          return _getGroupsStream(chatIds);
         });
+  }
+
+  Stream<List<GroupModel>> _getGroupsStream(List<String> chatIds) async* {
+    try {
+      final response = await _supabase
+          .from('chats')
+          .select()
+          .eq('is_group', true)
+          .inFilter('id', chatIds)
+          .order('updated_at', ascending: false);
+      
+      yield response.map((doc) => GroupModel.fromSupabase(doc)).toList();
+    } catch (e) {
+      print('❌ _getGroupsStream error: $e');
+      yield [];
+    }
   }
 
   Future<GroupModel> getGroup(String groupId) async {
@@ -116,7 +137,7 @@ class GroupService {
         .stream(primaryKey: ['id'])
         .eq('chat_id', groupId)
         .order('timestamp', ascending: false)
-        .asyncMap((data) async {
+        .map((data) async {
           final group = await getGroup(groupId);
           final messages = <GroupMessage>[];
           for (var doc in data) {
@@ -208,7 +229,6 @@ class GroupService {
         .eq('chat_id', groupId)
         .eq('user_id', userId);
     
-    // ✅ التحقق من عدد الأعضاء المتبقين
     final members = await _supabase
         .from('chat_members')
         .select('user_id')
