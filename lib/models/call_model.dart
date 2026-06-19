@@ -1,5 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
+// models/call_model.dart
 class CallModel {
   final String callId;
   final String callerId;
@@ -47,43 +46,36 @@ class CallModel {
 
   factory CallModel.fromJson(Map<String, dynamic> json) => CallModel(
         callId: json['callId'] ?? '',
-        callerId: json['callerId'] ?? '',
-        receiverId: json['receiverId'] ?? '',
-        startTime: _parseDate(json['startTime']),
-        endTime: json['endTime'] != null ? _parseDate(json['endTime']) : null,
-        isVideo: json['isVideo'] ?? true,
-        protocolVersion: json['protocolVersion'] ?? 2,
+        callerId: json['caller_id'] ?? json['callerId'] ?? '',
+        receiverId: json['receiver_id'] ?? json['receiverId'] ?? '',
+        startTime: DateTime.tryParse(json['start_time'] ?? json['startTime'] ?? '') ?? DateTime.now(),
+        endTime: json['end_time'] != null ? DateTime.tryParse(json['end_time']) : 
+                 json['endTime'] != null ? DateTime.tryParse(json['endTime']) : null,
+        isVideo: json['is_video'] ?? json['isVideo'] ?? true,
+        protocolVersion: json['protocol_version'] ?? json['protocolVersion'] ?? 2,
         alg: json['alg'],
-        offerTimestamp: json['offerTimestamp'],
-        answerTimestamp: json['answerTimestamp'],
-        ratchetN: json['ratchetN'],
-        dhPub: json['dhPub'],
-        isActive: json['isActive'] ?? true,
+        offerTimestamp: json['offer_timestamp'] ?? json['offerTimestamp'],
+        answerTimestamp: json['answer_timestamp'] ?? json['answerTimestamp'],
+        ratchetN: json['ratchet_n'] ?? json['ratchetN'],
+        dhPub: json['dh_pub'] ?? json['dhPub'],
+        isActive: json['active'] ?? json['isActive'] ?? true,
       );
 
   Map<String, dynamic> toJson() => {
         'callId': callId,
-        'callerId': callerId,
-        'receiverId': receiverId,
-        'startTime': startTime.toIso8601String(),
-        'endTime': endTime?.toIso8601String(),
-        'isVideo': isVideo,
-        'protocolVersion': protocolVersion,
+        'caller_id': callerId,
+        'receiver_id': receiverId,
+        'start_time': startTime.toIso8601String(),
+        if (endTime != null) 'end_time': endTime!.toIso8601String(),
+        'is_video': isVideo,
+        'protocol_version': protocolVersion,
         if (alg != null) 'alg': alg,
-        if (offerTimestamp != null) 'offerTimestamp': offerTimestamp,
-        if (answerTimestamp != null) 'answerTimestamp': answerTimestamp,
-        if (ratchetN != null) 'ratchetN': ratchetN,
-        if (dhPub != null) 'dhPub': dhPub,
-        'isActive': isActive,
+        if (offerTimestamp != null) 'offer_timestamp': offerTimestamp,
+        if (answerTimestamp != null) 'answer_timestamp': answerTimestamp,
+        if (ratchetN != null) 'ratchet_n': ratchetN,
+        if (dhPub != null) 'dh_pub': dhPub,
+        'active': isActive,
       };
-
-  static DateTime _parseDate(dynamic value) {
-    if (value is Timestamp) return value.toDate();
-    if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
-    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
-    if (value is DateTime) return value;
-    return DateTime.now();
-  }
 
   /// نسخ مع تعديل الحقول (copyWith)
   CallModel copyWith({

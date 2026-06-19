@@ -1,29 +1,29 @@
 // lib/services/typing_service.dart
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'supabase_service.dart';
 
 class TypingService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
   Timer? _typingTimer;
   bool _isTyping = false;
   String? _currentChatId;
   
   /// بدء الكتابة (يرسل إشارة "يكتب..." كل 2 ثانية)
   void startTyping(String chatId) {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
+    final user = SupabaseService().currentUser;
+    if (user == null) return;
     
     _currentChatId = chatId;
     _typingTimer?.cancel();
     
     // إرسال إشارة الكتابة فوراً
-    _setTypingStatus(chatId, userId, true);
+    _setTypingStatus(chatId, user.id, true);
     
     // إرسال إشارة كل 2 ثانية أثناء الكتابة
     _typingTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
       if (_isTyping) {
-        _setTypingStatus(chatId, userId, true);
+        _setTypingStatus(chatId, user.id, true);
       }
     });
     
@@ -34,46 +34,44 @@ class TypingService {
   void stopTyping() {
     if (!_isTyping) return;
     
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null || _currentChatId == null) return;
+    final user = SupabaseService().currentUser;
+    if (user == null || _currentChatId == null) return;
     
     _typingTimer?.cancel();
-    _setTypingStatus(_currentChatId!, userId, false);
+    _setTypingStatus(_currentChatId!, user.id, false);
     _isTyping = false;
     _currentChatId = null;
   }
   
   void _setTypingStatus(String chatId, String userId, bool isTyping) {
-    _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('typing')
-        .doc(userId)
-        .set({
-      'isTyping': isTyping,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    _supabase.from('typing_indicators').upsert({
+      'chat_id': chatId,
+      'user_id': userId,
+      'is_typing': isTyping,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, onConflict: 'chat_id,user_id');
   }
   
   /// الاستماع لحالة الكتابة لطرف آخر
   Stream<bool> listenToTyping(String chatId, String otherUserId) {
-    return _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('typing')
-        .doc(otherUserId)
-        .snapshots()
-        .map((snapshot) {
-          if (!snapshot.exists) return false;
-          final data = snapshot.data();
-          if (data == null) return false;
+    return _supabase
+        .from('typing_indicators')
+        .stream(primaryKey: ['chat_id', 'user_id'])
+        .eq('chat_id', chatId)
+        .eq('user_id', otherUserId)
+        .map((data) {
+          if (data.isEmpty) return false;
+          final doc = data.first;
           
-          final updatedAt = data['updatedAt'] as Timestamp?;
+          final updatedAt = doc['updated_at'] as String?;
           if (updatedAt == null) return false;
           
+          final updatedDate = DateTime.tryParse(updatedAt);
+          if (updatedDate == null) return false;
+          
           // إذا مر أكثر من 5 ثوانٍ على آخر تحديث، نعتبر أنه توقف عن الكتابة
-          final isRecent = DateTime.now().difference(updatedAt.toDate()).inSeconds < 5;
-          return data['isTyping'] == true && isRecent;
+          final isRecent = DateTime.now().difference(updatedDate).inSeconds < 5;
+          return doc['is_typing'] == true && isRecent;
         });
   }
 }

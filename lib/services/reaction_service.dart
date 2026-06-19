@@ -1,8 +1,8 @@
 // lib/services/reaction_service.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReactionService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   // ✅ إيموجي التفاعل الموسعة (18 إيموجي)
   static const List<String> availableReactions = [
@@ -10,18 +10,8 @@ class ReactionService {
     '❤️', '👍', '😂', '😮', '😢', '😡',
     
     // إضافية (12)
-    '🎉',  // احتفال
-    '😍',  // حب شديد
-    '🤔',  // تفكير
-    '👏',  // تصفيق
-    '🙏',  // شكراً
-    '🔥',  // ممتاز
-    '😎',  // رائع
-    '🥰',  // حب
-    '🤣',  // ضحك شديد
-    '😱',  // صدمة
-    '🥳',  // احتفال
-    '💯',  // مئة بالمئة
+    '🎉', '😍', '🤔', '👏', '🙏', '🔥',
+    '😎', '🥰', '🤣', '😱', '🥳', '💯',
   ];
 
   Future<void> addReaction({
@@ -31,21 +21,25 @@ class ReactionService {
     required String userId,
     bool isGroup = false,
   }) async {
-    // التحقق من أن الإيموجي مدعوم
-    if (!availableReactions.contains(reaction)) {
-      return; // أو رمي استثناء
-    }
+    if (!availableReactions.contains(reaction)) return;
     
-    final collection = isGroup
-        ? _firestore.collection('groups').doc(chatId).collection('messages')
-        : _firestore.collection('chats').doc(chatId).collection('messages');
+    // ✅ التحقق من وجود التفاعل بالفعل
+    final existing = await _supabase
+        .from('reactions')
+        .select()
+        .eq('message_id', messageId)
+        .eq('user_id', userId)
+        .eq('emoji', reaction)
+        .maybeSingle();
     
-    final doc = await collection.doc(messageId).get();
-    final reactions = Map<String, dynamic>.from(doc.data()?['reactions'] ?? {});
+    if (existing != null) return;
     
-    reactions[reaction] = (reactions[reaction] ?? 0) + 1;
-    
-    await collection.doc(messageId).update({'reactions': reactions});
+    await _supabase.from('reactions').insert({
+      'message_id': messageId,
+      'user_id': userId,
+      'emoji': reaction,
+      'created_at': DateTime.now().toIso8601String(),
+    });
   }
 
   Future<void> removeReaction({
@@ -55,20 +49,27 @@ class ReactionService {
     required String userId,
     bool isGroup = false,
   }) async {
-    final collection = isGroup
-        ? _firestore.collection('groups').doc(chatId).collection('messages')
-        : _firestore.collection('chats').doc(chatId).collection('messages');
+    await _supabase
+        .from('reactions')
+        .delete()
+        .eq('message_id', messageId)
+        .eq('user_id', userId)
+        .eq('emoji', reaction);
+  }
+  
+  /// ✅ الحصول على تفاعلات رسالة
+  Future<Map<String, int>> getReactions(String messageId) async {
+    final response = await _supabase
+        .from('reactions')
+        .select()
+        .eq('message_id', messageId);
     
-    final doc = await collection.doc(messageId).get();
-    final reactions = Map<String, dynamic>.from(doc.data()?['reactions'] ?? {});
-    
-    if (reactions[reaction] != null) {
-      reactions[reaction] = reactions[reaction] - 1;
-      if (reactions[reaction] <= 0) {
-        reactions.remove(reaction);
-      }
-      await collection.doc(messageId).update({'reactions': reactions});
+    final reactions = <String, int>{};
+    for (var doc in response) {
+      final emoji = doc['emoji'] as String;
+      reactions[emoji] = (reactions[emoji] ?? 0) + 1;
     }
+    return reactions;
   }
   
   // ✅ دالة مساعدة للحصول على اسم الإيموجي

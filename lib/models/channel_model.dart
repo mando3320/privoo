@@ -1,6 +1,4 @@
 // lib/models/channel_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class ChannelModel {
   final String id;
   final String name;
@@ -22,27 +20,30 @@ class ChannelModel {
     required this.isPrivate,
   });
 
-  factory ChannelModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory ChannelModel.fromSupabase(Map<String, dynamic> data) {
     return ChannelModel(
-      id: doc.id,
+      id: data['id'] ?? '',
       name: data['name'] ?? '',
       description: data['description'] ?? '',
-      avatarUrl: data['avatarUrl'],
-      ownerId: data['ownerId'] ?? '',
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      avatarUrl: data['avatar_url'],
+      ownerId: data['created_by'] ?? data['ownerId'] ?? '',
+      createdAt: data['created_at'] != null 
+          ? DateTime.tryParse(data['created_at']) ?? DateTime.now()
+          : DateTime.now(),
       subscribers: List<String>.from(data['subscribers'] ?? []),
-      isPrivate: data['isPrivate'] ?? false,
+      isPrivate: !(data['is_public'] ?? true),
     );
   }
 
-  Map<String, dynamic> toFirestore() => {
+  Map<String, dynamic> toSupabase() => {
+    'id': id,
     'name': name,
     'description': description,
-    'avatarUrl': avatarUrl,
-    'ownerId': ownerId,
-    'createdAt': Timestamp.fromDate(createdAt),
+    'avatar_url': avatarUrl,
+    'created_by': ownerId,
+    'is_public': !isPrivate,
     'subscribers': subscribers,
-    'isPrivate': isPrivate,
+    'created_at': createdAt.toIso8601String(),
+    'updated_at': DateTime.now().toIso8601String(),
   };
 }

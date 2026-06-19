@@ -1,18 +1,21 @@
-// services/call_service_signal.dart
+// services/call_service.dart
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import 'package:logger/logger.dart';
 import '../services/encryption_service.dart';
 import '../services/key_exchange_service.dart';
 import '../services/ratchet_service.dart';
 import '../services/verification_service.dart';
+import 'supabase_service.dart';
 
 /// 📞 خدمة الإشارات (Signaling) متوافقة مع E2EE + Double Ratchet + Verification
 class CallServiceSignal {
-  final _db = FirebaseFirestore.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
   final _kx = KeyExchangeService();
   final _verification = VerificationService();
   final logger = Logger();
+  final _uuid = const Uuid();
 
   List<int> _buildSignalingAad({
     required String callId,
@@ -69,8 +72,7 @@ class CallServiceSignal {
     required bool isVideo,
   }) async {
     try {
-      final doc = _db.collection('calls').doc();
-      final callId = doc.id;
+      final callId = _uuid.v4();
       final ts = DateTime.now().millisecondsSinceEpoch;
 
       final session = await _kx.establishSession(
@@ -114,22 +116,21 @@ class CallServiceSignal {
       final receiverVerificationId =
           await _verification.createVerification(userId: receiverId, peerId: callerId);
 
-      await doc.set({
-        'callId': callId,
-        'callerId': callerId,
-        'receiverId': receiverId,
-        'startTime': FieldValue.serverTimestamp(),
-        'endTime': null,
-        'isVideo': isVideo,
+      await _supabase.from('calls').insert({
+        'id': callId,
+        'caller_id': callerId,
+        'receiver_id': receiverId,
+        'is_video': isVideo,
         'offer': offer,
         'answer': null,
         'active': true,
-        'protocolVersion': 2,
-        'offerTimestamp': ts,
-        'ratchetN': ratchetData.n,
-        'dhPub': base64Encode(ratchetData.myDhPub),
-        'callerVerificationId': callerVerificationId,
-        'receiverVerificationId': receiverVerificationId,
+        'protocol_version': 2,
+        'offer_timestamp': ts,
+        'ratchet_n': ratchetData.n,
+        'dh_pub': base64Encode(ratchetData.myDhPub),
+        'caller_verification_id': callerVerificationId,
+        'receiver_verification_id': receiverVerificationId,
+        'created_at': DateTime.now().toIso8601String(),
       });
 
       logger.i("✅ تم إنشاء غرفة مكالمة Signal-Style: $callId");
@@ -171,13 +172,15 @@ class CallServiceSignal {
         aad: aad,
       );
 
-      await _db.collection('calls').doc(callId).update({
-        'answer': answer,
-        'answerTime': FieldValue.serverTimestamp(),
-        'answerTimestamp': ts,
-        'ratchetN': ratchetData.n,
-        'dhPub': base64Encode(ratchetData.myDhPub),
-      });
+      await _supabase
+          .from('calls')
+          .update({
+            'answer': answer,
+            'answer_timestamp': ts,
+            'ratchet_n': ratchetData.n,
+            'dh_pub': base64Encode(ratchetData.myDhPub),
+          })
+          .eq('id', callId);
 
       logger.i("✅ تم تحديث المكالمة بـ Answer مشفّر Signal-Style.");
       return true;
@@ -219,13 +222,15 @@ class CallServiceSignal {
         aad: aad,
       );
 
-      final col = isCaller ? 'callerCandidates' : 'calleeCandidates';
-      await _db.collection('calls').doc(callId).collection(col).add({
+      await _supabase.from('ice_candidates').insert({
+        'call_id': callId,
+        'sender_id': senderId,
         'candidate': candEnc,
-        'timestamp': FieldValue.serverTimestamp(),
-        'candidateTimestamp': ts,
-        'ratchetN': ratchetData.n,
-        'dhPub': base64Encode(ratchetData.myDhPub),
+        'candidate_timestamp': ts,
+        'ratchet_n': ratchetData.n,
+        'dh_pub': base64Encode(ratchetData.myDhPub),
+        'is_caller': isCaller,
+        'created_at': DateTime.now().toIso8601String(),
       });
 
       return true;
@@ -237,49 +242,44 @@ class CallServiceSignal {
 
   Future<void> endCall(String callId) async {
     try {
-      await _db.collection('calls').doc(callId).update({
-        'endTime': FieldValue.serverTimestamp(),
-        'active': false,
-      });
+      await _supabase
+          .from('calls')
+          .update({
+            'ended_at': DateTime.now().toIso8601String(),
+            'active': false,
+          })
+          .eq('id', callId);
       logger.i("✅ تم إنهاء المكالمة Signal-Style: $callId");
     } catch (e) {
       logger.e("❌ فشل إنهاء المكالمة Signal-Style: $e");
     }
   }
 
-  Stream<DocumentSnapshot<Map<String, dynamic>>> callDocStream(String callId) {
-    return _db.collection('calls').doc(callId).snapshots();
+  Stream<Map<String, dynamic>?> callDocStream(String callId) {
+    return _supabase
+        .from('calls')
+        .stream(primaryKey: ['id'])
+        .eq('id', callId)
+        .map((data) => data.isEmpty ? null : data.first);
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> candidatesStream(
+  Stream<List<Map<String, dynamic>>> candidatesStream(
       String callId, bool isCaller) {
-    final col = isCaller ? 'callerCandidates' : 'calleeCandidates';
-    return _db
-        .collection('calls')
-        .doc(callId)
-        .collection(col)
-        .orderBy('timestamp', descending: false)
-        .snapshots();
+    return _supabase
+        .from('ice_candidates')
+        .stream(primaryKey: ['id'])
+        .eq('call_id', callId)
+        .eq('is_caller', isCaller)
+        .order('created_at', ascending: true)
+        .map((data) => List<Map<String, dynamic>>.from(data));
   }
 
   Future<void> clearCandidates(String callId) async {
     try {
-      final callerSnap = await _db
-          .collection('calls')
-          .doc(callId)
-          .collection('callerCandidates')
-          .get();
-      final calleeSnap = await _db
-          .collection('calls')
-          .doc(callId)
-          .collection('calleeCandidates')
-          .get();
-
-      final batch = _db.batch();
-      for (final d in [...callerSnap.docs, ...calleeSnap.docs]) {
-        batch.delete(d.reference);
-      }
-      await batch.commit();
+      await _supabase
+          .from('ice_candidates')
+          .delete()
+          .eq('call_id', callId);
       logger.i("✅ تم حذف جميع ICE Candidates Signal-Style: $callId");
     } catch (e) {
       logger.e("❌ فشل تنظيف ICE Candidates Signal-Style: $e");
@@ -289,7 +289,10 @@ class CallServiceSignal {
   Future<void> deleteCallRoom(String callId) async {
     await clearCandidates(callId);
     try {
-      await _db.collection('calls').doc(callId).delete();
+      await _supabase
+          .from('calls')
+          .delete()
+          .eq('id', callId);
       logger.i("✅ تم حذف وثيقة المكالمة Signal-Style: $callId");
     } catch (e) {
       logger.e("❌ فشل حذف المكالمة Signal-Style: $e");
@@ -298,9 +301,12 @@ class CallServiceSignal {
 
   Future<bool> isUserVerified(String verificationId) async {
     if (verificationId.isEmpty) return false;
-    final snapshot = await _db.collection('verifications').doc(verificationId).get();
-    if (!snapshot.exists) return false;
-    final data = snapshot.data()!;
-    return data['isVerified'] ?? false;
+    final snapshot = await _supabase
+        .from('verifications')
+        .select()
+        .eq('id', verificationId)
+        .maybeSingle();
+    if (snapshot == null) return false;
+    return snapshot['is_verified'] ?? false;
   }
 }

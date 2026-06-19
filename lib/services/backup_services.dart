@@ -1,8 +1,7 @@
 // services/backup_services.dart
-// services/backup_service.dart (الإصدار النهائي المعدل)
 import 'dart:convert';
 import 'dart:math';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cryptography/cryptography.dart';
 import '../models/message_model.dart';
@@ -10,10 +9,9 @@ import '../services/ratchet_service.dart';
 import '../main.dart';
 
 class BackupService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
   final _secureStorage = const FlutterSecureStorage();
   static const _localKeyPrefix = 'e2ee_backup_';
-  // backup meta key (kept for compatibility) — not referenced directly
 
   static final _algo = AesGcm.with256bits();
   static final _hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
@@ -72,16 +70,18 @@ class BackupService {
 
       final deviceMac = await _computeDeviceBackupMac(utf8.encode(jsonString));
 
-      final versionsRef = _firestore.collection('backups').doc(userId).collection('versions');
       final ts = DateTime.now().toUtc().millisecondsSinceEpoch.toString();
 
-      await versionsRef.doc(ts).set({
+      await _supabase.from('backups').upsert({
+        'user_id': userId,
+        'chat_id': chatIdForRatchetExport ?? 'all',
         'encrypted_data': encryptedPayload,
-        'created_at': FieldValue.serverTimestamp(),
+        'created_at': DateTime.now().toIso8601String(),
         'meta': metadata ?? {},
         'version': 3,
         'device_mac': base64Encode(deviceMac),
-      });
+        'timestamp': ts,
+      }, onConflict: 'user_id,chat_id');
 
       final localWrapper = jsonEncode({
         'payload': encryptedPayload,
@@ -107,25 +107,27 @@ class BackupService {
     String? deviceMacB64;
 
     try {
-      final versionsRef = _firestore.collection('backups').doc(userId).collection('versions');
-      DocumentSnapshot<Map<String, dynamic>>? doc;
+      var query = _supabase
+          .from('backups')
+          .select()
+          .eq('user_id', userId);
       
       if (versionTimestamp != null) {
-        doc = await versionsRef.doc(versionTimestamp).get();
+        query = query.eq('timestamp', versionTimestamp);
       } else {
-        final q = await versionsRef.orderBy('created_at', descending: true).limit(1).get();
-        if (q.docs.isNotEmpty) {
-          doc = q.docs.first;
-        }
+        query = query.order('created_at', ascending: false).limit(1);
       }
-
-      if (doc != null && doc.exists && doc.data()!['encrypted_data'] != null) {
-        final enc = doc.data()!['encrypted_data'] as Map<String, dynamic>;
+      
+      final response = await query;
+      
+      if (response.isNotEmpty) {
+        final doc = response.first;
+        final enc = doc['encrypted_data'] as Map<String, dynamic>;
         encryptedPayloadJson = jsonEncode(enc);
-        deviceMacB64 = doc.data()!['device_mac'] as String?;
+        deviceMacB64 = doc['device_mac'] as String?;
       }
     } catch (e) {
-      logger.e('❌ فشل استرجاع النسخة الاحتياطية من Firestore: $e');
+      logger.e('❌ فشل استرجاع النسخة الاحتياطية من Supabase: $e');
     }
 
     if (encryptedPayloadJson == null) {
@@ -157,20 +159,21 @@ class BackupService {
   }
 
   Future<void> autoBackupAllChats(String userId, List<int> backupKey) async {
-    final chatsSnapshot = await _firestore
-        .collection('chats')
-        .where('participants', arrayContains: userId)
-        .get();
+    final response = await _supabase
+        .from('chats')
+        .select()
+        .contains('participants', userId);
     
     int backedUp = 0;
-    for (var chatDoc in chatsSnapshot.docs) {
-      final messagesSnapshot = await chatDoc.reference
-          .collection('messages')
-          .orderBy('timestamp')
-          .get();
+    for (var chatDoc in response) {
+      final messagesResponse = await _supabase
+          .from('messages')
+          .select()
+          .eq('chat_id', chatDoc['id'])
+          .order('timestamp', ascending: true);
       
-      final messages = messagesSnapshot.docs
-          .map((doc) => MessageModel.fromDoc(doc))
+      final messages = messagesResponse
+          .map((doc) => MessageModel.fromSupabase(doc))
           .toList();
       
       if (messages.isNotEmpty) {
@@ -178,7 +181,7 @@ class BackupService {
           userId: userId,
           messages: messages,
           backupKey: backupKey,
-          chatIdForRatchetExport: chatDoc.id,
+          chatIdForRatchetExport: chatDoc['id'],
         );
         backedUp++;
       }
@@ -191,17 +194,14 @@ class BackupService {
     String userId, 
     List<int> backupKey,
   ) async {
-    final versionsRef = _firestore
-        .collection('backups')
-        .doc(userId)
-        .collection('versions');
+    final response = await _supabase
+        .from('backups')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: false)
+        .limit(1);
     
-    final snapshot = await versionsRef
-        .orderBy('created_at', descending: true)
-        .limit(1)
-        .get();
-    
-    if (snapshot.docs.isEmpty) {
+    if (response.isEmpty) {
       logger.w('⚠️ لا توجد نسخ احتياطية للمستخدم $userId');
       return [];
     }
@@ -209,43 +209,27 @@ class BackupService {
     return await restoreUserChats(
       userId: userId,
       backupKey: backupKey,
-      versionTimestamp: snapshot.docs.first.id,
+      versionTimestamp: response.first['timestamp'],
     );
   }
 
   Future<void> cleanOldBackups(String userId, {int keepDays = 30}) async {
-    final versionsRef = _firestore
-        .collection('backups')
-        .doc(userId)
-        .collection('versions');
-    
     final cutoffDate = DateTime.now().subtract(Duration(days: keepDays));
     
-    final oldBackups = await versionsRef
-        .where('created_at', isLessThan: Timestamp.fromDate(cutoffDate))
-        .get();
+    await _supabase
+        .from('backups')
+        .delete()
+        .eq('user_id', userId)
+        .lt('created_at', cutoffDate.toIso8601String());
     
-    final batch = _firestore.batch();
-    for (var doc in oldBackups.docs) {
-      batch.delete(doc.reference);
-    }
-    await batch.commit();
-    
-    logger.i('🧹 تم حذف ${oldBackups.docs.length} نسخة احتياطية قديمة للمستخدم $userId');
+    logger.i('🧹 تم حذف النسخ الاحتياطية القديمة للمستخدم $userId');
   }
 
   Future<void> deleteAllBackups(String userId) async {
-    final versionsRef = _firestore
-        .collection('backups')
-        .doc(userId)
-        .collection('versions');
-    
-    final allBackups = await versionsRef.get();
-    final batch = _firestore.batch();
-    for (var doc in allBackups.docs) {
-      batch.delete(doc.reference);
-    }
-    await batch.commit();
+    await _supabase
+        .from('backups')
+        .delete()
+        .eq('user_id', userId);
     
     await _secureStorage.delete(key: '$_localKeyPrefix$userId');
     

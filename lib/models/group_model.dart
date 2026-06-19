@@ -1,6 +1,4 @@
 // lib/models/group_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum GroupRole { admin, member }
 
 class GroupModel {
@@ -26,34 +24,40 @@ class GroupModel {
     this.groupKey,
   });
 
-  factory GroupModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory GroupModel.fromSupabase(Map<String, dynamic> data) {
     final rolesMap = data['roles'] as Map<String, dynamic>? ?? {};
     
     return GroupModel(
-      id: doc.id,
+      id: data['id'] ?? '',
       name: data['name'] ?? '',
-      avatarUrl: data['avatarUrl'],
-      createdBy: data['createdBy'] ?? '',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      avatarUrl: data['avatar_url'],
+      createdBy: data['created_by'] ?? '',
+      createdAt: data['created_at'] != null 
+          ? DateTime.tryParse(data['created_at']) ?? DateTime.now()
+          : DateTime.now(),
       members: List<String>.from(data['members'] ?? []),
       roles: rolesMap.map(
-        (k, v) => MapEntry(k, GroupRole.values.firstWhere((e) => e.name == v)),
+        (k, v) => MapEntry(k, GroupRole.values.firstWhere(
+          (e) => e.name == v,
+          orElse: () => GroupRole.member,
+        )),
       ),
       encrypted: data['encrypted'] ?? true,
-      groupKey: data['groupKey'],
+      groupKey: data['group_key'],
     );
   }
 
-  Map<String, dynamic> toFirestore() => {
+  Map<String, dynamic> toSupabase() => {
+    'id': id,
     'name': name,
-    'avatarUrl': avatarUrl,
-    'createdBy': createdBy,
-    'createdAt': Timestamp.fromDate(createdAt),
+    'avatar_url': avatarUrl,
+    'created_by': createdBy,
+    'created_at': createdAt.toIso8601String(),
+    'updated_at': DateTime.now().toIso8601String(),
     'members': members,
     'roles': roles.map((k, v) => MapEntry(k, v.name)),
     'encrypted': encrypted,
-    if (groupKey != null) 'groupKey': groupKey,
+    if (groupKey != null) 'group_key': groupKey,
   };
 
   bool isAdmin(String userId) => roles[userId] == GroupRole.admin;

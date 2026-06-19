@@ -1,6 +1,6 @@
 // lib/services/audit_log_service.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'supabase_service.dart';
 import '../main.dart';
 
 enum AuditEventType {
@@ -8,7 +8,7 @@ enum AuditEventType {
 }
 
 class AuditLogService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
   
   Future<void> logEvent({
     required AuditEventType eventType,
@@ -16,13 +16,13 @@ class AuditLogService {
     String? severity,
   }) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      await _firestore.collection('audit_logs').add({
-        'userId': user?.uid ?? 'anonymous',
-        'eventType': eventType.name,
+      final user = SupabaseService().currentUser;
+      await _supabase.from('audit_log').insert({
+        'user_id': user?.id ?? 'anonymous',
+        'event_type': eventType.name,
         'details': details ?? '',
         'severity': severity ?? 'info',
-        'timestamp': FieldValue.serverTimestamp(),
+        'created_at': DateTime.now().toIso8601String(),
       });
       logger.d('📝 Audit log: $eventType - $details');
     } catch (e) {

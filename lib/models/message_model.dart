@@ -1,7 +1,5 @@
 // models/message_model.dart
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 /// 🔹 أنواع الرسائل المدعومة في التطبيق
 enum MessageType { text, image, gif, video, voice, audio, file }
 
@@ -89,95 +87,71 @@ class MessageModel {
   /// هل هذه رسالة جماعية؟
   bool get isGroup => groupId != null;
 
-  factory MessageModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? <String, dynamic>{};
-    return MessageModel(
-      id: doc.id,
-      senderId: data['senderId'] ?? '',
-      receiverId: data['recipientId'] ?? data['receiverId'] ?? '',
-      content: data['content'] ?? '',
-      timestamp: _tsToDate(data['timestamp']),
-      isRead: data['isRead'] ?? false,
-      type: _parseType(data['messageType'] ?? data['type']),
-      fileSize: data['fileSize'] is int ? data['fileSize'] as int : null,
-      isProRequired: data['isProRequired'] ?? false,
-      ratchetN: _toIntSafe(data['ratchetN']),
-      protocolVersion: _toIntSafe(data['protocolVersion']) == 0 ? 1 : _toIntSafe(data['protocolVersion']),
-      alg: data['alg'] as String? ?? 'AES-GCM-256',
-      dhPub: data['dhPub'] as String?,
-      disappearAfterSeconds: data['disappearAfterSeconds'] as int?,
-      disappearAt: data['disappearAt'] != null ? _parseDate(data['disappearAt']) : null,
-      isPinned: data['isPinned'] ?? false,
-      replyToMessageId: data['replyToMessageId'] as String?,
-      replyToSenderId: data['replyToSenderId'] as String?,
-      replyToContent: data['replyToContent'] as String?,
-      mentions: (data['mentions'] as List<dynamic>?)?.cast<String>(),
-      groupId: data['groupId'] as String?,
-      reactions: (data['reactions'] as Map<String, dynamic>?)?.map(
-        (k, v) => MapEntry(k, v as int),
-      ),
-      pollId: data['pollId'] as int?,
-    );
-  }
-
   factory MessageModel.fromMap(String id, Map<String, dynamic> data) {
     return MessageModel(
       id: id,
-      senderId: data['senderId'] ?? '',
-      receiverId: data['recipientId'] ?? data['receiverId'] ?? '',
+      senderId: data['sender_id'] ?? data['senderId'] ?? '',
+      receiverId: data['recipient_id'] ?? data['receiver_id'] ?? data['receiverId'] ?? '',
       content: data['content'] ?? '',
       timestamp: _tsToDate(data['timestamp']),
-      isRead: data['isRead'] ?? false,
-      type: _parseType(data['messageType'] ?? data['type']),
-      fileSize: data['fileSize'] is int ? data['fileSize'] as int : null,
-      isProRequired: data['isProRequired'] ?? false,
-      ratchetN: _toIntSafe(data['ratchetN']),
-      protocolVersion: _toIntSafe(data['protocolVersion']) == 0 ? 1 : _toIntSafe(data['protocolVersion']),
+      isRead: data['is_read'] ?? data['isRead'] ?? false,
+      type: _parseType(data['message_type'] ?? data['type']),
+      fileSize: data['file_size'] is int ? data['file_size'] as int : 
+                data['fileSize'] is int ? data['fileSize'] as int : null,
+      isProRequired: data['is_pro_required'] ?? data['isProRequired'] ?? false,
+      ratchetN: _toIntSafe(data['ratchet_n'] ?? data['ratchetN']),
+      protocolVersion: _toIntSafe(data['protocol_version'] ?? data['protocolVersion']) == 0 ? 1 : _toIntSafe(data['protocol_version'] ?? data['protocolVersion']),
       alg: data['alg'] as String? ?? 'AES-GCM-256',
-      dhPub: data['dhPub'] as String?,
-      disappearAfterSeconds: data['disappearAfterSeconds'] as int?,
-      disappearAt: data['disappearAt'] != null ? _parseDate(data['disappearAt']) : null,
-      isPinned: data['isPinned'] ?? false,
-      replyToMessageId: data['replyToMessageId'] as String?,
-      replyToSenderId: data['replyToSenderId'] as String?,
-      replyToContent: data['replyToContent'] as String?,
+      dhPub: data['dh_pub'] as String? ?? data['dhPub'] as String?,
+      disappearAfterSeconds: data['disappear_after_seconds'] as int? ?? data['disappearAfterSeconds'] as int?,
+      disappearAt: data['disappear_at'] != null ? _parseDate(data['disappear_at']) : 
+                   data['disappearAt'] != null ? _parseDate(data['disappearAt']) : null,
+      isPinned: data['is_pinned'] ?? data['isPinned'] ?? false,
+      replyToMessageId: data['reply_to_message_id'] as String? ?? data['replyToMessageId'] as String?,
+      replyToSenderId: data['reply_to_sender_id'] as String? ?? data['replyToSenderId'] as String?,
+      replyToContent: data['reply_to_content'] as String? ?? data['replyToContent'] as String?,
       mentions: (data['mentions'] as List<dynamic>?)?.cast<String>(),
-      groupId: data['groupId'] as String?,
+      groupId: data['group_id'] as String? ?? data['groupId'] as String?,
       reactions: (data['reactions'] as Map<String, dynamic>?)?.map(
         (k, v) => MapEntry(k, v as int),
       ),
-      pollId: data['pollId'] as int?,
+      pollId: data['poll_id'] as int? ?? data['pollId'] as int?,
     );
+  }
+
+  factory MessageModel.fromSupabase(Map<String, dynamic> data) {
+    return fromMap(data['id'] ?? '', data);
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'senderId': senderId,
-      'recipientId': receiverId,
+      'id': id,
+      'sender_id': senderId,
+      'recipient_id': receiverId,
       'content': content,
-      'timestamp': Timestamp.fromMillisecondsSinceEpoch(timestamp.millisecondsSinceEpoch),
-      'isRead': isRead,
-      'messageType': type.name,
-      'fileSize': fileSize,
-      'isProRequired': isProRequired,
-      'ratchetN': ratchetN,
-      'protocolVersion': protocolVersion,
+      'timestamp': timestamp.toIso8601String(),
+      'is_read': isRead,
+      'message_type': type.name,
+      'file_size': fileSize,
+      'is_pro_required': isProRequired,
+      'ratchet_n': ratchetN,
+      'protocol_version': protocolVersion,
       if (alg != null) 'alg': alg,
-      if (dhPub != null) 'dhPub': dhPub,
-      if (disappearAfterSeconds != null) 'disappearAfterSeconds': disappearAfterSeconds,
-      if (disappearAt != null) 'disappearAt': disappearAt!.toIso8601String(),
-      'isPinned': isPinned,
-      if (replyToMessageId != null) 'replyToMessageId': replyToMessageId,
-      if (replyToSenderId != null) 'replyToSenderId': replyToSenderId,
-      if (replyToContent != null) 'replyToContent': replyToContent,
+      if (dhPub != null) 'dh_pub': dhPub,
+      if (disappearAfterSeconds != null) 'disappear_after_seconds': disappearAfterSeconds,
+      if (disappearAt != null) 'disappear_at': disappearAt!.toIso8601String(),
+      'is_pinned': isPinned,
+      if (replyToMessageId != null) 'reply_to_message_id': replyToMessageId,
+      if (replyToSenderId != null) 'reply_to_sender_id': replyToSenderId,
+      if (replyToContent != null) 'reply_to_content': replyToContent,
       if (mentions != null && mentions!.isNotEmpty) 'mentions': mentions,
-      if (groupId != null) 'groupId': groupId,
+      if (groupId != null) 'group_id': groupId,
       if (reactions != null && reactions!.isNotEmpty) 'reactions': reactions,
-      if (pollId != null) 'pollId': pollId,
+      if (pollId != null) 'poll_id': pollId,
     };
   }
 
-  Map<String, dynamic> toJson() => {'id': id, ...toMap()};
+  Map<String, dynamic> toJson() => toMap();
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     return MessageModel.fromMap(json['id'] ?? '', json);
@@ -236,14 +210,13 @@ class MessageModel {
   }
 
   static DateTime _tsToDate(dynamic v) {
-    if (v is Timestamp) return v.toDate();
+    if (v is String) return DateTime.tryParse(v) ?? DateTime.now();
     if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
     if (v is DateTime) return v;
     return DateTime.now();
   }
 
   static DateTime _parseDate(dynamic v) {
-    if (v is Timestamp) return v.toDate();
     if (v is String) return DateTime.tryParse(v) ?? DateTime.now();
     if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
     if (v is DateTime) return v;

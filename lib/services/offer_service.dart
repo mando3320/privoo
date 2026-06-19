@@ -1,86 +1,77 @@
 // lib/services/offer_service.dart
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/offer_model.dart';
+import '../main.dart';
+
+final offerServiceProvider = Provider<OfferService>((ref) {
+  return OfferService();
+});
 
 class OfferService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<OfferModel?> validateCoupon(String code, {String? plan}) async {
-    final snapshot = await _firestore
-        .collection('offers')
-        .where('code', isEqualTo: code.toUpperCase())
-        .where('isActive', isEqualTo: true)
-        .limit(1)
-        .get();
+  Future<void> createOffer(OfferModel offer) async {
+    await _supabase.from('offers').insert({
+      'code': offer.code,
+      'title': offer.title,
+      'description': offer.description,
+      'type': offer.type.toString(),
+      'value': offer.value,
+      'start_date': offer.startDate.toIso8601String(),
+      'end_date': offer.endDate.toIso8601String(),
+      'max_uses': offer.maxUses,
+      'target_plan': offer.targetPlan,
+      'is_active': true,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+    logger.i('✅ تم إنشاء العرض: ${offer.code}');
+  }
 
-    if (snapshot.docs.isEmpty) return null;
-
-    final offer = OfferModel.fromFirestore(snapshot.docs.first);
+  Future<OfferModel?> validateCoupon(String code) async {
+    final response = await _supabase
+        .from('offers')
+        .select()
+        .eq('code', code.toUpperCase())
+        .eq('is_active', true)
+        .maybeSingle();
+    
+    if (response == null) return null;
+    
+    final offer = OfferModel.fromSupabase(response);
     if (!offer.isValid) return null;
-    if (offer.targetPlan != null && offer.targetPlan != plan) return null;
-
+    
     return offer;
   }
 
-  Future<bool> redeemCoupon(String userId, String couponCode) async {
-    final snapshot = await _firestore
-        .collection('offers')
-        .where('code', isEqualTo: couponCode.toUpperCase())
-        .limit(1)
-        .get();
+  Future<void> redeemCoupon(String userId, String code) async {
+    final offer = await validateCoupon(code);
+    if (offer == null) throw Exception('كود غير صالح');
 
-    if (snapshot.docs.isEmpty) return false;
-
-    final doc = snapshot.docs.first;
-    final offer = OfferModel.fromFirestore(doc);
-
-    if (!offer.isValid) return false;
-    if (offer.usedBy.contains(userId)) return false;
-
-    await doc.reference.update({
-      'currentUses': FieldValue.increment(1),
-      'usedBy': FieldValue.arrayUnion([userId]),
-    });
-
-    return true;
-  }
-
-  Stream<List<OfferModel>> getActiveOffers() {
-    return _firestore
-        .collection('offers')
-        .where('isActive', isEqualTo: true)
-        .where('endDate', isGreaterThan: Timestamp.now())
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => OfferModel.fromFirestore(doc))
-            .toList());
+    // ✅ تحديث عدد الاستخدامات
+    await _supabase
+        .from('offers')
+        .update({
+          'current_uses': offer.currentUses + 1,
+          'used_by': [...offer.usedBy, userId],
+        })
+        .eq('id', offer.id);
+    
+    logger.i('✅ تم استخدام الكوبون $code من قبل المستخدم $userId');
   }
 
   Stream<List<OfferModel>> getAllOffers() {
-    return _firestore
-        .collection('offers')
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => OfferModel.fromFirestore(doc))
-            .toList());
-  }
-
-  Future<void> createOffer(OfferModel offer) async {
-    await _firestore.collection('offers').add({
-      ...offer.toFirestore(),
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  Future<void> updateOffer(String id, Map<String, dynamic> data) async {
-    await _firestore.collection('offers').doc(id).update(data);
+    return _supabase
+        .from('offers')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .map((data) {
+          return data.map((doc) => OfferModel.fromSupabase(doc)).toList();
+        });
   }
 
   Future<void> deleteOffer(String id) async {
-    await _firestore.collection('offers').doc(id).delete();
+    await _supabase.from('offers').delete().eq('id', id);
+    logger.i('✅ تم حذف العرض: $id');
   }
 }
-
-final offerServiceProvider = Provider<OfferService>((ref) => OfferService());

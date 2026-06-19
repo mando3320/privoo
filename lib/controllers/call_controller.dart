@@ -1,17 +1,16 @@
 // controllers/call_controller.dart
-// controllers/call_controller.dart (النسخة النهائية الكاملة - E2EE + النغمات + Fingerprint Verification)
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/verification_service.dart';
-import '../main.dart'; // لاستيراد Logger
+import '../main.dart';
+import '../services/supabase_service.dart';
 
-/// 📞 محرك المكالمات (WebRTC + E2EE Signaling)
+/// 📞 محرك المكالمات (WebRTC + E2EE Signaling) - Supabase Version
 class CallController {
   RTCPeerConnection? _pc;
   MediaStream? _localStream;
@@ -20,14 +19,13 @@ class CallController {
 
   String? _callId;
   String? _callerId;
-  // receiver id (stored for call lifecycle) — not referenced directly elsewhere
   late _SignalCrypto _crypto;
 
   bool micEnabled = true;
   bool camEnabled = true;
   bool speakerOn = false;
 
-  // ✅ المهمة 14: متغيرات للـ Streams
+  // ✅ Supabase Streams
   StreamSubscription? _callDocSub;
   StreamSubscription? _callerIceSub;
   StreamSubscription? _calleeIceSub;
@@ -40,6 +38,8 @@ class CallController {
   Timer? _offlineTimer;
   final int _offlineTimeoutSeconds = 20;
   bool _answered = false;
+
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   // -------- التهيئة --------
   Future<void> _initRenderers() async {
@@ -193,11 +193,11 @@ class CallController {
     return {};
   }
 
-  // ==================== ✅ المهمة 8: التحقق من Fingerprint ====================
+  // ==================== Fingerprint Verification ====================
   
   Future<String?> _getMyFingerprint() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = SupabaseService().currentUser;
       if (user == null) return null;
       
       final verificationService = VerificationService();
@@ -243,7 +243,7 @@ class CallController {
     }
   }
 
-  // ==================== ✅ المهمة 79: إنشاء مكالمة (بدون CallService) ====================
+  // ==================== إنشاء مكالمة ====================
   
   Future<String?> startCallAsCaller({
     required String callerId,
@@ -268,7 +268,7 @@ class CallController {
         'sdpMid': candidate.sdpMid,
         'sdpMLineIndex': candidate.sdpMLineIndex,
       };
-      await _addIceCandidateToFirestore(
+      await _addIceCandidateToSupabase(
         callId: _callId!,
         senderId: _callerId ?? callerId,
         candidatePlain: candMap,
@@ -280,7 +280,7 @@ class CallController {
     final wrappedOffer = await _wrapEnc(offer.toMap());
 
     _callerId = callerId;
-    _callId = await _createCallInFirestore(
+    _callId = await _createCallInSupabase(
       callerId: callerId,
       receiverId: receiverId,
       offerPlain: wrappedOffer,
@@ -292,8 +292,7 @@ class CallController {
     await _playOutgoingTone();
     _startOfflineTimer();
 
-    _callDocSub = _callDocStream(_callId!).listen((doc) async {
-      final data = doc.data();
+    _callDocSub = _callDocStream(_callId!).listen((data) async {
       if (data == null) return;
 
       final ansField = data['answer'];
@@ -318,9 +317,8 @@ class CallController {
       }
     });
 
-    _calleeIceSub = _candidatesStream(_callId!, false).listen((snap) async {
-      for (var d in snap.docs) {
-        final c = d.data();
+    _calleeIceSub = _candidatesStream(_callId!, false).listen((candidates) async {
+      for (var c in candidates) {
         final encField = c['candidate'];
         final dec = await _unwrapEnc(encField);
         if (dec.isNotEmpty) {
@@ -352,8 +350,8 @@ class CallController {
         'sdpMid': candidate.sdpMid,
         'sdpMLineIndex': candidate.sdpMLineIndex,
       };
-      final myId = FirebaseAuth.instance.currentUser?.uid ?? '';
-      await _addIceCandidateToFirestore(
+      final myId = SupabaseService().currentUser?.id ?? '';
+      await _addIceCandidateToSupabase(
         callId: _callId!,
         senderId: myId,
         candidatePlain: candMap,
@@ -363,11 +361,14 @@ class CallController {
     await _playIncomingTone();
 
     // read call doc once to obtain callerId
-    final callDoc = await FirebaseFirestore.instance.collection('calls').doc(callId).get();
-    _callerId = callDoc.data()?['callerId'] as String?;
+    final callDoc = await _supabase
+        .from('calls')
+        .select()
+        .eq('id', callId)
+        .maybeSingle();
+    _callerId = callDoc?['caller_id'] as String?;
 
-    _callDocSub = _callDocStream(callId).listen((doc) async {
-      final data = doc.data();
+    _callDocSub = _callDocStream(callId).listen((data) async {
       if (data == null) return;
       final offField = data['offer'];
 
@@ -381,7 +382,7 @@ class CallController {
           final answer = await _pc!.createAnswer({'offerToReceiveVideo': 1, 'offerToReceiveAudio': 1});
           await _pc!.setLocalDescription(answer);
           final wrappedAnswer = await _wrapEnc(answer.toMap());
-          await _answerCallInFirestore(callId: callId, answer: wrappedAnswer);
+          await _answerCallInSupabase(callId: callId, answer: wrappedAnswer);
           logger.i("📤 تم إرسال Answer للمتصل.");
         }
       }
@@ -391,9 +392,8 @@ class CallController {
       }
     });
 
-    _callerIceSub = _candidatesStream(callId, true).listen((snap) async {
-      for (var d in snap.docs) {
-        final c = d.data();
+    _callerIceSub = _candidatesStream(callId, true).listen((candidates) async {
+      for (var c in candidates) {
         final encField = c['candidate'];
         final dec = await _unwrapEnc(encField);
         if (dec.isNotEmpty) {
@@ -408,8 +408,8 @@ class CallController {
   Future<void> endCall() async {
     logger.i("🛑 جاري إنهاء المكالمة... $_callId");
     if (_callId != null) {
-      await _endCallInFirestore(_callId!);
-      await _clearCandidatesInFirestore(_callId!);
+      await _endCallInSupabase(_callId!);
+      await _clearCandidatesInSupabase(_callId!);
     }
     _cancelOfflineTimer();
     await _stopAllTones();
@@ -475,92 +475,89 @@ class CallController {
     }
   }
 
-  // ==================== Firebase Helper Methods (بديل CallService) ====================
+  // ==================== Supabase Helper Methods ====================
   
-  Future<String> _createCallInFirestore({
+  Future<String> _createCallInSupabase({
     required String callerId,
     required String receiverId,
     required Map<String, dynamic> offerPlain,
     required bool isVideo,
   }) async {
-    final callRef = FirebaseFirestore.instance.collection('calls').doc();
-    await callRef.set({
-      'callerId': callerId,
-      'receiverId': receiverId,
+    final callId = DateTime.now().millisecondsSinceEpoch.toString();
+    await _supabase.from('calls').insert({
+      'id': callId,
+      'caller_id': callerId,
+      'receiver_id': receiverId,
       'offer': offerPlain,
-      'isVideo': isVideo,
+      'is_video': isVideo,
       'active': true,
-      'createdAt': FieldValue.serverTimestamp(),
+      'created_at': DateTime.now().toIso8601String(),
     });
-    return callRef.id;
+    return callId;
   }
 
-  Future<void> _answerCallInFirestore({
+  Future<void> _answerCallInSupabase({
     required String callId,
     required Map<String, dynamic> answer,
   }) async {
-    await FirebaseFirestore.instance
-        .collection('calls')
-        .doc(callId)
-        .update({'answer': answer});
+    await _supabase
+        .from('calls')
+        .update({'answer': answer})
+        .eq('id', callId);
   }
 
-  Future<void> _endCallInFirestore(String callId) async {
-    await FirebaseFirestore.instance
-        .collection('calls')
-        .doc(callId)
-        .update({'active': false, 'endedAt': FieldValue.serverTimestamp()});
+  Future<void> _endCallInSupabase(String callId) async {
+    await _supabase
+        .from('calls')
+        .update({
+          'active': false,
+          'ended_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', callId);
   }
 
-  Future<void> _addIceCandidateToFirestore({
+  Future<void> _addIceCandidateToSupabase({
     required String callId,
     required String senderId,
     required Map<String, dynamic> candidatePlain,
   }) async {
-    await FirebaseFirestore.instance
-        .collection('calls')
-        .doc(callId)
-        .collection('iceCandidates')
-        .add({
-      'senderId': senderId,
+    await _supabase.from('ice_candidates').insert({
+      'call_id': callId,
+      'sender_id': senderId,
       'candidate': candidatePlain,
-      'createdAt': FieldValue.serverTimestamp(),
+      'created_at': DateTime.now().toIso8601String(),
     });
   }
 
-  Future<void> _clearCandidatesInFirestore(String callId) async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('calls')
-        .doc(callId)
-        .collection('iceCandidates')
-        .get();
-    
-    for (var doc in snapshot.docs) {
-      await doc.reference.delete();
-    }
+  Future<void> _clearCandidatesInSupabase(String callId) async {
+    await _supabase
+        .from('ice_candidates')
+        .delete()
+        .eq('call_id', callId);
   }
 
-  Stream<DocumentSnapshot<Map<String, dynamic>>> _callDocStream(String callId) {
-    return FirebaseFirestore.instance
-        .collection('calls')
-        .doc(callId)
-        .snapshots();
+  Stream<Map<String, dynamic>?> _callDocStream(String callId) {
+    return _supabase
+        .from('calls')
+        .stream(primaryKey: ['id'])
+        .eq('id', callId)
+        .map((data) => data.isEmpty ? null : data.first);
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _candidatesStream(
+  Stream<List<Map<String, dynamic>>> _candidatesStream(
     String callId,
     bool isCaller,
   ) {
-    final myId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    return FirebaseFirestore.instance
-        .collection('calls')
-        .doc(callId)
-        .collection('iceCandidates')
-        .where('senderId', isNotEqualTo: myId)
-        .snapshots();
+    final myId = SupabaseService().currentUser?.id ?? '';
+    return _supabase
+        .from('ice_candidates')
+        .stream(primaryKey: ['id'])
+        .eq('call_id', callId)
+        .neq('sender_id', myId)
+        .map((data) => List<Map<String, dynamic>>.from(data));
   }
 
-  // -------- تنظيف (المهمة 14) --------
+  // -------- تنظيف --------
   Future<void> dispose() async {
     await _callDocSub?.cancel();
     await _callerIceSub?.cancel();

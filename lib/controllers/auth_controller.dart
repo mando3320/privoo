@@ -1,8 +1,5 @@
-// controllers/auth_controller.dart
-
+// lib/controllers/auth_controller.dart
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,7 +7,7 @@ import 'package:local_auth/local_auth.dart';
 
 import '../main.dart';
 import 'app_controller.dart';
-import '../services/api/auth_service.dart';
+import '../services/supabase_service.dart';
 import '../services/quantum_resistant_service.dart';
 import 'lifetime_users.dart';
 import '../models/admin_model.dart';
@@ -21,18 +18,15 @@ final authControllerProvider = ChangeNotifierProvider<AuthController>((ref) {
 });
 
 class AuthController extends ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SupabaseService _supabase = SupabaseService();
   final Ref _ref;
   final Logger _logger = logger;
-  final AuthService _authService = AuthService();
   final LocalAuthentication _localAuth = LocalAuthentication();
 
   AuthController({required Ref ref}) : _ref = ref;
 
-  // Verification id for phone auth (not referenced directly)
   bool isLoading = false;
   
-  // ✅ متغيرات المشرف
   AdminModel? _currentAdmin;
   AdminModel? get currentAdmin => _currentAdmin;
   bool get isAdmin => _currentAdmin != null && _currentAdmin!.isActive;
@@ -40,95 +34,107 @@ class AuthController extends ChangeNotifier {
 
   AppController get _appController => _ref.read(appControllerProvider);
 
+  // ============================================================
+  // 📱 Phone Auth (Supabase)
+  // ============================================================
+
   Future<void> sendOTP(String phoneNumber) async {
     isLoading = true;
     notifyListeners();
-    final ok = await _authService.sendOTP(phoneNumber);
-    isLoading = false;
-    notifyListeners();
-    if (!ok) _logger.w("❌ فشل إرسال OTP");
-  }
-
-  Future<void> verifyOTP(String smsCode) async {
-    isLoading = true;
-    notifyListeners();
-    final ok = await _authService.verifyOTP(smsCode);
-    if (ok) {
-      final user = _auth.currentUser;
-      final phoneNumber = user?.phoneNumber;
-      await _generateQuantumKeys(user!.uid);
-      await _checkLifetimeStatus(phoneNumber);
-      await _checkAdminStatus(phoneNumber);
+    try {
+      await _supabase.signInWithOTP(phoneNumber);
+      _logger.i("✅ تم إرسال OTP إلى $phoneNumber");
+    } catch (e) {
+      _logger.w("❌ فشل إرسال OTP: $e");
     }
     isLoading = false;
     notifyListeners();
   }
+
+  Future<void> verifyOTP(String smsCode, String phoneNumber) async {
+    isLoading = true;
+    notifyListeners();
+    try {
+      final response = await _supabase.verifyOTP(phoneNumber, smsCode);
+      final user = response.user;
+      
+      if (user != null) {
+        _logger.i("✅ تم تسجيل الدخول: ${user.id}");
+        await _generateQuantumKeys(user.id);
+        await _checkLifetimeStatus(user.id);
+        await _checkAdminStatus(user.id);
+      } else {
+        _logger.w("❌ فشل التحقق من OTP");
+      }
+    } catch (e) {
+      _logger.e("❌ خطأ في التحقق: $e");
+    }
+    isLoading = false;
+    notifyListeners();
+  }
+
+  // ============================================================
+  // 🔐 Quantum Keys
+  // ============================================================
 
   Future<void> _generateQuantumKeys(String userId) async {
     try {
       await QuantumResistantService.generateKyberKeyPair(userId);
       await QuantumResistantService.generateDilithiumKeyPair(userId);
-      logger.i('🔐 تم توليد المفاتيح الكمومية للمستخدم $userId');
+      _logger.i('🔐 تم توليد المفاتيح الكمومية للمستخدم $userId');
     } catch (e) {
-      logger.w('⚠️ فشل توليد المفاتيح الكمومية: $e');
+      _logger.w('⚠️ فشل توليد المفاتيح الكمومية: $e');
     }
   }
 
-  Future<void> signInWithKeys(String userId) async {
-    isLoading = true;
-    notifyListeners();
-    final uid = await _authService.signInWithKeys(userId);
-    if (uid != null) {
-      await _generateQuantumKeys(uid);
-      await _checkLifetimeStatus(uid);
-      _logger.i("✅ تسجيل دخول بالمفاتيح فقط: $uid");
-    } else {
-      _logger.e("❌ فشل تسجيل الدخول بالمفاتيح");
-    }
-    isLoading = false;
-    notifyListeners();
-  }
-
-  Future<String?> getMyFingerprint() async {
-    return await _authService.getMyFingerprint();
-  }
-
-  Future<bool> verifyPeerFingerprint(String peerId, String expectedFingerprint) async {
-    return await _authService.verifyPeerFingerprint(peerId, expectedFingerprint);
-  }
+  // ============================================================
+  // 👤 Profile
+  // ============================================================
 
   Future<void> saveProfile(String name, String status, {String avatarUrl = ""}) async {
-    final user = _auth.currentUser;
+    final user = _supabase.currentUser;
     if (user == null) return;
+    
     try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'id': user.uid,
+      await _supabase.updateUser(user.id, {
         'name': name,
-        'phone': user.phoneNumber,
-        'avatarUrl': avatarUrl,
-        'isOnline': true,
-        'status': status,
-        'lastSeen': DateTime.now(),
-      }, SetOptions(merge: true));
-      _logger.d('✅ تم حفظ الملف الشخصي للمستخدم: ${user.uid}');
+        'avatar_url': avatarUrl,
+        'about': status,
+        'is_active': true,
+        'last_seen': DateTime.now().toIso8601String(),
+      });
+      _logger.d('✅ تم حفظ الملف الشخصي للمستخدم: ${user.id}');
     } catch (e) {
       _logger.e('❌ خطأ أثناء حفظ الملف الشخصي: $e');
     }
   }
 
+  // ============================================================
+  // 🚪 Logout
+  // ============================================================
+
   Future<void> logout() async {
     try {
-      final userId = _auth.currentUser?.uid;
-      if (userId != null) {
-        await QuantumResistantService.deleteQuantumKeys(userId);
+      final user = _supabase.currentUser;
+      if (user != null) {
+        await QuantumResistantService.deleteQuantumKeys(user.id);
+        // ✅ تحديث حالة عدم الاتصال
+        await _supabase.updateUser(user.id, {
+          'is_active': false,
+          'last_seen': DateTime.now().toIso8601String(),
+        });
       }
-      await _auth.signOut();
+      await _supabase.signOut();
       await _appController.updateSubscriptionStatus(isPro: false, isLifetime: false);
       _logger.d('✅ تم تسجيل الخروج');
     } catch (e) {
       _logger.e('❌ خطأ أثناء تسجيل الخروج: $e');
     }
   }
+
+  // ============================================================
+  // 👑 Admin & Lifetime Checks (Supabase)
+  // ============================================================
 
   Future<bool> checkIfAdminLocal(String phoneNumber) async {
     return adminPhones.contains(phoneNumber);
@@ -138,100 +144,81 @@ class AuthController extends ChangeNotifier {
     return lifetimePhones.contains(phoneNumber);
   }
 
-  Future<void> _checkLifetimeStatus(String? phoneNumber) async {
-    if (phoneNumber == null) return;
-
-    if (lifetimePhones.contains(phoneNumber)) {
-      await _appController.updateSubscriptionStatus(isPro: true, isLifetime: true);
-      _logger.i("✅ تم تفعيل اشتراك مدى الحياة للمستخدم $phoneNumber");
-      return;
-    }
-
+  Future<void> _checkLifetimeStatus(String userId) async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('licenses')
-          .doc('mando_lifetime')
-          .get();
+      final userData = await _supabase.getUser(userId);
+      if (userData == null) return;
+      
+      final phoneNumber = userData.phoneNumber;
+      if (phoneNumber == null) return;
+      
+      // ✅ التحقق من القائمة المحلية
+      if (lifetimePhones.contains(phoneNumber)) {
+        await _appController.updateSubscriptionStatus(isPro: true, isLifetime: true);
+        _logger.i("✅ تم تفعيل اشتراك مدى الحياة للمستخدم $phoneNumber");
+        return;
+      }
 
-      if (doc.exists) {
-        final data = doc.data()!;
-        final owner = data['owner'];
-        final family = List<String>.from(data['family'] ?? []);
-        final bool isFirestoreLifetime = phoneNumber == owner || family.contains(phoneNumber);
-        
-        if (isFirestoreLifetime) {
-          await _appController.updateSubscriptionStatus(isPro: true, isLifetime: true);
-          _logger.i("✅ تم تفعيل اشتراك مدى الحياة للمستخدم $phoneNumber (من Firestore)");
-          return;
-        }
+      // ✅ التحقق من البيانات في Supabase
+      if (userData.isLifetime) {
+        await _appController.updateSubscriptionStatus(isPro: true, isLifetime: true);
+        _logger.i("✅ تم تفعيل اشتراك مدى الحياة للمستخدم $phoneNumber (من Supabase)");
+        return;
       }
     } catch (e) {
-      _logger.e('❌ خطأ أثناء التحقق من Firestore: $e');
-    }
-
-    final token = await _auth.currentUser?.getIdToken() ?? '';
-    if (token.isNotEmpty) {
-      await _appController.fetchAndVerifyUserStatus(token);
+      _logger.e('❌ خطأ أثناء التحقق من الاشتراك: $e');
     }
   }
 
-  // ✅ دالة التحقق من صلاحية المشرف (معدلة لدعم الأدوار)
-  Future<void> _checkAdminStatus(String? phoneNumber) async {
-    if (phoneNumber == null) return;
-
-    // التحقق من القائمة الثابتة أولاً
-    if (adminPhones.contains(phoneNumber)) {
-      _logger.i("✅ المستخدم $phoneNumber لديه صلاحيات مشرف (Super Admin)");
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isAdmin', true);
-      await prefs.setString('adminRole', 'super_admin');
-      
-      // إنشاء كائن المشرف
-      _currentAdmin = AdminModel(
-        phoneNumber: phoneNumber,
-        role: AdminRole.superAdmin,
-        name: 'المدير العام',
-        assignedAt: DateTime.now(),
-        permissions: RolePermissions.getPermissionsForRole(AdminRole.superAdmin),
-        isActive: true,
-      );
-      notifyListeners();
-      return;
-    }
-
-    // التحقق من Firestore
+  Future<void> _checkAdminStatus(String userId) async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('admins')
-          .doc(phoneNumber)
-          .get();
-          
-      if (doc.exists) {
-        _currentAdmin = AdminModel.fromMap(doc.data()!);
-        _logger.i("✅ المستخدم $phoneNumber لديه صلاحيات مشرف: ${_currentAdmin!.role.displayName}");
+      final userData = await _supabase.getUser(userId);
+      if (userData == null) return;
+      
+      final phoneNumber = userData.phoneNumber;
+      if (phoneNumber == null) return;
+      
+      // ✅ التحقق من القائمة الثابتة
+      if (adminPhones.contains(phoneNumber)) {
+        _logger.i("✅ المستخدم $phoneNumber لديه صلاحيات مشرف (Super Admin)");
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isAdmin', true);
-        await prefs.setString('adminRole', _currentAdmin!.role.apiValue);
+        await prefs.setString('adminRole', 'super_admin');
+        
+        _currentAdmin = AdminModel(
+          phoneNumber: phoneNumber,
+          role: AdminRole.superAdmin,
+          name: userData.name ?? 'المدير العام',
+          assignedAt: DateTime.now(),
+          permissions: RolePermissions.getPermissionsForRole(AdminRole.superAdmin),
+          isActive: true,
+        );
         notifyListeners();
-      } else {
-        _currentAdmin = null;
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('isAdmin');
-        await prefs.remove('adminRole');
+        return;
       }
+
+      // ✅ التحقق من Supabase (لو في جدول admins)
+      // TODO: إضافة جدول admins في Supabase
+      _currentAdmin = null;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('isAdmin');
+      await prefs.remove('adminRole');
+      
     } catch (e) {
       _logger.e('❌ خطأ أثناء التحقق من صلاحية المشرف: $e');
       _currentAdmin = null;
     }
   }
 
-  // ✅ دالة التحقق من الصلاحية (للاستخدام في الشاشات)
+  // ============================================================
+  // 🛡️ Permissions
+  // ============================================================
+
   bool hasPermission(String permission) {
     if (_currentAdmin == null) return false;
     return RolePermissions.hasPermission(_currentAdmin!.role, permission);
   }
 
-  // ✅ دالة الحصول على بيانات المشرف من التخزين المحلي (للسرعة)
   Future<void> loadAdminFromCache() async {
     final prefs = await SharedPreferences.getInstance();
     final isAdminCached = prefs.getBool('isAdmin') ?? false;
@@ -250,11 +237,18 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  // ✅ دالة التحقق من المشرف (للاستخدام في FutureBuilder)
   Future<bool> checkIfAdmin(String phoneNumber) async {
-    await _checkAdminStatus(phoneNumber);
+    // ✅ محاولة جلب المستخدم من Supabase
+    final user = await _supabase.getUserByPhone(phoneNumber);
+    if (user != null) {
+      await _checkAdminStatus(user.authId);
+    }
     return isAdmin;
   }
+
+  // ============================================================
+  // 🔐 Biometrics
+  // ============================================================
 
   Future<bool> authenticateWithBiometrics() async {
     final isPro = _appController.isPro;
@@ -281,5 +275,9 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  User? get currentUser => _auth.currentUser;
+  // ============================================================
+  // 📊 Current User
+  // ============================================================
+
+  User? get currentUser => _supabase.currentUser;
 }

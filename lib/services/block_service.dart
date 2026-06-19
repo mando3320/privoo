@@ -1,53 +1,58 @@
 // lib/services/block_service.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'supabase_service.dart';
 
 class BlockService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<void> blockUser(String userId) async {
-    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
+    final currentUser = SupabaseService().currentUser;
+    if (currentUser == null) return;
     
-    await _firestore
-        .collection('users')
-        .doc(currentUserId)
-        .collection('blocked')
-        .doc(userId)
-        .set({'blockedAt': FieldValue.serverTimestamp()});
+    await _supabase.from('block_list').insert({
+      'blocker_id': currentUser.id,
+      'blocked_id': userId,
+      'created_at': DateTime.now().toIso8601String(),
+    });
   }
 
   Future<void> unblockUser(String userId) async {
-    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
+    final currentUser = SupabaseService().currentUser;
+    if (currentUser == null) return;
     
-    await _firestore
-        .collection('users')
-        .doc(currentUserId)
-        .collection('blocked')
-        .doc(userId)
-        .delete();
+    await _supabase
+        .from('block_list')
+        .delete()
+        .eq('blocker_id', currentUser.id)
+        .eq('blocked_id', userId);
   }
 
   Future<bool> isBlocked(String userId) async {
-    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
+    final currentUser = SupabaseService().currentUser;
+    if (currentUser == null) return false;
     
-    final doc = await _firestore
-        .collection('users')
-        .doc(currentUserId)
-        .collection('blocked')
-        .doc(userId)
-        .get();
+    final response = await _supabase
+        .from('block_list')
+        .select()
+        .eq('blocker_id', currentUser.id)
+        .eq('blocked_id', userId)
+        .maybeSingle();
     
-    return doc.exists;
+    return response != null;
   }
 
   Stream<List<String>> getBlockedUsers() {
-    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
+    final currentUser = SupabaseService().currentUser;
+    if (currentUser == null) {
+      return Stream.value([]);
+    }
     
-    return _firestore
-        .collection('users')
-        .doc(currentUserId)
-        .collection('blocked')
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => doc.id).toList());
+    return _supabase
+        .from('block_list')
+        .stream(primaryKey: ['id'])
+        .eq('blocker_id', currentUser.id)
+        .map((data) {
+          return data.map((doc) => doc['blocked_id'] as String).toList();
+        });
   }
 }

@@ -4,10 +4,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -16,10 +14,13 @@ import 'package:record/record.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import '../main.dart';
 import 'app_controller.dart';
 import '../models/message_model.dart';
+import '../models/chat_model.dart';
+import '../models/chat_member_model.dart';
 import '../services/api/chat_service.dart';
 import '../services/encryption_service.dart';
 import '../services/ai/ai_service.dart';
@@ -31,6 +32,7 @@ import '../services/advanced_search_service.dart';
 import '../services/audit_log_service.dart';
 import '../services/hive_storage_service.dart';
 import '../services/typing_service.dart';
+import '../services/supabase_storage_service.dart';
 
 final encryptionServiceProvider = Provider<EncryptionService>((ref) => EncryptionService());
 
@@ -39,9 +41,8 @@ final chatControllerProvider = ChangeNotifierProvider<ChatController>((ref) => C
 class ChatController extends ChangeNotifier {
   final Ref _ref;
   final ChatService _chatService = ChatService();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseStorageService _storage = SupabaseStorageService();
   final KeyExchangeService _keyExchange = KeyExchangeService();
   final AuditLogService _auditLog = AuditLogService();
   final TypingService _typingService = TypingService();
@@ -83,70 +84,20 @@ class ChatController extends ChangeNotifier {
   String get quantumFingerprint => _quantumFingerprint;
 
   String get currentUserId {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
       logger.e('❌ محاولة استخدام currentUserId والمستخدم غير مسجل');
       return '';
     }
-    return uid;
+    return user.id;
   }
 
   bool get _isProUser => _ref.read(appControllerProvider).isPro;
   bool get _isLifetimeUser => _ref.read(appControllerProvider).isLifetime;
 
-  void setReplyingTo(MessageModel? message) {
-    _replyingTo = message;
-    notifyListeners();
-  }
-
-  void clearReplyingTo() {
-    _replyingTo = null;
-    notifyListeners();
-  }
-
-  Future<void> toggleSealedSender(bool value) async {
-    _useSealedSender = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('use_sealed_sender', value);
-    notifyListeners();
-    logger.i('🔒 Sealed Sender: ${value ? "ON" : "OFF"}');
-    
-    await _auditLog.logEvent(
-      eventType: AuditEventType.messageSent,
-      details: 'Sealed Sender toggled: $value',
-    );
-  }
-
-  Future<void> toggleQuantumResistance(bool value) async {
-    _useQuantumResistance = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('use_quantum_resistance', value);
-    notifyListeners();
-    logger.i('🔬 Quantum Resistance: ${value ? "ON" : "OFF"}');
-  }
-
-  Future<void> initQuantumSession(String chatId, String peerUserId) async {
-    if (!_useQuantumResistance) return;
-    
-    try {
-      final session = await _keyExchange.establishQuantumSession(
-        chatId: chatId,
-        myUserId: currentUserId,
-        peerUserId: peerUserId,
-        useQuantum: _useQuantumResistance,
-      );
-      
-      _isQuantumSession = session.isQuantumReady;
-      _quantumFingerprint = session.quantumFingerprint;
-      notifyListeners();
-      
-      if (session.isQuantumReady) {
-        logger.i('🔐 تم إنشاء جلسة كمومية للمحادثة $chatId');
-      }
-    } catch (e) {
-      logger.w('⚠️ فشل إنشاء الجلسة الكمومية: $e');
-    }
-  }
+  // ============================================================
+  // 🏗️ المنشئ
+  // ============================================================
 
   ChatController({required Ref ref}) : _ref = ref {
     _loadSealedSenderPreference();
@@ -165,20 +116,138 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ============================================================
+  // 📨 استقبال الرسائل من Supabase
+  // ============================================================
+  
+  /// ✅ جلب رسائل المحادثة مع معلومات المرسل
   Stream<List<MessageModel>> getMessages(String chatId) {
-    final peerUserId = _extractPeerUserId(chatId);
-    return _chatService.getMessages(
-      chatId: chatId,
-      myUserId: currentUserId,
-      peerUserId: peerUserId,
-    );
+    return _supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .eq('chat_id', chatId)
+        .order('timestamp', ascending: true)
+        .map((data) {
+          return data.map((doc) => MessageModel.fromSupabase(doc)).toList();
+        });
+  }
+
+  /// ✅ جلب معلومات المحادثة
+  Future<ChatModel?> getChat(String chatId) async {
+    try {
+      final response = await _supabase
+          .from('chats')
+          .select()
+          .eq('id', chatId)
+          .maybeSingle();
+      
+      if (response == null) return null;
+      return ChatModel.fromSupabase(response);
+    } catch (e) {
+      logger.e('❌ فشل جلب المحادثة: $e');
+      return null;
+    }
+  }
+
+  /// ✅ جلب أعضاء المحادثة
+  Future<List<ChatMemberModel>> getChatMembers(String chatId) async {
+    try {
+      final response = await _supabase
+          .from('chat_members')
+          .select()
+          .eq('chat_id', chatId);
+      
+      return response.map((doc) => ChatMemberModel.fromSupabase(doc)).toList();
+    } catch (e) {
+      logger.e('❌ فشل جلب أعضاء المحادثة: $e');
+      return [];
+    }
+  }
+
+  /// ✅ إنشاء محادثة جديدة
+  Future<String> createChat({
+    required String chatName,
+    required List<String> memberIds,
+    String? avatarUrl,
+    bool isGroup = false,
+  }) async {
+    try {
+      final chatId = const Uuid().v4();
+      final now = DateTime.now().toIso8601String();
+
+      // ✅ إنشاء المحادثة
+      await _supabase.from('chats').insert({
+        'id': chatId,
+        'name': chatName,
+        'avatar_url': avatarUrl,
+        'is_group': isGroup,
+        'created_by': currentUserId,
+        'created_at': now,
+        'updated_at': now,
+      });
+
+      // ✅ إضافة الأعضاء
+      final members = [
+        {'chat_id': chatId, 'user_id': currentUserId, 'role': 'admin', 'joined_at': now},
+        ...memberIds.map((uid) => {
+          'chat_id': chatId,
+          'user_id': uid,
+          'role': 'member',
+          'joined_at': now,
+        }),
+      ];
+
+      await _supabase.from('chat_members').insert(members);
+
+      logger.i('✅ تم إنشاء المحادثة $chatId');
+      return chatId;
+    } catch (e) {
+      logger.e('❌ فشل إنشاء المحادثة: $e');
+      rethrow;
+    }
+  }
+
+  /// ✅ إضافة عضو إلى محادثة
+  Future<void> addMemberToChat(String chatId, String userId) async {
+    try {
+      await _supabase.from('chat_members').insert({
+        'chat_id': chatId,
+        'user_id': userId,
+        'role': 'member',
+        'joined_at': DateTime.now().toIso8601String(),
+      });
+      logger.i('✅ تم إضافة المستخدم $userId إلى المحادثة $chatId');
+    } catch (e) {
+      logger.e('❌ فشل إضافة العضو: $e');
+      rethrow;
+    }
+  }
+
+  /// ✅ إزالة عضو من محادثة
+  Future<void> removeMemberFromChat(String chatId, String userId) async {
+    try {
+      await _supabase
+          .from('chat_members')
+          .delete()
+          .eq('chat_id', chatId)
+          .eq('user_id', userId);
+      logger.i('✅ تم إزالة المستخدم $userId من المحادثة $chatId');
+    } catch (e) {
+      logger.e('❌ فشل إزالة العضو: $e');
+      rethrow;
+    }
   }
 
   String _extractPeerUserId(String chatId) {
+    // ✅ في حالة المحادثات الفردية، نستخرج الطرف الآخر
     final ids = chatId.split('_');
     return ids.firstWhere((id) => id != currentUserId,
         orElse: () => ids.isEmpty ? '' : ids[0]);
   }
+
+  // ============================================================
+  // 🔐 دوال التشفير والجلسات
+  // ============================================================
 
   Future<List<int>> _ensureSession(String chatId, String peerUserId) async {
     try {
@@ -205,6 +274,10 @@ class ChatController extends ChangeNotifier {
     }
   }
 
+  // ============================================================
+  // 📨 إرسال الرسائل
+  // ============================================================
+
   Future<void> _regularSend(String chatId, String receiverId, String plainText) async {
     await _ensureSession(chatId, receiverId);
 
@@ -214,9 +287,10 @@ class ChatController extends ChangeNotifier {
         : replyToContent;
 
     final message = MessageModel(
-      id: UniqueKey().toString(),
+      id: const Uuid().v4(),
       senderId: currentUserId,
       receiverId: receiverId,
+      chatId: chatId,
       content: plainText,
       timestamp: DateTime.now(),
       type: MessageType.text,
@@ -234,7 +308,7 @@ class ChatController extends ChangeNotifier {
     
     await _auditLog.logEvent(
       eventType: AuditEventType.messageSent,
-      details: 'Message sent to $receiverId',
+      details: 'Message sent to $receiverId in chat $chatId',
     );
   }
 
@@ -278,9 +352,10 @@ class ChatController extends ChangeNotifier {
     if (!app.canSendMessage) {
       final warning = "تم الوصول إلى الحد اليومي. اشترك في Privoo Pro للاستمرار.";
       final botMessage = MessageModel(
-        id: UniqueKey().toString(),
+        id: const Uuid().v4(),
         senderId: "PrivooAI",
         receiverId: currentUserId,
+        chatId: chatId,
         content: warning,
         timestamp: DateTime.now(),
         type: MessageType.text,
@@ -308,9 +383,10 @@ class ChatController extends ChangeNotifier {
     }
 
     final botMessage = MessageModel(
-      id: UniqueKey().toString(),
+      id: const Uuid().v4(),
       senderId: "PrivooAI",
       receiverId: currentUserId,
+      chatId: chatId,
       content: botReply,
       timestamp: DateTime.now(),
       type: MessageType.text,
@@ -323,6 +399,10 @@ class ChatController extends ChangeNotifier {
       peerUserId: receiverId,
     );
   }
+
+  // ============================================================
+  // ⏳ الرسائل المؤقتة
+  // ============================================================
 
   Future<void> sendDisappearingMessage(
     String chatId,
@@ -339,9 +419,10 @@ class ChatController extends ChangeNotifier {
         : null;
 
     final message = MessageModel(
-      id: UniqueKey().toString(),
+      id: const Uuid().v4(),
       senderId: currentUserId,
       receiverId: receiverId,
+      chatId: chatId,
       content: plainText,
       timestamp: DateTime.now(),
       type: MessageType.text,
@@ -360,19 +441,26 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ============================================================
+  // 📌 تثبيت الرسائل
+  // ============================================================
+
   Future<void> togglePinMessage(String chatId, String messageId, bool isPinned) async {
-    await _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .doc(messageId)
-        .update({'isPinned': !isPinned});
-    
+    await _supabase
+        .from('messages')
+        .update({'is_pinned': !isPinned})
+        .eq('id', messageId)
+        .eq('chat_id', chatId);
+
     if (!isPinned) {
       _pinnedMessage = null;
     }
     notifyListeners();
   }
+
+  // ============================================================
+  // 📢 الإشارات (Mentions)
+  // ============================================================
 
   Future<void> sendMentionMessage(
     String chatId,
@@ -385,9 +473,10 @@ class ChatController extends ChangeNotifier {
     await _ensureSession(chatId, receiverId);
 
     final message = MessageModel(
-      id: UniqueKey().toString(),
+      id: const Uuid().v4(),
       senderId: currentUserId,
       receiverId: receiverId,
+      chatId: chatId,
       content: plainText,
       timestamp: DateTime.now(),
       type: MessageType.text,
@@ -405,10 +494,18 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ============================================================
+  // 🤖 الردود الذكية
+  // ============================================================
+
   Future<void> sendSmartReply(String reply, String chatId, String receiverId) async {
     inputController.text = reply;
     await sendTextMessage(chatId, receiverId);
   }
+
+  // ============================================================
+  // 📁 رفع الملفات المشفرة إلى Supabase Storage
+  // ============================================================
 
   Future<String> _uploadFileEncrypted(String localPath, String folder, String chatId) async {
     final file = File(localPath);
@@ -426,14 +523,23 @@ class ChatController extends ChangeNotifier {
     await tempFile.writeAsBytes(encryptedBytes);
     
     final fileName = "${DateTime.now().millisecondsSinceEpoch}_${path.basename(localPath)}.enc";
-    final ref = _storage.ref().child("$folder/$currentUserId/$fileName");
-    await ref.putFile(tempFile);
-    final url = await ref.getDownloadURL();
+    final filePath = "$folder/$currentUserId/$chatId/$fileName";
+    
+    // ✅ رفع إلى Supabase Storage
+    final url = await _storage.uploadFile(
+      bucket: 'chat_files',
+      path: filePath,
+      file: tempFile,
+    );
     
     await tempFile.delete();
     
     return url;
   }
+
+  // ============================================================
+  // 📷 إرسال الوسائط
+  // ============================================================
 
   Future<void> sendMediaMessage(
     String chatId,
@@ -468,9 +574,10 @@ class ChatController extends ChangeNotifier {
     final url = await _uploadFileEncrypted(localPath, folder, chatId);
 
     final message = MessageModel(
-      id: UniqueKey().toString(),
+      id: const Uuid().v4(),
       senderId: currentUserId,
       receiverId: receiverId,
+      chatId: chatId,
       content: url,
       timestamp: DateTime.now(),
       type: messageType,
@@ -499,13 +606,18 @@ class ChatController extends ChangeNotifier {
   Future<void> sendGifMessage(String chatId, String receiverId, String url, int size) =>
       sendMediaMessage(chatId, receiverId, url, "gif");
 
+  // ============================================================
+  // 👤 إرسال جهة اتصال
+  // ============================================================
+
   Future<void> sendContactMessage(
       String chatId, String receiverId, String contactName, [String? phone]) async {
     final payload = jsonEncode({'name': contactName, 'phone': phone});
     final message = MessageModel(
-      id: UniqueKey().toString(),
+      id: const Uuid().v4(),
       senderId: currentUserId,
       receiverId: receiverId,
+      chatId: chatId,
       content: payload,
       timestamp: DateTime.now(),
       type: MessageType.file,
@@ -517,6 +629,10 @@ class ChatController extends ChangeNotifier {
       peerUserId: receiverId,
     );
   }
+
+  // ============================================================
+  // 📤 تصدير المحادثة
+  // ============================================================
 
   Future<void> exportCurrentChat(String chatId) async {
     try {
@@ -531,17 +647,18 @@ class ChatController extends ChangeNotifier {
   }
   
   Future<List<MessageModel>> _getAllMessagesForChat(String chatId) async {
-    final snapshot = await _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .orderBy('timestamp')
-        .get();
-    
-    return snapshot.docs
-        .map((doc) => MessageModel.fromDoc(doc))
-        .toList();
+    final response = await _supabase
+        .from('messages')
+        .select()
+        .eq('chat_id', chatId)
+        .order('timestamp', ascending: true);
+
+    return response.map((doc) => MessageModel.fromSupabase(doc)).toList();
   }
+
+  // ============================================================
+  // 🔍 البحث المتقدم
+  // ============================================================
 
   Future<List<MessageModel>> advancedSearch(String query) async {
     final searchService = AdvancedSearchService();
@@ -550,6 +667,10 @@ class ChatController extends ChangeNotifier {
       query: query,
     );
   }
+
+  // ============================================================
+  // 📍 إرسال الموقع
+  // ============================================================
 
   Future<void> sendLocationMessage(String chatId, String receiverId) async {
     try {
@@ -583,9 +704,10 @@ class ChatController extends ChangeNotifier {
       });
 
       final message = MessageModel(
-        id: UniqueKey().toString(),
+        id: const Uuid().v4(),
         senderId: currentUserId,
         receiverId: receiverId,
+        chatId: chatId,
         content: payload,
         timestamp: DateTime.now(),
         type: MessageType.file,
@@ -602,6 +724,10 @@ class ChatController extends ChangeNotifier {
     }
   }
 
+  // ============================================================
+  // 📍 الموقع الحي (Live Location)
+  // ============================================================
+
   Future<void> startLiveLocation(String chatId) async {
     if (_isLiveLocationActive) return;
     try {
@@ -617,16 +743,6 @@ class ChatController extends ChangeNotifier {
       await _ensureSession(chatId, _extractPeerUserId(chatId));
       _currentLiveLocationChatId = chatId;
       _isLiveLocationActive = true;
-      
-      final docId = "${chatId}_$currentUserId";
-      final ref = _firestore.collection('live_locations').doc(docId);
-
-      await ref.set({
-        'chatId': chatId,
-        'userId': currentUserId,
-        'active': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
 
       _liveLocationSub = Geolocator.getPositionStream().listen((pos) async {
         if (!_isLiveLocationActive) return;
@@ -641,15 +757,18 @@ class ChatController extends ChangeNotifier {
           keyBytes: sessionKey,
         );
         
-        await ref.set({
+        // ✅ تخزين الموقع الحي في Supabase
+        await _supabase.from('live_locations').upsert({
+          'chat_id': chatId,
+          'user_id': currentUserId,
           'lat': encryptedLat,
           'lng': encryptedLng,
           'accuracy': pos.accuracy,
           'speed': pos.speed,
           'ts': DateTime.now().millisecondsSinceEpoch,
           'active': true,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+          'updated_at': DateTime.now().toIso8601String(),
+        }, onConflict: 'chat_id,user_id');
       });
 
       logger.d("✅ بدأ إرسال الموقع الحي المشفر");
@@ -667,17 +786,24 @@ class ChatController extends ChangeNotifier {
       await _liveLocationSub?.cancel();
       _liveLocationSub = null;
 
-      final docId = "${chatId}_$currentUserId";
-      final ref = _firestore.collection('live_locations').doc(docId);
-      await ref.update({
-        'active': false,
-        'stoppedAt': FieldValue.serverTimestamp(),
-      });
+      await _supabase
+          .from('live_locations')
+          .update({
+            'active': false,
+            'stopped_at': DateTime.now().toIso8601String(),
+          })
+          .eq('chat_id', chatId)
+          .eq('user_id', currentUserId);
+          
       logger.d("⛔ تم إيقاف LiveLocation");
     } catch (e) {
       logger.e("❌ خطأ إيقاف LiveLocation: $e");
     }
   }
+
+  // ============================================================
+  // 🎙️ التسجيل الصوتي
+  // ============================================================
 
   Future<void> startVoiceRecording(String chatId, String receiverId) async {
     if (!_isRecording) {
@@ -720,6 +846,10 @@ class ChatController extends ChangeNotifier {
     }
   }
 
+  // ============================================================
+  // 🤖 تحليل المدخلات
+  // ============================================================
+
   void analyzeInput(String input) async {
     final aiService = AIService();
     final app = _ref.read(appControllerProvider);
@@ -738,56 +868,58 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  Future<void> backupChat(String chatId) async {
-    final snapshot = await _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .orderBy('timestamp')
-        .get();
+  // ============================================================
+  // 💾 النسخ الاحتياطي
+  // ============================================================
 
-    final messages = snapshot.docs.map((doc) => MessageModel.fromDoc(doc)).toList();
+  Future<void> backupChat(String chatId) async {
+    final response = await _supabase
+        .from('messages')
+        .select()
+        .eq('chat_id', chatId)
+        .order('timestamp', ascending: true);
+
+    final messages = response.map((doc) => MessageModel.fromSupabase(doc)).toList();
 
     if (!_isProUser) {
       logger.w("❌ النسخة الاحتياطية للمستخدم العادي غير متاحة");
       return;
     }
 
-    await _firestore
-        .collection('backups')
-        .doc(currentUserId)
-        .collection('chats')
-        .doc(chatId)
-        .set({
-      'chatId': chatId,
+    await _supabase.from('backups').upsert({
+      'user_id': currentUserId,
+      'chat_id': chatId,
       'messages': messages.map((m) => m.toMap()).toList(),
-      'timestamp': DateTime.now(),
-    });
+      'timestamp': DateTime.now().toIso8601String(),
+    }, onConflict: 'user_id,chat_id');
 
     logger.d("✅ تم إنشاء نسخة احتياطية للمحادثة $chatId");
   }
 
   Future<List<MessageModel>> restoreChat(String chatId) async {
-    final doc = await _firestore
-        .collection('backups')
-        .doc(currentUserId)
-        .collection('chats')
-        .doc(chatId)
-        .get();
+    final response = await _supabase
+        .from('backups')
+        .select()
+        .eq('user_id', currentUserId)
+        .eq('chat_id', chatId)
+        .maybeSingle();
 
-    if (!doc.exists) {
+    if (response == null) {
       logger.w("⚠️ لا يوجد نسخة احتياطية");
       return [];
     }
 
-    final data = doc.data()!;
-    final messages = (data['messages'] as List)
+    final messages = (response['messages'] as List)
         .map((m) => MessageModel.fromMap(m['id'] ?? '', m))
         .toList();
 
     logger.d("✅ تم استرجاع المحادثة (${messages.length} رسالة)");
     return messages;
   }
+
+  // ============================================================
+  // 🗣️ المكالمات
+  // ============================================================
 
   String getLanguage() => _ref.read(appControllerProvider).locale.languageCode;
 
@@ -806,6 +938,10 @@ class ChatController extends ChangeNotifier {
       details: 'Video call to $receiverId',
     );
   }
+
+  // ============================================================
+  // 🛠️ دوال مساعدة
+  // ============================================================
 
   bool _validateFileSize(int fileSize) {
     final limit = (_isProUser || _isLifetimeUser) 
@@ -850,6 +986,54 @@ class ChatController extends ChangeNotifier {
 
   Stream<bool> getTypingStatus(String chatId, String otherUserId) {
     return _typingService.listenToTyping(chatId, otherUserId);
+  }
+
+  // ============================================================
+  // 📚 دوال إضافية لإدارة المحادثات
+  // ============================================================
+
+  /// ✅ الحصول على قائمة محادثات المستخدم
+  Stream<List<ChatModel>> getUserChats() {
+    return _supabase
+        .from('chats')
+        .stream(primaryKey: ['id'])
+        .eq('members.user_id', currentUserId)
+        .order('updated_at', ascending: false)
+        .map((data) {
+          return data.map((doc) => ChatModel.fromSupabase(doc)).toList();
+        });
+  }
+
+  /// ✅ تحديث آخر قراءة للرسائل
+  Future<void> updateLastRead(String chatId) async {
+    await _supabase.from('chat_members').update({
+      'last_read_at': DateTime.now().toIso8601String(),
+    }).eq('chat_id', chatId).eq('user_id', currentUserId);
+  }
+
+  /// ✅ الحصول على عدد الرسائل غير المقروءة
+  Future<int> getUnreadCount(String chatId) async {
+    final lastRead = await _supabase
+        .from('chat_members')
+        .select('last_read_at')
+        .eq('chat_id', chatId)
+        .eq('user_id', currentUserId)
+        .maybeSingle();
+    
+    final lastReadAt = lastRead?['last_read_at'] as String?;
+    
+    final query = _supabase
+        .from('messages')
+        .select('count', count: CountOption.exact)
+        .eq('chat_id', chatId)
+        .neq('sender_id', currentUserId);
+    
+    if (lastReadAt != null) {
+      query.gt('timestamp', lastReadAt);
+    }
+    
+    final response = await query;
+    return response.count ?? 0;
   }
 
   @override

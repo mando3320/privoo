@@ -1,69 +1,83 @@
 // lib/services/group_service.dart
 import 'dart:convert';
 import 'dart:math';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import '../models/group_model.dart';
 import 'encryption_service.dart';
+import 'supabase_service.dart';
 
 class GroupService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final _uuid = const Uuid();
 
   Future<GroupModel> createGroup({
     required String name,
     required List<String> members,
     String? avatarUrl,
   }) async {
-    final userId = FirebaseAuth.instance.currentUser!.uid;
-    final allMembers = [...members, userId];
+    final user = SupabaseService().currentUser;
+    if (user == null) throw Exception('User not authenticated');
+    
+    final allMembers = [...members, user.id];
+    final groupId = _uuid.v4();
+    final now = DateTime.now().toIso8601String();
     
     final group = GroupModel(
-      id: _firestore.collection('groups').doc().id,
+      id: groupId,
       name: name,
       avatarUrl: avatarUrl,
-      createdBy: userId,
+      createdBy: user.id,
       createdAt: DateTime.now(),
       members: allMembers,
-      roles: {for (var m in allMembers) m: GroupRole.member, userId: GroupRole.admin},
+      roles: {for (var m in allMembers) m: GroupRole.member, user.id: GroupRole.admin},
       encrypted: true,
     );
 
-    await _firestore.collection('groups').doc(group.id).set(group.toFirestore());
-    
+    await _supabase.from('chats').insert({
+      'id': groupId,
+      'name': name,
+      'avatar_url': avatarUrl,
+      'is_group': true,
+      'created_by': user.id,
+      'created_at': now,
+      'updated_at': now,
+    });
+
     for (var member in allMembers) {
-      await _firestore
-          .collection('users')
-          .doc(member)
-          .collection('groups')
-          .doc(group.id)
-          .set({'joinedAt': FieldValue.serverTimestamp()});
+      await _supabase.from('chat_members').insert({
+        'chat_id': groupId,
+        'user_id': member,
+        'role': member == user.id ? 'admin' : 'member',
+        'joined_at': now,
+      });
     }
     
     return group;
   }
 
   Stream<List<GroupModel>> getUserGroups(String userId) {
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('groups')
-        .snapshots()
-        .asyncMap((snapshot) async {
-          final groups = <GroupModel>[];
-          for (var doc in snapshot.docs) {
-            final groupDoc = await _firestore.collection('groups').doc(doc.id).get();
-            if (groupDoc.exists) {
-              groups.add(GroupModel.fromFirestore(groupDoc));
-            }
-          }
-          return groups;
+    return _supabase
+        .from('chats')
+        .stream(primaryKey: ['id'])
+        .eq('is_group', true)
+        .eq('members.user_id', userId)
+        .order('updated_at', ascending: false)
+        .map((data) {
+          return data.map((doc) => GroupModel.fromSupabase(doc)).toList();
         });
   }
 
   Future<GroupModel> getGroup(String groupId) async {
-    final doc = await _firestore.collection('groups').doc(groupId).get();
-    if (!doc.exists) throw Exception('Group not found');
-    return GroupModel.fromFirestore(doc);
+    final response = await _supabase
+        .from('chats')
+        .select()
+        .eq('id', groupId)
+        .eq('is_group', true)
+        .maybeSingle();
+    
+    if (response == null) throw Exception('Group not found');
+    return GroupModel.fromSupabase(response);
   }
 
   Future<void> sendGroupMessage({
@@ -72,55 +86,56 @@ class GroupService {
     required String senderId,
     String type = 'text',
   }) async {
-    final groupDoc = await _firestore.collection('groups').doc(groupId).get();
-    final group = GroupModel.fromFirestore(groupDoc);
+    final response = await _supabase
+        .from('chat_members')
+        .select()
+        .eq('chat_id', groupId)
+        .eq('user_id', senderId)
+        .maybeSingle();
     
-    if (!group.members.contains(senderId)) {
+    if (response == null) {
       throw Exception('User not in group');
     }
     
     final encryptedContent = await _encryptGroupMessage(message, groupId);
     
-    await _firestore
-        .collection('groups')
-        .doc(groupId)
-        .collection('messages')
-        .add({
-      'senderId': senderId,
+    await _supabase.from('messages').insert({
+      'id': _uuid.v4(),
+      'chat_id': groupId,
+      'sender_id': senderId,
       'content': encryptedContent,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
       'type': type,
+      'timestamp': DateTime.now().toIso8601String(),
+      'created_at': DateTime.now().toIso8601String(),
     });
   }
 
   Stream<List<GroupMessage>> getGroupMessages(String groupId) {
-    return _firestore
-        .collection('groups')
-        .doc(groupId)
-        .collection('messages')
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .asyncMap((snapshot) async {
+    return _supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .eq('chat_id', groupId)
+        .order('timestamp', ascending: false)
+        .asyncMap((data) async {
           final group = await getGroup(groupId);
           final messages = <GroupMessage>[];
-          for (var doc in snapshot.docs) {
-            final data = doc.data();
+          for (var doc in data) {
             try {
-              final decrypted = await _decryptGroupMessage(data['content'], groupId);
+              final decrypted = await _decryptGroupMessage(doc['content'], groupId);
               messages.add(GroupMessage(
-                id: doc.id,
-                senderId: data['senderId'],
+                id: doc['id'],
+                senderId: doc['sender_id'],
                 content: decrypted,
-                timestamp: data['timestamp'],
-                type: data['type'],
+                timestamp: DateTime.parse(doc['timestamp']).millisecondsSinceEpoch,
+                type: doc['type'] ?? 'text',
               ));
             } catch (e) {
               messages.add(GroupMessage(
-                id: doc.id,
-                senderId: data['senderId'],
+                id: doc['id'],
+                senderId: doc['sender_id'],
                 content: '[رسالة مشفرة]',
-                timestamp: data['timestamp'],
-                type: data['type'],
+                timestamp: DateTime.parse(doc['timestamp']).millisecondsSinceEpoch,
+                type: doc['type'] ?? 'text',
               ));
             }
           }
@@ -129,105 +144,110 @@ class GroupService {
   }
 
   Future<void> addMember(String groupId, String userId, String adminId) async {
-    final groupDoc = await _firestore.collection('groups').doc(groupId).get();
-    final group = GroupModel.fromFirestore(groupDoc);
+    final response = await _supabase
+        .from('chat_members')
+        .select('role')
+        .eq('chat_id', groupId)
+        .eq('user_id', adminId)
+        .maybeSingle();
     
-    if (!group.isAdmin(adminId)) {
+    if (response == null || response['role'] != 'admin') {
       throw Exception('Only admins can add members');
     }
     
-    await _firestore.collection('groups').doc(groupId).update({
-      'members': FieldValue.arrayUnion([userId]),
-      'roles.$userId': GroupRole.member.name,
+    await _supabase.from('chat_members').insert({
+      'chat_id': groupId,
+      'user_id': userId,
+      'role': 'member',
+      'joined_at': DateTime.now().toIso8601String(),
     });
-    await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('groups')
-        .doc(groupId)
-        .set({'joinedAt': FieldValue.serverTimestamp()});
   }
 
   Future<void> removeMember(String groupId, String userId, String adminId) async {
-    final groupDoc = await _firestore.collection('groups').doc(groupId).get();
-    final group = GroupModel.fromFirestore(groupDoc);
+    final response = await _supabase
+        .from('chat_members')
+        .select('role')
+        .eq('chat_id', groupId)
+        .eq('user_id', adminId)
+        .maybeSingle();
     
-    if (!group.isAdmin(adminId)) {
+    if (response == null || response['role'] != 'admin') {
       throw Exception('Only admins can remove members');
     }
     
-    await _firestore.collection('groups').doc(groupId).update({
-      'members': FieldValue.arrayRemove([userId]),
-      'roles.$userId': FieldValue.delete(),
-    });
-    await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('groups')
-        .doc(groupId)
-        .delete();
+    await _supabase
+        .from('chat_members')
+        .delete()
+        .eq('chat_id', groupId)
+        .eq('user_id', userId);
   }
 
   Future<void> promoteToAdmin(String groupId, String userId, String adminId) async {
-    final groupDoc = await _firestore.collection('groups').doc(groupId).get();
-    final group = GroupModel.fromFirestore(groupDoc);
+    final response = await _supabase
+        .from('chat_members')
+        .select('role')
+        .eq('chat_id', groupId)
+        .eq('user_id', adminId)
+        .maybeSingle();
     
-    if (!group.isAdmin(adminId)) {
+    if (response == null || response['role'] != 'admin') {
       throw Exception('Only admins can promote members');
     }
     
-    await _firestore.collection('groups').doc(groupId).update({
-      'roles.$userId': GroupRole.admin.name,
-    });
+    await _supabase
+        .from('chat_members')
+        .update({'role': 'admin'})
+        .eq('chat_id', groupId)
+        .eq('user_id', userId);
   }
 
   Future<void> leaveGroup(String groupId, String userId) async {
-    final groupDoc = await _firestore.collection('groups').doc(groupId).get();
-    final group = GroupModel.fromFirestore(groupDoc);
+    await _supabase
+        .from('chat_members')
+        .delete()
+        .eq('chat_id', groupId)
+        .eq('user_id', userId);
     
-    await _firestore.collection('groups').doc(groupId).update({
-      'members': FieldValue.arrayRemove([userId]),
-      'roles.$userId': FieldValue.delete(),
-    });
-    await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('groups')
-        .doc(groupId)
-        .delete();
+    // ✅ التحقق من عدد الأعضاء المتبقين
+    final members = await _supabase
+        .from('chat_members')
+        .select('user_id')
+        .eq('chat_id', groupId);
     
-    if (group.members.length <= 1) {
-      await _firestore.collection('groups').doc(groupId).delete();
+    if (members.isEmpty) {
+      await _supabase
+          .from('chats')
+          .delete()
+          .eq('id', groupId);
     }
   }
 
   Future<void> deleteGroup(String groupId, String adminId) async {
-    final groupDoc = await _firestore.collection('groups').doc(groupId).get();
-    final group = GroupModel.fromFirestore(groupDoc);
+    final response = await _supabase
+        .from('chat_members')
+        .select('role')
+        .eq('chat_id', groupId)
+        .eq('user_id', adminId)
+        .maybeSingle();
     
-    if (!group.isAdmin(adminId)) {
+    if (response == null || response['role'] != 'admin') {
       throw Exception('Only admins can delete the group');
     }
     
-    final messages = await _firestore
-        .collection('groups')
-        .doc(groupId)
-        .collection('messages')
-        .get();
-    for (var doc in messages.docs) {
-      await doc.reference.delete();
-    }
+    await _supabase
+        .from('messages')
+        .delete()
+        .eq('chat_id', groupId);
     
-    for (var member in group.members) {
-      await _firestore
-          .collection('users')
-          .doc(member)
-          .collection('groups')
-          .doc(groupId)
-          .delete();
-    }
+    await _supabase
+        .from('chat_members')
+        .delete()
+        .eq('chat_id', groupId);
     
-    await _firestore.collection('groups').doc(groupId).delete();
+    await _supabase
+        .from('chats')
+        .delete()
+        .eq('id', groupId);
   }
 
   Future<String> _encryptGroupMessage(String message, String groupId) async {
@@ -247,16 +267,21 @@ class GroupService {
   }
 
   Future<List<int>> _getGroupKey(String groupId) async {
-    final doc = await _firestore.collection('groups').doc(groupId).get();
-    final group = GroupModel.fromFirestore(doc);
-    if (group.groupKey == null) {
+    final response = await _supabase
+        .from('chats')
+        .select('group_key')
+        .eq('id', groupId)
+        .maybeSingle();
+    
+    if (response == null || response['group_key'] == null) {
       final newKey = List<int>.generate(32, (_) => Random.secure().nextInt(256));
-      await _firestore.collection('groups').doc(groupId).update({
-        'groupKey': base64Encode(newKey),
-      });
+      await _supabase
+          .from('chats')
+          .update({'group_key': base64Encode(newKey)})
+          .eq('id', groupId);
       return newKey;
     }
-    return base64Decode(group.groupKey!);
+    return base64Decode(response['group_key']);
   }
 }
 

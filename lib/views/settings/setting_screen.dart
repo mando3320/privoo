@@ -1,7 +1,7 @@
 // lib/views/settings/setting_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../l10n/app_localizations.dart';
 import '../../config/app_theme.dart';
@@ -30,6 +30,7 @@ import 'auto_download_media_screen.dart';
 import 'manage_allowed_senders_screen.dart';
 import 'hidden_chats_screen.dart';
 import 'parental_control_screen.dart';
+import '../../services/supabase_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   final Function(String)? onChangeLanguage;
@@ -87,7 +88,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final loc = AppLocalizations.of(context)!;
     final app = ref.watch(appControllerProvider);
     final appNotifier = ref.read(appControllerProvider.notifier);
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseService().currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -368,7 +369,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           if (user != null)
             FutureBuilder<bool>(
-              future: _isAdmin(user.phoneNumber ?? ''),
+              future: _isAdmin(user.phone ?? ''),
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data == true) {
                   final authController = ref.read(authControllerProvider.notifier);

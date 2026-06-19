@@ -1,7 +1,7 @@
 // services/api/chat_service.dart
 import 'package:privoo/models/message_model.dart';
 import 'package:privoo/repositories/chat_repository.dart';
-import 'package:privoo/repositories/firebase_chat_repository.dart';
+import 'package:privoo/repositories/supabase_chat_repository.dart';
 import 'package:privoo/services/key_exchange_service.dart';
 import 'package:privoo/services/ratchet_service.dart';
 
@@ -10,7 +10,7 @@ class ChatService {
   final KeyExchangeService _kx = KeyExchangeService();
 
   ChatService({ChatRepository? repository})
-      : _repository = repository ?? FirebaseChatRepository();
+      : _repository = repository ?? SupabaseChatRepository();
 
   /// 🚀 إنشاء جلسة جديدة بين مستخدمين (مرة واحدة)
   Future<List<int>> initSession({

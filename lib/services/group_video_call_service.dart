@@ -4,9 +4,10 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:cryptography/cryptography.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:just_audio/just_audio.dart';
 import '../main.dart';
+import 'supabase_service.dart';
 
 class GroupVideoCallService {
   // Global hard limits (absolute ceilings)
@@ -27,17 +28,13 @@ class GroupVideoCallService {
   final Map<String, MediaStream> _remoteStreams = {};
   final Map<String, RTCRtpSender?> _senders = {};
   
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
   String? _currentCallId;
   String? _currentUserId;
   List<String> _participants = [];
-  // whether this client initiated the call (kept for future use)
-  // removed direct usage to silence analyzer warnings
   bool _isVideoCall = true;
   
   _GroupCallCrypto? _crypto;
-  // shared secret bytes (stored temporarily during setup)
-  // removed direct usage to silence analyzer warnings
   
   final AudioPlayer _ringPlayer = AudioPlayer();
   final AudioPlayer _busyPlayer = AudioPlayer();
@@ -197,36 +194,37 @@ class GroupVideoCallService {
     await _initLocalStream(isVideo);
     await _createPeerConnection(isVideo);
     
-    _currentCallId = _firestore.collection('group_calls').doc().id;
-    await _firestore.collection('group_calls').doc(_currentCallId).set({
-      'callId': _currentCallId,
-      'initiatorId': currentUserId,
+    _currentCallId = DateTime.now().millisecondsSinceEpoch.toString();
+    await _supabase.from('group_calls').insert({
+      'id': _currentCallId,
+      'initiator_id': currentUserId,
       'participants': _participants,
-      'isVideo': isVideo,
+      'is_video': isVideo,
       'active': true,
-      'createdAt': FieldValue.serverTimestamp(),
+      'created_at': DateTime.now().toIso8601String(),
       'offer': null,
       'answers': {},
-      'maxParticipants': maxParticipants,
+      'max_participants': maxParticipants,
     });
     
     final offer = await _peerConnection!.createOffer();
     await _peerConnection!.setLocalDescription(offer);
     final wrappedOffer = await _wrapEnc(offer.toMap());
     
-    await _firestore.collection('group_calls').doc(_currentCallId).update({
-      'offer': wrappedOffer,
-    });
+    await _supabase
+        .from('group_calls')
+        .update({'offer': wrappedOffer})
+        .eq('id', _currentCallId);
     
-    _answersSub = _firestore
-        .collection('group_calls')
-        .doc(_currentCallId)
-        .snapshots()
-        .listen((snapshot) async {
-      final data = snapshot.data();
-      if (data == null) return;
+    _answersSub = _supabase
+        .from('group_calls')
+        .stream(primaryKey: ['id'])
+        .eq('id', _currentCallId!)
+        .listen((data) async {
+      if (data.isEmpty) return;
+      final doc = data.first;
       
-      final answers = data['answers'] as Map<String, dynamic>? ?? {};
+      final answers = doc['answers'] as Map<String, dynamic>? ?? {};
       for (var entry in answers.entries) {
         final participantId = entry.key;
         if (participantId != currentUserId && !_senders.containsKey('answer_$participantId')) {
@@ -240,22 +238,20 @@ class GroupVideoCallService {
         }
       }
       
-      if (data['active'] == false) {
+      if (doc['active'] == false) {
         await endCall();
       }
     });
     
-    _iceSub = _firestore
-        .collection('group_calls')
-        .doc(_currentCallId)
-        .collection('ice_candidates')
-        .snapshots()
-        .listen((snapshot) async {
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final fromId = data['fromId'] as String;
+    _iceSub = _supabase
+        .from('ice_candidates')
+        .stream(primaryKey: ['id'])
+        .eq('call_id', _currentCallId!)
+        .listen((data) async {
+      for (var doc in data) {
+        final fromId = doc['sender_id'] as String;
         if (fromId != currentUserId) {
-            final candidateMap = await _unwrapEnc(data['candidate']);
+          final candidateMap = await _unwrapEnc(doc['candidate']);
           if (candidateMap.isNotEmpty) {
             final candidate = RTCIceCandidate(
               candidateMap['candidate'],
@@ -288,17 +284,17 @@ class GroupVideoCallService {
     await _playIncomingTone();
     _startOfflineTimer();
     
-    _callDocSub = _firestore
-        .collection('group_calls')
-        .doc(callId)
-        .snapshots()
-        .listen((snapshot) async {
-      final data = snapshot.data();
-      if (data == null) return;
+    _callDocSub = _supabase
+        .from('group_calls')
+        .stream(primaryKey: ['id'])
+        .eq('id', callId)
+        .listen((data) async {
+      if (data.isEmpty) return;
+      final doc = data.first;
       
-      _participants = List<String>.from(data['participants'] ?? []);
+      _participants = List<String>.from(doc['participants'] ?? []);
       
-      final offerField = data['offer'];
+      final offerField = doc['offer'];
       if (offerField != null) {
         final offerMap = await _unwrapEnc(offerField);
         if (offerMap.isNotEmpty) {
@@ -309,9 +305,10 @@ class GroupVideoCallService {
           await _peerConnection!.setLocalDescription(answer);
           final wrappedAnswer = await _wrapEnc(answer.toMap());
 
-          await _firestore.collection('group_calls').doc(callId).update({
-            'answers.$currentUserId': wrappedAnswer,
-          });
+          await _supabase
+              .from('group_calls')
+              .update({'answers.$currentUserId': wrappedAnswer})
+              .eq('id', callId);
 
           _answered = true;
           _offlineTimer?.cancel();
@@ -320,22 +317,20 @@ class GroupVideoCallService {
         }
       }
       
-      if (data['active'] == false) {
+      if (doc['active'] == false) {
         await endCall();
       }
     });
     
-    _iceSub = _firestore
-        .collection('group_calls')
-        .doc(callId)
-        .collection('ice_candidates')
-        .snapshots()
-        .listen((snapshot) async {
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final fromId = data['fromId'] as String;
+    _iceSub = _supabase
+        .from('ice_candidates')
+        .stream(primaryKey: ['id'])
+        .eq('call_id', callId)
+        .listen((data) async {
+      for (var doc in data) {
+        final fromId = doc['sender_id'] as String;
         if (fromId != currentUserId) {
-          final candidateMap = await _unwrapEnc(data['candidate']);
+          final candidateMap = await _unwrapEnc(doc['candidate']);
           if (candidateMap.isNotEmpty) {
             final candidate = RTCIceCandidate(
               candidateMap['candidate'],
@@ -360,14 +355,11 @@ class GroupVideoCallService {
     
     final wrappedCandidate = await _wrapEnc(candidateMap);
     
-    await _firestore
-        .collection('group_calls')
-        .doc(_currentCallId)
-        .collection('ice_candidates')
-        .add({
-      'fromId': _currentUserId,
+    await _supabase.from('ice_candidates').insert({
+      'call_id': _currentCallId,
+      'sender_id': _currentUserId,
       'candidate': wrappedCandidate,
-      'timestamp': FieldValue.serverTimestamp(),
+      'created_at': DateTime.now().toIso8601String(),
     });
   }
   
@@ -424,10 +416,13 @@ class GroupVideoCallService {
     await _stopTones();
     
     if (_currentCallId != null) {
-      await _firestore.collection('group_calls').doc(_currentCallId).update({
-        'active': false,
-        'endedAt': FieldValue.serverTimestamp(),
-      });
+      await _supabase
+          .from('group_calls')
+          .update({
+            'active': false,
+            'ended_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', _currentCallId);
       await _clearCandidates();
     }
     
@@ -450,14 +445,10 @@ class GroupVideoCallService {
   
   Future<void> _clearCandidates() async {
     if (_currentCallId == null) return;
-    final snapshot = await _firestore
-        .collection('group_calls')
-        .doc(_currentCallId!)
-        .collection('ice_candidates')
-        .get();
-    for (var doc in snapshot.docs) {
-      await doc.reference.delete();
-    }
+    await _supabase
+        .from('ice_candidates')
+        .delete()
+        .eq('call_id', _currentCallId!);
   }
   
   Future<void> dispose() async {

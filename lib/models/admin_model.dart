@@ -1,6 +1,4 @@
 // lib/models/admin_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum AdminRole {
   superAdmin,    // المدير العام
   supportAdmin,  // دعم فني
@@ -68,12 +66,14 @@ class AdminModel {
   
   factory AdminModel.fromMap(Map<String, dynamic> map) {
     return AdminModel(
-      phoneNumber: map['phoneNumber'] ?? '',
+      phoneNumber: map['phoneNumber'] ?? map['phone_number'] ?? '',
       role: AdminRoleExtension.fromApiValue(map['role'] ?? 'viewer_admin'),
       name: map['name'] ?? '',
-      assignedAt: (map['assignedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      assignedAt: map['assigned_at'] != null 
+          ? DateTime.tryParse(map['assigned_at']) ?? DateTime.now()
+          : DateTime.now(),
       permissions: List<String>.from(map['permissions'] ?? []),
-      isActive: map['isActive'] ?? true,
+      isActive: map['is_active'] ?? map['isActive'] ?? true,
     );
   }
   
@@ -82,9 +82,9 @@ class AdminModel {
       'phoneNumber': phoneNumber,
       'role': role.apiValue,
       'name': name,
-      'assignedAt': Timestamp.fromDate(assignedAt),
+      'assigned_at': assignedAt.toIso8601String(),
       'permissions': permissions,
-      'isActive': isActive,
+      'is_active': isActive,
     };
   }
 }

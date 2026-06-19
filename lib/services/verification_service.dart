@@ -1,23 +1,22 @@
 // lib/services/verification_service.dart
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 import '../models/verification_model.dart';
 import '../services/encryption_service.dart';
 import '../services/key_exchange_service.dart';
 import '../services/ratchet_service.dart';
+import '../services/supabase_service.dart';
 
 class VerificationService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final SupabaseService _supabase = SupabaseService();
   final KeyExchangeService _kx = KeyExchangeService();
   final logger = Logger();
 
   Future<String?> getMyFingerprint() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = _supabase.currentUser;
       if (user == null) return null;
-      final fingerprint = user.uid.hashCode.toRadixString(16).toUpperCase();
+      final fingerprint = user.id.hashCode.toRadixString(16).toUpperCase();
       return fingerprint;
     } catch (e) {
       logger.e("❌ فشل الحصول على البصمة: $e");
@@ -27,10 +26,9 @@ class VerificationService {
 
   Future<String?> getPeerFingerprint(String peerUserId) async {
     try {
-      final doc = await _db.collection('users').doc(peerUserId).get();
-      if (doc.exists) {
-        final data = doc.data();
-        return data?['fingerprint'] ?? peerUserId.hashCode.toRadixString(16).toUpperCase();
+      final user = await _supabase.getUser(peerUserId);
+      if (user != null) {
+        return user.authId.hashCode.toRadixString(16).toUpperCase();
       }
       return peerUserId.hashCode.toRadixString(16).toUpperCase();
     } catch (e) {
@@ -45,8 +43,7 @@ class VerificationService {
     String? fingerprint,
   }) async {
     try {
-      final doc = _db.collection('verifications').doc();
-      final verificationId = doc.id;
+      final verificationId = DateTime.now().millisecondsSinceEpoch.toString();
       final ts = DateTime.now().millisecondsSinceEpoch;
 
       final sessionKey = await _kx.establishSession(
@@ -62,10 +59,9 @@ class VerificationService {
         sessionKey32: sessionKey.chatMasterKey,
       );
 
-      // ✅ التصحيح: استخدام userId الصحيح بدلاً من السلسلة الفارغة
       final ratchetData = await RatchetService.nextSendingKey(
         chatId: verificationId,
-        myUserId: userId,  // ✅ تم التصحيح
+        myUserId: userId,
       );
 
       final aad = utf8.encode(
@@ -90,7 +86,9 @@ class VerificationService {
         isVerified: false,
       );
 
-      await doc.set(verification.toJson());
+      // ✅ حفظ في Supabase بدلاً من Firestore
+      await _supabase.client.from('verifications').insert(verification.toJson());
+      
       logger.i("✅ تم إنشاء Verification: $verificationId");
       return verificationId;
     } catch (e) {
@@ -104,15 +102,11 @@ class VerificationService {
     String? peerFingerprint,
   }) async {
     try {
-      final docRef = _db.collection('verifications').doc(verificationId);
-      final doc = await docRef.get();
-      final data = doc.data();
-      final userId = data?['userId'] as String? ?? '';
+      final userId = await _supabase.currentUser?.id ?? '';
       
-      // ✅ التصحيح: استخدام userId الصحيح
       final ratchetData = await RatchetService.nextSendingKey(
         chatId: verificationId,
-        myUserId: userId,  // ✅ تم التصحيح
+        myUserId: userId,
       );
 
       String? encPeerFingerprint;
@@ -126,10 +120,13 @@ class VerificationService {
         );
       }
 
-      await docRef.update({
-        'isVerified': true,
-        if (encPeerFingerprint != null) 'peerFingerprint': encPeerFingerprint,
-      });
+      await _supabase.client
+          .from('verifications')
+          .update({
+            'isVerified': true,
+            if (encPeerFingerprint != null) 'peerFingerprint': encPeerFingerprint,
+          })
+          .eq('id', verificationId);
 
       logger.i("✅ Verification $verificationId تم التحقق منه بنجاح");
       return true;
@@ -139,18 +136,12 @@ class VerificationService {
     }
   }
 
-  Stream<VerificationModel?> getVerificationStream(String verificationId) {
-    return _db.collection('verifications').doc(verificationId).snapshots().map(
-      (doc) {
-        if (!doc.exists) return null;
-        return VerificationModel.fromJson(doc.data()!);
-      },
-    );
-  }
-
   Future<void> deleteVerification(String verificationId) async {
     try {
-      await _db.collection('verifications').doc(verificationId).delete();
+      await _supabase.client
+          .from('verifications')
+          .delete()
+          .eq('id', verificationId);
       logger.i("✅ تم حذف Verification: $verificationId");
     } catch (e) {
       logger.e("❌ فشل حذف Verification $verificationId: $e");

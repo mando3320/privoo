@@ -1,10 +1,10 @@
 // lib/views/settings/splash_screen.dart
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/logger.dart';
-import '../../services/firebase/notification_service.dart';
 import '../../config/app_theme.dart';
+import '../../services/supabase_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -48,13 +48,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     Future.delayed(const Duration(seconds: 3), () {
       if (!_navigated && mounted) _navigateNext();
     });
-    
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        Provider.of<NotificationService>(context, listen: false)
-            .initNotifications(context);
-      }
-    });
   }
 
   Future<void> _navigateNext() async {
@@ -63,17 +56,30 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _logger.debug('SplashScreen _navigateNext called');
     
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = SupabaseService().currentUser;
       final isLoggedIn = user != null;
       
-      _logger.debug('isLoggedIn = $isLoggedIn, user = ${user?.uid ?? 'null'}');
+      _logger.debug('isLoggedIn = $isLoggedIn, user = ${user?.id ?? 'null'}');
       
       if (!mounted) return;
       
-      Navigator.pushReplacementNamed(
-        context,
-        isLoggedIn ? '/home' : '/login',
-      );
+      // ✅ التحقق من وجود بيانات المستخدم
+      if (isLoggedIn) {
+        try {
+          final userData = await SupabaseService().getUser(user.id);
+          final hasProfile = userData != null && (userData.name?.isNotEmpty ?? false);
+          
+          Navigator.pushReplacementNamed(
+            context,
+            hasProfile ? '/home' : '/profile',
+          );
+        } catch (e) {
+          _logger.error('Error loading user profile: $e');
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } else {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
     } catch (e, s) {
       _logger.error('Error in SplashScreen _navigateNext: $e\n$s');
       if (mounted) {
