@@ -34,10 +34,6 @@ class AuthController extends ChangeNotifier {
 
   AppController get _appController => _ref.read(appControllerProvider);
 
-  // ============================================================
-  // 📱 Phone Auth (Supabase)
-  // ============================================================
-
   Future<void> sendOTP(String phoneNumber) async {
     isLoading = true;
     notifyListeners();
@@ -51,7 +47,7 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> verifyOTP(String smsCode, String phoneNumber) async {
+  Future<void> verifyOTP(String phoneNumber, String smsCode) async {
     isLoading = true;
     notifyListeners();
     try {
@@ -73,10 +69,6 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============================================================
-  // 🔐 Quantum Keys
-  // ============================================================
-
   Future<void> _generateQuantumKeys(String userId) async {
     try {
       await QuantumResistantService.generateKyberKeyPair(userId);
@@ -86,10 +78,6 @@ class AuthController extends ChangeNotifier {
       _logger.w('⚠️ فشل توليد المفاتيح الكمومية: $e');
     }
   }
-
-  // ============================================================
-  // 👤 Profile
-  // ============================================================
 
   Future<void> saveProfile(String name, String status, {String avatarUrl = ""}) async {
     final user = _supabase.currentUser;
@@ -109,16 +97,11 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  // ============================================================
-  // 🚪 Logout
-  // ============================================================
-
   Future<void> logout() async {
     try {
       final user = _supabase.currentUser;
       if (user != null) {
         await QuantumResistantService.deleteQuantumKeys(user.id);
-        // ✅ تحديث حالة عدم الاتصال
         await _supabase.updateUser(user.id, {
           'is_active': false,
           'last_seen': DateTime.now().toIso8601String(),
@@ -131,10 +114,6 @@ class AuthController extends ChangeNotifier {
       _logger.e('❌ خطأ أثناء تسجيل الخروج: $e');
     }
   }
-
-  // ============================================================
-  // 👑 Admin & Lifetime Checks (Supabase)
-  // ============================================================
 
   Future<bool> checkIfAdminLocal(String phoneNumber) async {
     return adminPhones.contains(phoneNumber);
@@ -152,14 +131,12 @@ class AuthController extends ChangeNotifier {
       final phoneNumber = userData.phoneNumber;
       if (phoneNumber == null) return;
       
-      // ✅ التحقق من القائمة المحلية
       if (lifetimePhones.contains(phoneNumber)) {
         await _appController.updateSubscriptionStatus(isPro: true, isLifetime: true);
         _logger.i("✅ تم تفعيل اشتراك مدى الحياة للمستخدم $phoneNumber");
         return;
       }
 
-      // ✅ التحقق من البيانات في Supabase
       if (userData.isLifetime) {
         await _appController.updateSubscriptionStatus(isPro: true, isLifetime: true);
         _logger.i("✅ تم تفعيل اشتراك مدى الحياة للمستخدم $phoneNumber (من Supabase)");
@@ -178,7 +155,6 @@ class AuthController extends ChangeNotifier {
       final phoneNumber = userData.phoneNumber;
       if (phoneNumber == null) return;
       
-      // ✅ التحقق من القائمة الثابتة
       if (adminPhones.contains(phoneNumber)) {
         _logger.i("✅ المستخدم $phoneNumber لديه صلاحيات مشرف (Super Admin)");
         final prefs = await SharedPreferences.getInstance();
@@ -197,8 +173,6 @@ class AuthController extends ChangeNotifier {
         return;
       }
 
-      // ✅ التحقق من Supabase (لو في جدول admins)
-      // TODO: إضافة جدول admins في Supabase
       _currentAdmin = null;
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('isAdmin');
@@ -209,10 +183,6 @@ class AuthController extends ChangeNotifier {
       _currentAdmin = null;
     }
   }
-
-  // ============================================================
-  // 🛡️ Permissions
-  // ============================================================
 
   bool hasPermission(String permission) {
     if (_currentAdmin == null) return false;
@@ -238,17 +208,12 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> checkIfAdmin(String phoneNumber) async {
-    // ✅ محاولة جلب المستخدم من Supabase
     final user = await _supabase.getUserByPhone(phoneNumber);
     if (user != null) {
       await _checkAdminStatus(user.authId);
     }
     return isAdmin;
   }
-
-  // ============================================================
-  // 🔐 Biometrics
-  // ============================================================
 
   Future<bool> authenticateWithBiometrics() async {
     final isPro = _appController.isPro;
@@ -275,9 +240,14 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  // ============================================================
-  // 📊 Current User
-  // ============================================================
+  Future<String?> getMyFingerprint() async {
+    final user = _supabase.currentUser;
+    if (user == null) return null;
+    final keyService = KeyExchangeService();
+    final pair = await keyService.getIdentityKeyPair(user.id);
+    final pub = await pair.extractPublicKey();
+    return await KeyExchangeService.pubFingerprint(pub.bytes, bytes: 16);
+  }
 
   User? get currentUser => _supabase.currentUser;
 }

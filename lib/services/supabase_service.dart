@@ -1,6 +1,9 @@
 // lib/services/supabase_service.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../models/message_model.dart';
+import '../models/chat_model.dart';
+import '../models/chat_member_model.dart';
 
 // ============================================================
 // 📦 Models
@@ -69,87 +72,8 @@ class UserModel {
   };
 }
 
-class ChatModel {
-  final String chatId;
-  final List<String> members;
-  final DateTime createdAt;
-  final String? lastMessage;
-  final DateTime? lastMessageTime;
-  final Map<String, int> unreadCount;
-
-  ChatModel({
-    required this.chatId,
-    required this.members,
-    required this.createdAt,
-    this.lastMessage,
-    this.lastMessageTime,
-    this.unreadCount = const {},
-  });
-
-  factory ChatModel.fromJson(Map<String, dynamic> json) => ChatModel(
-    chatId: json['chat_id'] ?? '',
-    members: List<String>.from(json['members'] ?? []),
-    createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
-    lastMessage: json['last_message'],
-    lastMessageTime: json['last_message_time'] != null
-        ? DateTime.parse(json['last_message_time'])
-        : null,
-    unreadCount: Map<String, int>.from(json['unread_count'] ?? {}),
-  );
-
-  Map<String, dynamic> toJson() => {
-    'chat_id': chatId,
-    'members': members,
-    'created_at': createdAt.toIso8601String(),
-    if (lastMessage != null) 'last_message': lastMessage,
-    if (lastMessageTime != null) 'last_message_time': lastMessageTime!.toIso8601String(),
-    'unread_count': unreadCount,
-  };
-}
-
-class MessageModel {
-  final String id;
-  final String chatId;
-  final String senderId;
-  final String content;
-  final String type;
-  final DateTime createdAt;
-  final Map<String, bool> readBy;
-
-  MessageModel({
-    required this.id,
-    required this.chatId,
-    required this.senderId,
-    required this.content,
-    this.type = 'text',
-    required this.createdAt,
-    this.readBy = const {},
-  });
-
-  factory MessageModel.fromJson(Map<String, dynamic> json) => MessageModel(
-    id: json['id']?.toString() ?? '',
-    chatId: json['chat_id'] ?? '',
-    senderId: json['sender_auth_id'] ?? '',
-    content: json['content'] ?? '',
-    type: json['type'] ?? 'text',
-    createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
-    readBy: Map<String, bool>.from(json['read_by'] ?? {}),
-  );
-
-  Map<String, dynamic> toJson() => {
-    'chat_id': chatId,
-    'sender_auth_id': senderId,
-    'content': content,
-    'type': type,
-    'created_at': createdAt.toIso8601String(),
-    'read_by': readBy,
-  };
-
-  bool isReadBy(String userId) => readBy[userId] ?? false;
-}
-
 // ============================================================
-// 🚀 SupabaseService - Chat Members Version
+// 🚀 SupabaseService
 // ============================================================
 
 class SupabaseService {
@@ -277,13 +201,15 @@ class SupabaseService {
   /// ✅ إنشاء محادثة جديدة
   Future<String> createChat(List<String> members) async {
     final chatId = _uuid.v4();
+    final now = DateTime.now().toIso8601String();
     
     // ✅ إنشاء المحادثة
     await _client.from('chats').insert({
-      'chat_id': chatId,
-      'created_at': DateTime.now().toIso8601String(),
+      'id': chatId,
+      'created_at': now,
+      'updated_at': now,
       'last_message': '',
-      'last_message_time': DateTime.now().toIso8601String(),
+      'last_message_time': now,
       'unread_count': {for (var m in members) m: 0},
     });
     
@@ -292,6 +218,7 @@ class SupabaseService {
       await _client.from('chat_members').insert({
         'chat_id': chatId,
         'user_id': member,
+        'joined_at': now,
       });
     }
     
@@ -317,13 +244,13 @@ class SupabaseService {
       final response = await _client
           .from('chats')
           .select()
-          .inFilter('chat_id', chatIds)
+          .inFilter('id', chatIds)
           .order('last_message_time', ascending: false);
       
       return List<Map<String, dynamic>>.from(response)
           .map((json) => {
             ...json,
-            'members': await _getChatMembers(json['chat_id'] as String),
+            'members': await _getChatMembers(json['id'] as String),
           })
           .map((json) => ChatModel.fromJson(json))
           .toList();
@@ -353,7 +280,7 @@ class SupabaseService {
   /// ✅ جلب محادثة محددة
   Future<ChatModel?> getChat(String chatId) async {
     try {
-      final response = await _client.from('chats').select().eq('chat_id', chatId).maybeSingle();
+      final response = await _client.from('chats').select().eq('id', chatId).maybeSingle();
       if (response == null) return null;
       
       final members = await _getChatMembers(chatId);
@@ -373,7 +300,8 @@ class SupabaseService {
     await _client.from('chats').update({
       'last_message': message,
       'last_message_time': time.toIso8601String(),
-    }).eq('chat_id', chatId);
+      'updated_at': time.toIso8601String(),
+    }).eq('id', chatId);
   }
 
   /// ✅ زيادة unread
@@ -387,7 +315,7 @@ class SupabaseService {
     
     await _client.from('chats').update({
       'unread_count': newUnread,
-    }).eq('chat_id', chatId);
+    }).eq('id', chatId);
   }
 
   /// ✅ إعادة تعيين unread
@@ -400,7 +328,7 @@ class SupabaseService {
     
     await _client.from('chats').update({
       'unread_count': newUnread,
-    }).eq('chat_id', chatId);
+    }).eq('id', chatId);
   }
 
   // ============================================================
@@ -413,19 +341,26 @@ class SupabaseService {
     required String content,
     String type = 'text',
   }) async {
+    final messageId = _uuid.v4();
+    final now = DateTime.now().toIso8601String();
+    
     final message = MessageModel(
-      id: '',
-      chatId: chatId,
+      id: messageId,
       senderId: senderId,
+      receiverId: '',
       content: content,
-      type: type,
-      createdAt: DateTime.now(),
-      readBy: {senderId: true},
+      timestamp: DateTime.now(),
+      isRead: false,
+      type: _parseMessageType(type),
     );
     
     final response = await _client
         .from('messages')
-        .insert(message.toJson())
+        .insert({
+          ...message.toMap(),
+          'chat_id': chatId,
+          'created_at': now,
+        })
         .select()
         .single();
     
@@ -506,8 +441,8 @@ class SupabaseService {
   Stream<ChatModel?> subscribeToChat(String chatId) {
     return _client
         .from('chats')
-        .stream(primaryKey: ['chat_id'])
-        .eq('chat_id', chatId)
+        .stream(primaryKey: ['id'])
+        .eq('id', chatId)
         .map((data) async {
           if (data.isEmpty) return null;
           final members = await _getChatMembers(chatId);
@@ -533,7 +468,7 @@ class SupabaseService {
           final chats = await _client
               .from('chats')
               .select()
-              .inFilter('chat_id', chatIds)
+              .inFilter('id', chatIds)
               .order('last_message_time', ascending: false);
           
           return List<Map<String, dynamic>>.from(chats)
@@ -575,5 +510,28 @@ class SupabaseService {
           event: 'typing',
           payload: {'userId': userId, 'isTyping': isTyping, 'timestamp': DateTime.now().toIso8601String()},
         );
+  }
+
+  // ============================================================
+  // 🛠️ Helper Methods
+  // ============================================================
+
+  MessageType _parseMessageType(String type) {
+    switch (type.toLowerCase()) {
+      case 'image':
+        return MessageType.image;
+      case 'gif':
+        return MessageType.gif;
+      case 'video':
+        return MessageType.video;
+      case 'voice':
+        return MessageType.voice;
+      case 'audio':
+        return MessageType.audio;
+      case 'file':
+        return MessageType.file;
+      default:
+        return MessageType.text;
+    }
   }
 }

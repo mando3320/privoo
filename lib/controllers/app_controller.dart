@@ -7,10 +7,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/app_theme.dart';
 import '../main.dart';
 
-// 🔑 حالة التوكن
 final userAuthTokenProvider = StateProvider<String>((ref) => 'UNINITIALIZED_AUTH_TOKEN');
 
-// 🧠 الكنترولر الرئيسي
 final appControllerProvider = ChangeNotifierProvider<AppController>((ref) {
   return AppController(ref);
 });
@@ -19,18 +17,14 @@ class AppController extends ChangeNotifier {
   final Ref _ref;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
-  // 🌐 اللغة والثيم
   Locale _locale = const Locale('ar');
   ThemeMode _themeMode = ThemeMode.dark;
-  
   String _themeName = 'Privoo Premium';
   ThemeData? _cachedTheme;
 
-  // 👑 الاشتراك
   bool _isPro = false;
   bool _isLifetime = false;
 
-  // 🔒 إعدادات الخصوصية
   bool _lockApp = false;
   bool _hideLastSeen = false;
   bool _hideOnlineStatus = false;
@@ -38,30 +32,20 @@ class AppController extends ChangeNotifier {
   bool _vibrationEnabled = true;
   bool _readReceipts = true;
 
-  // 💬 إعدادات الدردشة
   String _chatWallpaper = "default";
   double _chatFontSize = 14.0;
-
-  // ⚙️ توفير البيانات
   bool _dataSaverEnabled = false;
 
-  // 📊 التقييد اليومي للمستخدم المجاني
   int _messagesToday = 0;
   String _lastMessageDate = "";
   int get dailyFreeLimit => 30;
 
-  // 🔐 إعدادات الأمان (Privoo v2)
   String _myFingerprint = "";
   String _peerFingerprint = "";
   int _protocolVersion = 2;
   String _defaultAlgorithm = "AES-GCM-256";
-
-  // ✅ إعدادات المصادقة البيومترية
   bool _biometricEnabled = false;
 
-  // =======================
-  //       GETTERS
-  // =======================
   Locale get locale => _locale;
   ThemeMode get themeMode => _themeMode;
   String get themeName => _themeName;
@@ -91,7 +75,7 @@ class AppController extends ChangeNotifier {
   Future<void> _saveSecureBool(String key, bool value) async {
     await _secureStorage.write(key: key, value: value.toString());
   }
-  
+
   Future<bool> _loadSecureBool(String key, {bool defaultValue = false}) async {
     final value = await _secureStorage.read(key: key);
     if (value == null) return defaultValue;
@@ -121,7 +105,6 @@ class AppController extends ChangeNotifier {
       _themeName = AppTheme.allThemes.containsKey(savedTheme) ? savedTheme : 'Privoo Premium';
       
       _themeMode = (prefs.getBool('darkMode') ?? true) ? ThemeMode.dark : ThemeMode.light;
-      
       _chatWallpaper = prefs.getString('chatWallpaper') ?? "default";
       _chatFontSize = prefs.getDouble('chatFontSize') ?? 14.0;
       _protocolVersion = prefs.getInt('protocolVersion') ?? 2;
@@ -130,7 +113,6 @@ class AppController extends ChangeNotifier {
       _peerFingerprint = prefs.getString('peerFingerprint') ?? "";
 
       await _loadMessageCount();
-
       notifyListeners();
       logger.d("✅ إعدادات التطبيق تم تحميلها بنجاح. الثيم الحالي: $_themeName (isPro: $_isPro)");
     } catch (e) {
@@ -211,6 +193,18 @@ class AppController extends ChangeNotifier {
   
   int getLockedThemesCount() {
     return AppTheme.lockedThemesCount;
+  }
+
+  // ✅ دالة تحديث حالة الاشتراك
+  Future<void> updateSubscriptionStatus({
+    required bool isPro,
+    required bool isLifetime,
+  }) async {
+    _isPro = isPro;
+    _isLifetime = isLifetime;
+    await _saveSecureBool('isPro_cached', isPro);
+    await _saveSecureBool('isLifetime_cached', isLifetime);
+    notifyListeners();
   }
 
   Future<void> toggleLockApp(bool value) async {

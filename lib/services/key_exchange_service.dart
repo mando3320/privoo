@@ -8,7 +8,6 @@ class KeyExchangeService {
   static const int _identityKeyVersion = 1;
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  /// توليد مفتاح هوية X25519 للمستخدم (مرة واحدة)
   Future<void> ensureIdentityAndSignatureKeys(String userId) async {
     final response = await _supabase
         .from('keys')
@@ -22,10 +21,13 @@ class KeyExchangeService {
     final identityKey = await _generateX25519KeyPair();
     final signKey = await _generateEd25519KeyPair();
 
+    final identityPub = await identityKey.extractPublicKey();
+    final signPub = await signKey.extractPublicKey();
+
     await _supabase.from('keys').insert({
       'user_id': userId,
       'type': 'identity',
-      'public_key': base64Encode(await identityKey.extractPublicKey()),
+      'public_key': base64Encode(identityPub.bytes),
       'private_key': base64Encode(await identityKey.extractPrivateKeyBytes()),
       'version': _identityKeyVersion,
       'created_at': DateTime.now().toIso8601String(),
@@ -34,7 +36,7 @@ class KeyExchangeService {
     await _supabase.from('keys').insert({
       'user_id': userId,
       'type': 'signature',
-      'public_key': base64Encode(await signKey.extractPublicKey()),
+      'public_key': base64Encode(signPub.bytes),
       'private_key': base64Encode(await signKey.extractPrivateKeyBytes()),
       'version': _identityKeyVersion,
       'created_at': DateTime.now().toIso8601String(),
@@ -93,7 +95,6 @@ class KeyExchangeService {
     return base64Decode(response['public_key']);
   }
 
-  /// إنشاء جلسة بين مستخدمين
   Future<SessionResult> establishSession({
     required String chatId,
     required String myUserId,
@@ -129,9 +130,6 @@ class KeyExchangeService {
     final peerPub = await _importPublicKey(peerPubBytes, KeyPairType.x25519);
 
     final sharedSecret = await _x25519SharedSecret(myPrivate, peerPub);
-    const ephemeral = false;
-    // This variable is only used in a future extension, but unused now
-
     final msgKey = await _deriveMessageKey(sharedSecret, chatId, 'msg_key');
 
     return SessionResult(
@@ -147,7 +145,7 @@ class KeyExchangeService {
     List<int> myPrivate,
     SimplePublicKey peerPublic,
   ) async {
-    final keyPair = await X25519.X25519KeyPair.fromPrivateKeyBytes(myPrivate);
+    final keyPair = await X25519.privateKeyFromBytes(myPrivate);
     final sharedSecret = await keyPair.sharedSecret(peerPublic);
     return sharedSecret.bytes;
   }
@@ -172,14 +170,12 @@ class KeyExchangeService {
     return fingerprint.map((b) => b.toRadixString(16).padLeft(2, '0')).join(':');
   }
 
-  // ==================== مساعدين ====================
-
   Future<SimpleKeyPair> _generateX25519KeyPair() async {
-    return await X25519.X25519KeyPair.generateRandom();
+    return await X25519.generateKeyPair();
   }
 
   Future<SimpleKeyPair> _generateEd25519KeyPair() async {
-    return await Ed25519.Ed25519KeyPair.generateRandom();
+    return await Ed25519.generateKeyPair();
   }
 
   Future<SimpleKeyPair> _importPrivateKey(
@@ -187,9 +183,9 @@ class KeyExchangeService {
     KeyPairType type,
   ) async {
     if (type == KeyPairType.x25519) {
-      return await X25519.X25519KeyPair.fromPrivateKeyBytes(bytes);
+      return await X25519.privateKeyFromBytes(bytes);
     } else {
-      return await Ed25519.Ed25519KeyPair.fromPrivateKeyBytes(bytes);
+      return await Ed25519.privateKeyFromBytes(bytes);
     }
   }
 
@@ -198,9 +194,9 @@ class KeyExchangeService {
     KeyPairType type,
   ) async {
     if (type == KeyPairType.x25519) {
-      return await X25519.X25519KeyPair.fromPublicKeyBytes(bytes);
+      return await X25519.publicKeyFromBytes(bytes);
     } else {
-      return await Ed25519.Ed25519KeyPair.fromPublicKeyBytes(bytes);
+      return await Ed25519.publicKeyFromBytes(bytes);
     }
   }
 }

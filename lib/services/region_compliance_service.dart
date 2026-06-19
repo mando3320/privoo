@@ -1,22 +1,9 @@
 // lib/services/region_compliance_service.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:country_picker/country_picker.dart';
 import 'supabase_service.dart';
 
 enum ComplianceRegion {
-  egypt,        // 🇪🇬 EG
-  uae,          // 🇦🇪 UAE
-  saudi,        // 🇸🇦 KSA
-  europe,       // 🇪🇺 GDPR
-  usa,          // 🇺🇸 CCPA
-  china,        // 🇨🇳 PIPL
-  india,        // 🇮🇳 DPDPA
-  brazil,       // 🇧🇷 LGPD
-  uk,           // 🇬🇧 UK GDPR
-  turkey,       // 🇹🇷 KVKK
-  russia,       // 🇷🇺 152-FZ
-  japan,        // 🇯🇵 APPI
-  australia,    // 🇦🇺 Privacy Act
+  egypt, uae, saudi, europe, usa, china, india, brazil, uk, turkey, russia, japan, australia
 }
 
 class RegionInfo {
@@ -104,7 +91,8 @@ class RegionComplianceService {
     if (user == null) return ComplianceRegion.egypt;
 
     try {
-      final response = await _supabase
+      final supabase = Supabase.instance.client;
+      final response = await supabase
           .from('users')
           .select('region')
           .eq('uid', user.id)
