@@ -1,6 +1,7 @@
 // lib/views/settings/privacy_settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:privoo/controllers/chat_controller.dart';
 import 'package:privoo/controllers/app_controller.dart';
 import '../../config/app_theme.dart';
@@ -95,7 +96,6 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
             activeColor: AppTheme.privooDeepPurple,
             onChanged: (value) async {
               setState(() => _useQuantumResistance = value);
-              // ✅ تم تعليق هذه الدالة مؤقتاً
               // await chatController.toggleQuantumResistance(value);
               _showSnackbar(value ? '✅ تم تفعيل المقاومة الكمومية' : '⚠️ تم إيقاف المقاومة الكمومية');
             },
@@ -129,7 +129,6 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
             activeColor: AppTheme.privooDeepPurple,
             onChanged: (value) async {
               setState(() => _useSealedSender = value);
-              // ✅ تم تعليق هذه الدالة مؤقتاً
               // await chatController.toggleSealedSender(value);
               _showSnackbar(value ? '✅ تم تفعيل إخفاء هوية المرسل' : '⚠️ تم إيقاف إخفاء هوية المرسل');
             },
@@ -147,6 +146,18 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
             activeColor: AppTheme.privooDeepPurple,
             onChanged: (value) async {
               setState(() => _lockApp = value);
+              
+              // ✅ تحقق من دعم البصمة
+              if (value) {
+                final auth = LocalAuthentication();
+                final canAuthenticate = await auth.canCheckBiometrics;
+                if (!canAuthenticate) {
+                  _showSnackbar('⚠️ جهازك لا يدعم المصادقة البيومترية', isError: true);
+                  setState(() => _lockApp = false);
+                  return;
+                }
+              }
+              
               await appController.toggleLockApp(value);
               _showSnackbar(value ? '✅ تم تفعيل قفل التطبيق' : '⚠️ تم إيقاف قفل التطبيق');
             },

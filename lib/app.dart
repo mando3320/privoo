@@ -83,11 +83,17 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
         
         if (userData != null) {
           final name = userData.name;
-          _nextRoute = (name != null && name.trim().isNotEmpty) ? '/home' : '/profile';
-          _logger.i("✅ التوجيه إلى: $_nextRoute");
+          // ✅ تأكد من أن الاسم موجود ومش فارغ
+          if (name != null && name.trim().isNotEmpty) {
+            _nextRoute = '/home';
+            _logger.i("✅ التوجيه إلى: /home (المستخدم: $name)");
+          } else {
+            _nextRoute = '/profile';
+            _logger.i("✅ التوجيه إلى: /profile (مستخدم جديد)");
+          }
         } else {
           _nextRoute = '/profile';
-          _logger.i("✅ التوجيه إلى: $_nextRoute (مستخدم جديد)");
+          _logger.i("✅ التوجيه إلى: /profile (بيانات غير موجودة)");
         }
       } else {
         _nextRoute = '/login';

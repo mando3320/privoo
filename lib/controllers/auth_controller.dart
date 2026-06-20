@@ -63,6 +63,12 @@ class AuthController extends ChangeNotifier {
         await _generateQuantumKeys(user.id);
         await _checkLifetimeStatus(user.id);
         await _checkAdminStatus(user.id);
+        
+        // ✅ تحميل البيانات من الكاش
+        await loadAdminFromCache();
+        
+        // ✅ تحديث حالة الاشتراك
+        notifyListeners();
       } else {
         _logger.w("❌ فشل التحقق من OTP");
       }
@@ -141,6 +147,7 @@ class AuthController extends ChangeNotifier {
       if (isLifetimeByPhone || isLifetimeByEmail || userData.isLifetime) {
         await _appController.updateSubscriptionStatus(isPro: true, isLifetime: true);
         _logger.i("✅ تم تفعيل اشتراك مدى الحياة للمستخدم $phoneNumber");
+        notifyListeners();
         return;
       }
     } catch (e) {
