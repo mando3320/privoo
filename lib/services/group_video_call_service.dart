@@ -1,4 +1,4 @@
-// services/group_video_call_service.dart
+// lib/services/group_video_call_service.dart
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -214,7 +214,7 @@ class GroupVideoCallService {
     await _supabase
         .from('group_calls')
         .update({'offer': wrappedOffer})
-        .eq('id', _currentCallId);
+        .eq('id', _currentCallId!);
     
     _answersSub = _supabase
         .from('group_calls')
@@ -416,13 +416,15 @@ class GroupVideoCallService {
     await _stopTones();
     
     if (_currentCallId != null) {
+      // ✅ تحقق من null قبل استخدام _currentCallId
+      final callId = _currentCallId!;
       await _supabase
           .from('group_calls')
           .update({
             'active': false,
             'ended_at': DateTime.now().toIso8601String(),
           })
-          .eq('id', _currentCallId);
+          .eq('id', callId);
       await _clearCandidates();
     }
     
@@ -445,10 +447,12 @@ class GroupVideoCallService {
   
   Future<void> _clearCandidates() async {
     if (_currentCallId == null) return;
+    // ✅ تحقق من null قبل استخدام _currentCallId
+    final callId = _currentCallId!;
     await _supabase
         .from('ice_candidates')
         .delete()
-        .eq('call_id', _currentCallId!);
+        .eq('call_id', callId);
   }
   
   Future<void> dispose() async {

@@ -57,17 +57,7 @@ class KeyExchangeService {
     if (privKeyBase64 == null) throw Exception('Identity private key not found');
     
     final privateKey = base64Decode(privKeyBase64);
-    final pubKeyResponse = await _supabase
-        .from('keys')
-        .select('public_key')
-        .eq('user_id', userId)
-        .eq('type', 'identity')
-        .maybeSingle();
-    
-    if (pubKeyResponse == null) throw Exception('Identity public key not found');
-    final publicKey = base64Decode(pubKeyResponse['public_key']);
-    
-    return await X25519().newKeyPairFromSeed(privateKey, publicKey: publicKey);
+    return await X25519().newKeyPairFromSeed(privateKey);
   }
 
   Future<SimpleKeyPair> getSignatureKeyPair(String userId) async {
@@ -90,6 +80,18 @@ class KeyExchangeService {
     return base64Decode(response['public_key']);
   }
 
+  Future<List<int>> fetchPeerSignaturePublicKey(String peerId) async {
+    final response = await _supabase
+        .from('keys')
+        .select()
+        .eq('user_id', peerId)
+        .eq('type', 'signature')
+        .maybeSingle();
+
+    if (response == null) throw Exception('Peer signature key not found');
+    return base64Decode(response['public_key']);
+  }
+
   Future<SessionResult> establishSession({
     required String chatId,
     required String myUserId,
@@ -99,7 +101,7 @@ class KeyExchangeService {
     final myPrivate = await myKeys.extractPrivateKeyBytes();
 
     final peerPubBytes = await fetchPeerIdentityPublicKey(peerUserId);
-    final peerPub = await X25519().newKeyPairFromSeed(myPrivate, publicKey: peerPubBytes);
+    final peerPub = await X25519().newKeyPairFromSeed(peerPubBytes);
 
     final sharedSecret = await _x25519SharedSecret(myPrivate, peerPub);
     final msgKey = await _deriveMessageKey(sharedSecret, chatId, 'msg_key');
@@ -122,7 +124,7 @@ class KeyExchangeService {
     final myPrivate = await myKeys.extractPrivateKeyBytes();
 
     final peerPubBytes = await fetchPeerIdentityPublicKey(peerUserId);
-    final peerPub = await X25519().newKeyPairFromSeed(myPrivate, publicKey: peerPubBytes);
+    final peerPub = await X25519().newKeyPairFromSeed(peerPubBytes);
 
     final ephemeralKey = await X25519().newKeyPair();
     final ephemeralPub = await ephemeralKey.extractPublicKey();
@@ -147,7 +149,7 @@ class KeyExchangeService {
     SimplePublicKey peerPublic,
   ) async {
     final keyPair = await X25519().newKeyPairFromSeed(myPrivate);
-    final sharedSecret = await keyPair.sharedSecret(peerPublic);
+    final sharedSecret = await keyPair.sharedSecretKey(peerPublic);
     return sharedSecret.bytes;
   }
 

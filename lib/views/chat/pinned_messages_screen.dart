@@ -34,7 +34,14 @@ class PinnedMessagesScreen extends StatelessWidget {
                   Text('خطأ: ${snapshot.error}'),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () => setState(() {}),
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PinnedMessagesScreen(chatId: chatId),
+                        ),
+                      );
+                    },
                     child: const Text('إعادة المحاولة'),
                   ),
                 ],
@@ -65,7 +72,14 @@ class PinnedMessagesScreen extends StatelessWidget {
                         .from('messages')
                         .update({'is_pinned': false})
                         .eq('id', message.id);
-                    setState(() {});
+                    if (context.mounted) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PinnedMessagesScreen(chatId: chatId),
+                        ),
+                      );
+                    }
                   },
                 ),
                 onTap: () {

@@ -1,4 +1,4 @@
-// controllers/call_controller.dart
+// lib/controllers/call_controller.dart
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -553,7 +553,7 @@ class CallController {
         .from('ice_candidates')
         .stream(primaryKey: ['id'])
         .eq('call_id', callId)
-        .neq('sender_id', myId)
+        .filter('sender_id', 'neq', myId)  // ✅ استخدم filter بدلاً من neq
         .map((data) => List<Map<String, dynamic>>.from(data));
   }
 

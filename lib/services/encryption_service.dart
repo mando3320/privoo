@@ -7,7 +7,6 @@ class EncryptionService {
   static final _algo = AesGcm.with256bits();
   static final _hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
 
-  // ✅ دالة موحدة لبناء AAD
   static List<int> buildAAD({
     required String chatId,
     required String senderId,
@@ -38,7 +37,7 @@ class EncryptionService {
       utf8.encode(plaintext),
       secretKey: secretKey,
       nonce: nonce,
-      aad: aad,
+      aad: aad ?? [],
     );
     
     final combined = [...nonce, ...secretBox.cipherText, ...secretBox.mac.bytes];
@@ -58,7 +57,11 @@ class EncryptionService {
     final secretKey = SecretKey(keyBytes);
     final secretBox = SecretBox(cipherText, nonce: nonce, mac: mac);
     
-    final decrypted = await _algo.decrypt(secretBox, secretKey: secretKey, aad: aad);
+    final decrypted = await _algo.decrypt(
+      secretBox,
+      secretKey: secretKey,
+      aad: aad ?? [],
+    );
     return utf8.decode(decrypted);
   }
 
@@ -93,7 +96,6 @@ class EncryptionService {
   }
 
   static Future<String> encryptSupportMessage(String message) async {
-    // 🔐 تشفير رسالة الدعم بمفتاح عام ثابت
     final key = utf8.encode('privoo_support_key_2024');
     final hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
     final derived = await hkdf.deriveKey(

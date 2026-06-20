@@ -20,7 +20,6 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ استخدم id بدلاً من uid
     final userId = ref.read(authControllerProvider).currentUser?.id;
     
     return Scaffold(
@@ -50,11 +49,15 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
   }
 
   Widget _buildMyChannels(String userId) {
-    return StreamBuilder<List<ChannelModel>>(
-      stream: _channelService.getUserChannels(userId),
+    return FutureBuilder<List<ChannelModel>>(
+      future: _channelService.getUserChannels(userId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError) {
+          return Center(child: Text('خطأ: ${snapshot.error}'));
         }
         
         final channels = snapshot.data ?? [];
@@ -90,11 +93,15 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
   }
 
   Widget _buildPublicChannels() {
-    return StreamBuilder<List<ChannelModel>>(
-      stream: _channelService.getPublicChannels(),
+    return FutureBuilder<List<ChannelModel>>(
+      future: _channelService.getPublicChannels(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError) {
+          return Center(child: Text('خطأ: ${snapshot.error}'));
         }
         
         final channels = snapshot.data ?? [];
@@ -107,7 +114,6 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
           itemCount: channels.length,
           itemBuilder: (context, index) {
             final channel = channels[index];
-            // ✅ استخدم id بدلاً من uid
             final currentUserId = ref.read(authControllerProvider).currentUser?.id;
             final isSubscribed = channel.subscribers.contains(currentUserId);
             
