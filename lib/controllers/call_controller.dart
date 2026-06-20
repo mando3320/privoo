@@ -553,8 +553,11 @@ class CallController {
         .from('ice_candidates')
         .stream(primaryKey: ['id'])
         .eq('call_id', callId)
-        .neq('sender_id', myId)  // ✅ اصلاح: استخدم neq بدلاً من filter
-        .map((data) => List<Map<String, dynamic>>.from(data));
+        .map((data) {
+          // ✅ تصفية يدوية بدلاً من filter/neq
+          final filtered = data.where((doc) => doc['sender_id'] != myId).toList();
+          return List<Map<String, dynamic>>.from(filtered);
+        });
   }
 
   // -------- تنظيف --------

@@ -148,8 +148,13 @@ class KeyExchangeService {
     List<int> peerPublicBytes,
   ) async {
     final keyPair = await X25519().newKeyPairFromSeed(myPrivate);
-    final peerPublic = await X25519().newPublicKeyFromBytes(peerPublicBytes);
-    final sharedSecret = await keyPair.sharedSecret(peerPublic);
+    // ✅ الطريقة الصحيحة لـ cryptography 2.9.0
+    final peerPublic = SimplePublicKey(peerPublicBytes, type: KeyPairType.x25519);
+    // ✅ الطريقة الصحيحة لـ cryptography 2.9.0
+    final sharedSecret = await X25519().sharedSecretKey(
+      keyPair: keyPair,
+      remotePublicKey: peerPublic,
+    );
     return sharedSecret.bytes;
   }
 
