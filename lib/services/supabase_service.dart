@@ -54,6 +54,7 @@ class UserModel {
   );
 
   Map<String, dynamic> toJson() => {
+    'id': id,
     'auth_id': authId,
     if (name != null) 'name': name,
     if (phoneNumber != null) 'phone_number': phoneNumber,
@@ -169,7 +170,15 @@ class SupabaseService {
   }
 
   Future<void> updateUser(String authId, Map<String, dynamic> data) async {
-    await _client.from('users').update(data).eq('auth_id', authId);
+    try {
+      print('📤 updateUser called with authId: $authId');
+      print('📤 data: $data');
+      await _client.from('users').update(data).eq('auth_id', authId);
+      print('✅ updateUser success');
+    } catch (e) {
+      print('❌ updateUser error: $e');
+      rethrow;
+    }
   }
 
   Future<void> updateUserLastSeen(String authId) async {
@@ -427,6 +436,7 @@ class SupabaseService {
     return _client
         .from('users')
         .stream(primaryKey: ['id'])
+        .eq('auth_id', authId)
         .map((data) {
           if (data.isEmpty) return null;
           return UserModel.fromJson(data.first);

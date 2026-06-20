@@ -183,7 +183,7 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
         return;
       }
       
-      // حفظ المستخدم في Supabase
+      // ✅ حفظ المستخدم في Supabase
       await SupabaseService().createUser(UserModel(
         id: user.id,
         authId: user.id,
@@ -218,19 +218,16 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
       return;
     }
 
-    // ✅ التحقق من البريد الإلكتروني
     if (!_isValidEmail(email)) {
       _showSnackbar('❌ البريد الإلكتروني غير صالح', isError: true);
       return;
     }
 
-    // ✅ التحقق من كلمة المرور (في حالة التسجيل)
     if (!_isLogin && password.length < 6) {
       _showSnackbar('❌ كلمة المرور يجب أن تكون 6 أحرف على الأقل', isError: true);
       return;
     }
 
-    // ✅ تأكيد كلمة المرور (في حالة التسجيل)
     if (!_isLogin && password != confirmPassword) {
       _showSnackbar('❌ كلمة المرور غير متطابقة', isError: true);
       return;
@@ -240,7 +237,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
 
     try {
       if (_isLogin) {
-        // ✅ تسجيل الدخول
         final response = await SupabaseService().signInWithEmail(email, password);
         final user = response.user;
         
@@ -253,16 +249,18 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
           _showSnackbar('❌ فشل تسجيل الدخول', isError: true);
         }
       } else {
-        // ✅ إنشاء حساب جديد
         final response = await SupabaseService().signUpWithEmail(email, password);
         final user = response.user;
         
         if (user != null) {
           final name = _nameController.text.trim();
+          
+          // ✅ حفظ المستخدم في Supabase
           await SupabaseService().createUser(UserModel(
             id: user.id,
             authId: user.id,
             name: name.isNotEmpty ? name : email.split('@').first,
+            phoneNumber: null,
             email: email,
             isActive: true,
             createdAt: DateTime.now(),
@@ -576,7 +574,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
         ),
         const SizedBox(height: 24),
 
-        // ✅ حقل الاسم (يظهر فقط في التسجيل)
         if (!_isLogin)
           Column(
             children: [
@@ -593,7 +590,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
             ],
           ),
 
-        // ✅ حقل البريد الإلكتروني
         TextField(
           controller: _emailController,
           decoration: const InputDecoration(
@@ -607,7 +603,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
         ),
         const SizedBox(height: 16),
 
-        // ✅ حقل كلمة المرور
         TextField(
           controller: _passwordController,
           decoration: InputDecoration(
@@ -625,7 +620,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
         ),
         const SizedBox(height: 16),
 
-        // ✅ حقل تأكيد كلمة المرور (يظهر فقط في التسجيل)
         if (!_isLogin)
           TextField(
             controller: _confirmPasswordController,
@@ -646,7 +640,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
 
         const SizedBox(height: 24),
 
-        // ✅ زر تسجيل الدخول / إنشاء حساب
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
@@ -674,7 +667,6 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
         ),
         const SizedBox(height: 16),
 
-        // ✅ التبديل بين تسجيل الدخول وإنشاء حساب
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

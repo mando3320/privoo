@@ -94,15 +94,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }
 
     try {
-      // ✅ حفظ الصورة محلياً
       String? avatarUrl;
       if (_selectedImage != null) {
-        // TODO: رفع الصورة لـ Supabase Storage
-        // مؤقتاً نخزن المسار المحلي
         avatarUrl = _selectedImage!.path;
       }
 
-      // ✅ تحديث في Supabase
       await SupabaseService().updateUser(user.id, {
         'name': name,
         if (avatarUrl != null) 'avatar_url': avatarUrl,
@@ -113,11 +109,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
       if (mounted) {
         setState(() => _isLoading = false);
-        Navigator.pushReplacementNamed(context, '/home');
+        // ✅ استخدام pop بدلاً من pushReplacementNamed عشان مايروحش للـ Login
+        Navigator.pop(context, true);
       }
     } catch (e) {
       logger.e("❌ فشل حفظ الملف الشخصي: $e");
-      _showSnackbar("فشل حفظ الملف الشخصي", isError: true);
+      _showSnackbar("فشل حفظ الملف الشخصي: ${e.toString()}", isError: true);
       if (mounted) {
         setState(() => _isLoading = false);
       }
