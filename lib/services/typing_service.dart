@@ -52,11 +52,13 @@ class TypingService {
     return _supabase
         .from('typing_indicators')
         .stream(primaryKey: ['chat_id', 'user_id'])
-        .eq('chat_id', chatId)
-        .eq('user_id', otherUserId)
         .map((data) {
-          if (data.isEmpty) return false;
-          final doc = data.first;
+          final filtered = List<Map<String, dynamic>>.from(data)
+              .where((doc) => doc['chat_id'] == chatId && doc['user_id'] == otherUserId)
+              .toList();
+          
+          if (filtered.isEmpty) return false;
+          final doc = filtered.first;
           
           final updatedAt = doc['updated_at'] as String?;
           if (updatedAt == null) return false;

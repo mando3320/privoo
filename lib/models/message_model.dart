@@ -1,9 +1,7 @@
 // lib/models/message_model.dart
 
-/// 🔹 أنواع الرسائل المدعومة في التطبيق
 enum MessageType { text, image, gif, video, voice, audio, file }
 
-/// 🔹 مدة اختفاء الرسالة
 enum DisappearDuration {
   off(0, 'لا تختفي'),
   seconds5(5, 'بعد 5 ثواني'),
@@ -25,7 +23,6 @@ enum DisappearDuration {
   }
 }
 
-/// قائمة الردود التفاعلية المتاحة
 const List<String> availableReactions = ['❤️', '👍', '😂', '😮', '😢', '😡'];
 
 class MessageModel {
@@ -65,7 +62,7 @@ class MessageModel {
     this.fileSize,
     this.isProRequired = false,
     this.ratchetN = 0,
-    this.protocolVersion = 1,
+    this.protocolVersion = 2,
     this.alg,
     this.dhPub,
     this.disappearAfterSeconds,
@@ -89,14 +86,14 @@ class MessageModel {
       senderId: data['sender_id'] ?? data['senderId'] ?? '',
       receiverId: data['recipient_id'] ?? data['receiver_id'] ?? data['receiverId'] ?? '',
       content: data['content'] ?? '',
-      timestamp: _tsToDate(data['timestamp']),
+      timestamp: _parseDate(data['timestamp']),
       isRead: data['is_read'] ?? data['isRead'] ?? false,
       type: _parseType(data['message_type'] ?? data['type']),
       fileSize: data['file_size'] is int ? data['file_size'] as int : 
                 data['fileSize'] is int ? data['fileSize'] as int : null,
       isProRequired: data['is_pro_required'] ?? data['isProRequired'] ?? false,
       ratchetN: _toIntSafe(data['ratchet_n'] ?? data['ratchetN']),
-      protocolVersion: _toIntSafe(data['protocol_version'] ?? data['protocolVersion']) == 0 ? 1 : _toIntSafe(data['protocol_version'] ?? data['protocolVersion']),
+      protocolVersion: _toIntSafe(data['protocol_version'] ?? data['protocolVersion'], defaultValue: 2),
       alg: data['alg'] as String? ?? 'AES-GCM-256',
       dhPub: data['dh_pub'] as String? ?? data['dhPub'] as String?,
       disappearAfterSeconds: data['disappear_after_seconds'] as int? ?? data['disappearAfterSeconds'] as int?,
@@ -109,7 +106,7 @@ class MessageModel {
       mentions: (data['mentions'] as List<dynamic>?)?.cast<String>(),
       groupId: data['group_id'] as String? ?? data['groupId'] as String?,
       reactions: (data['reactions'] as Map<String, dynamic>?)?.map(
-        (k, v) => MapEntry(k, v as int),
+        (k, v) => MapEntry(k, _toIntSafe(v)),
       ),
       pollId: data['poll_id'] as int? ?? data['pollId'] as int?,
     );
@@ -205,13 +202,6 @@ class MessageModel {
     );
   }
 
-  static DateTime _tsToDate(dynamic v) {
-    if (v is String) return DateTime.tryParse(v) ?? DateTime.now();
-    if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
-    if (v is DateTime) return v;
-    return DateTime.now();
-  }
-
   static DateTime _parseDate(dynamic v) {
     if (v is String) return DateTime.tryParse(v) ?? DateTime.now();
     if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
@@ -230,12 +220,13 @@ class MessageModel {
     return MessageType.text;
   }
 
-  static int _toIntSafe(dynamic v) {
+  static int _toIntSafe(dynamic v, {int defaultValue = 0}) {
     if (v is int) return v;
     if (v is String) {
       final p = int.tryParse(v);
       if (p != null) return p;
     }
-    return 0;
+    if (v is double) return v.toInt();
+    return defaultValue;
   }
 }

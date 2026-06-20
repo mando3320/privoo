@@ -1,74 +1,81 @@
 // lib/services/key_exchange_service.dart
 import 'dart:convert';
-import 'dart:math';
 import 'package:cryptography/cryptography.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class KeyExchangeService {
   static const int _identityKeyVersion = 1;
   final SupabaseClient _supabase = Supabase.instance.client;
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  
+  static const String _identityPrivateKeyPrefix = 'privoo_identity_priv_';
+  static const String _signaturePrivateKeyPrefix = 'privoo_signature_priv_';
 
   Future<void> ensureIdentityAndSignatureKeys(String userId) async {
-    final response = await _supabase
-        .from('keys')
-        .select()
-        .eq('user_id', userId)
-        .eq('type', 'identity')
-        .maybeSingle();
+    final identityPrivKey = await _secureStorage.read(key: '$_identityPrivateKeyPrefix$userId');
+    final signaturePrivKey = await _secureStorage.read(key: '$_signaturePrivateKeyPrefix$userId');
+    
+    if (identityPrivKey != null && signaturePrivKey != null) {
+      return;
+    }
 
-    if (response != null) return;
-
-    final identityKey = await X25519.generateKeyPair();
-    final signKey = await Ed25519.generateKeyPair();
+    final identityKey = await X25519().newKeyPair();
+    final signKey = await Ed25519().newKeyPair();
 
     final identityPub = await identityKey.extractPublicKey();
     final signPub = await signKey.extractPublicKey();
 
-    await _supabase.from('keys').insert({
+    await _secureStorage.write(
+      key: '$_identityPrivateKeyPrefix$userId',
+      value: base64Encode(await identityKey.extractPrivateKeyBytes()),
+    );
+    await _secureStorage.write(
+      key: '$_signaturePrivateKeyPrefix$userId',
+      value: base64Encode(await signKey.extractPrivateKeyBytes()),
+    );
+
+    await _supabase.from('keys').upsert({
       'user_id': userId,
       'type': 'identity',
       'public_key': base64Encode(identityPub.bytes),
-      'private_key': base64Encode(await identityKey.extractPrivateKeyBytes()),
       'version': _identityKeyVersion,
       'created_at': DateTime.now().toIso8601String(),
-    });
+    }, onConflict: 'user_id,type');
 
-    await _supabase.from('keys').insert({
+    await _supabase.from('keys').upsert({
       'user_id': userId,
       'type': 'signature',
       'public_key': base64Encode(signPub.bytes),
-      'private_key': base64Encode(await signKey.extractPrivateKeyBytes()),
       'version': _identityKeyVersion,
       'created_at': DateTime.now().toIso8601String(),
-    });
+    }, onConflict: 'user_id,type');
   }
 
   Future<SimpleKeyPair> getIdentityKeyPair(String userId) async {
-    final response = await _supabase
+    final privKeyBase64 = await _secureStorage.read(key: '$_identityPrivateKeyPrefix$userId');
+    if (privKeyBase64 == null) throw Exception('Identity private key not found');
+    
+    final privateKey = base64Decode(privKeyBase64);
+    final pubKeyResponse = await _supabase
         .from('keys')
-        .select()
+        .select('public_key')
         .eq('user_id', userId)
         .eq('type', 'identity')
         .maybeSingle();
-
-    if (response == null) throw Exception('Identity key not found');
-
-    final privateKey = base64Decode(response['private_key']);
-    return await X25519.privateKeyFromBytes(privateKey);
+    
+    if (pubKeyResponse == null) throw Exception('Identity public key not found');
+    final publicKey = base64Decode(pubKeyResponse['public_key']);
+    
+    return await X25519().newKeyPairFromSeed(privateKey, publicKey: publicKey);
   }
 
   Future<SimpleKeyPair> getSignatureKeyPair(String userId) async {
-    final response = await _supabase
-        .from('keys')
-        .select()
-        .eq('user_id', userId)
-        .eq('type', 'signature')
-        .maybeSingle();
-
-    if (response == null) throw Exception('Signature key not found');
-
-    final privateKey = base64Decode(response['private_key']);
-    return await Ed25519.privateKeyFromBytes(privateKey);
+    final privKeyBase64 = await _secureStorage.read(key: '$_signaturePrivateKeyPrefix$userId');
+    if (privKeyBase64 == null) throw Exception('Signature private key not found');
+    
+    final privateKey = base64Decode(privKeyBase64);
+    return await Ed25519().newKeyPairFromSeed(privateKey);
   }
 
   Future<List<int>> fetchPeerIdentityPublicKey(String peerId) async {
@@ -83,18 +90,6 @@ class KeyExchangeService {
     return base64Decode(response['public_key']);
   }
 
-  Future<List<int>> fetchPeerSignaturePublicKey(String peerId) async {
-    final response = await _supabase
-        .from('keys')
-        .select()
-        .eq('user_id', peerId)
-        .eq('type', 'signature')
-        .maybeSingle();
-
-    if (response == null) throw Exception('Peer signature key not found');
-    return base64Decode(response['public_key']);
-  }
-
   Future<SessionResult> establishSession({
     required String chatId,
     required String myUserId,
@@ -104,7 +99,7 @@ class KeyExchangeService {
     final myPrivate = await myKeys.extractPrivateKeyBytes();
 
     final peerPubBytes = await fetchPeerIdentityPublicKey(peerUserId);
-    final peerPub = await X25519.publicKeyFromBytes(peerPubBytes);
+    final peerPub = await X25519().newKeyPairFromSeed(myPrivate, publicKey: peerPubBytes);
 
     final sharedSecret = await _x25519SharedSecret(myPrivate, peerPub);
     final msgKey = await _deriveMessageKey(sharedSecret, chatId, 'msg_key');
@@ -127,17 +122,23 @@ class KeyExchangeService {
     final myPrivate = await myKeys.extractPrivateKeyBytes();
 
     final peerPubBytes = await fetchPeerIdentityPublicKey(peerUserId);
-    final peerPub = await X25519.publicKeyFromBytes(peerPubBytes);
+    final peerPub = await X25519().newKeyPairFromSeed(myPrivate, publicKey: peerPubBytes);
 
+    final ephemeralKey = await X25519().newKeyPair();
+    final ephemeralPub = await ephemeralKey.extractPublicKey();
+    
     final sharedSecret = await _x25519SharedSecret(myPrivate, peerPub);
-    final msgKey = await _deriveMessageKey(sharedSecret, chatId, 'msg_key');
+    final ephemeralSecret = await _x25519SharedSecret(await ephemeralKey.extractPrivateKeyBytes(), peerPub);
+    
+    final combinedSecret = [...sharedSecret, ...ephemeralSecret];
+    final msgKey = await _deriveMessageKey(combinedSecret, chatId, 'msg_key');
 
     return SessionResult(
       myPrivateKey: myPrivate,
       peerPublicKey: peerPubBytes,
-      sharedSecret: sharedSecret,
+      sharedSecret: combinedSecret,
       msgKey: msgKey,
-      chatMasterKey: sharedSecret,
+      chatMasterKey: combinedSecret,
     );
   }
 
@@ -145,7 +146,7 @@ class KeyExchangeService {
     List<int> myPrivate,
     SimplePublicKey peerPublic,
   ) async {
-    final keyPair = await X25519.privateKeyFromBytes(myPrivate);
+    final keyPair = await X25519().newKeyPairFromSeed(myPrivate);
     final sharedSecret = await keyPair.sharedSecret(peerPublic);
     return sharedSecret.bytes;
   }
@@ -168,6 +169,16 @@ class KeyExchangeService {
     final hash = await Sha256().hash(pubBytes);
     final fingerprint = hash.bytes.take(bytes).toList();
     return fingerprint.map((b) => b.toRadixString(16).padLeft(2, '0')).join(':');
+  }
+
+  Future<void> deleteAllKeys(String userId) async {
+    await _secureStorage.delete(key: '$_identityPrivateKeyPrefix$userId');
+    await _secureStorage.delete(key: '$_signaturePrivateKeyPrefix$userId');
+    
+    await _supabase
+        .from('keys')
+        .delete()
+        .eq('user_id', userId);
   }
 }
 

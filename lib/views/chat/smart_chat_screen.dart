@@ -167,22 +167,14 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
       final userId = ref.read(authControllerProvider).currentUser?.id;
       if (userId == null) return;
 
-      var query = _supabase
+      // ✅ جلب الرسائل من Supabase
+      final response = await _supabase
           .from('messages')
           .select()
           .eq('chat_id', widget.chatId)
           .order('timestamp', ascending: false)
           .limit(30);
 
-      if (loadMore && _lastDocument != null) {
-        final lastTimestamp = _lastDocument?['timestamp'] as String?;
-        if (lastTimestamp != null) {
-          // query = query.lt('timestamp', lastTimestamp);
-        }
-      }
-
-      final response = await query;
-      
       if (response.isNotEmpty) {
         _lastDocument = response.last;
         _hasMore = response.length == 30;
@@ -190,13 +182,14 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
         _hasMore = false;
       }
 
+      // ✅ معالجة الرسائل الفردية (غير القنوات والمجموعات)
       if (!widget.isGroup && !widget.isChannel) {
         final newMessages = <MessageModel>[];
         
         for (var data in response) {
           try {
             final ratchetN = data['ratchet_n'] as int?;
-            if (ratchetN == null) {
+            if (ratchetN == null || ratchetN == 0) {
               final message = MessageModel.fromSupabase(data);
               newMessages.add(message);
               continue;
@@ -224,14 +217,20 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
             final recipientId = data['recipient_id'] as String? ?? '';
             final timestamp = data['timestamp'] as String? ?? DateTime.now().toIso8601String();
             final messageType = data['message_type'] as String? ?? 'text';
-            final protocolVersion = data['protocol_version'] as int? ?? 1;
+            final protocolVersion = data['protocol_version'] as int? ?? 2;
             final dhPubStr = data['dh_pub'] as String? ?? '';
             final encryptedContent = data['content'] as String? ?? '';
 
-            final aad = utf8.encode(
-              'chat:${widget.chatId};sender:$senderId;recv:$recipientId;'
-              'n:$ratchetN;ts:$timestamp;type:$messageType;'
-              'v:$protocolVersion;dh:$dhPubStr',
+            // ✅ استخدام AAD موحد
+            final aad = EncryptionService.buildAAD(
+              chatId: widget.chatId,
+              senderId: senderId,
+              receiverId: userId,
+              ratchetN: ratchetN,
+              timestamp: DateTime.parse(timestamp).millisecondsSinceEpoch,
+              messageType: messageType,
+              protocolVersion: protocolVersion,
+              dhPub: dhPubStr.isNotEmpty ? base64Decode(dhPubStr) : [],
             );
 
             final clear = await EncryptionService.decrypt(
@@ -268,6 +267,7 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
           _isLoadingMore = false;
         });
       } else {
+        // ✅ للمجموعات والقنوات (غير مشفرة)
         final newMessages = response
             .map((data) => MessageModel.fromSupabase(data))
             .toList();
@@ -661,11 +661,6 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
       ),
       body: Column(
         children: [
-          // if (chatState.replyingTo != null)
-          //   ReplyPreviewWidget(
-          //     replyingTo: chatState.replyingTo!,
-          //     onCancel: () => chatController.clearReplyingTo(),
-          //   ),
           Container(
             width: double.infinity,
             color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
@@ -753,7 +748,6 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
                                       senderName: senderName,
                                       isPinned: msg.isPinned,
                                       onReaction: (reaction) => _addReaction(msg, reaction),
-                                      // onReply: () => chatController.setReplyingTo(msg),
                                       onPin: () => chatController.togglePinMessage(
                                         widget.chatId,
                                         msg.id,

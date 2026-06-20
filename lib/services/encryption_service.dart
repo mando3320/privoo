@@ -1,117 +1,116 @@
-// services/encryption_service.dart
+// lib/services/encryption_service.dart
 import 'dart:convert';
+import 'dart:math';
 import 'package:cryptography/cryptography.dart';
-import '../main.dart';
-
- 
 
 class EncryptionService {
-  static final _aes = AesGcm.with256bits();
-  static final _chacha = Chacha20.poly1305Aead();
+  static final _algo = AesGcm.with256bits();
+  static final _hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
 
-  /// 🔐 تشفير رسالة
+  // ✅ دالة موحدة لبناء AAD
+  static List<int> buildAAD({
+    required String chatId,
+    required String senderId,
+    required String receiverId,
+    required int ratchetN,
+    required int timestamp,
+    required String messageType,
+    required int protocolVersion,
+    required List<int> dhPub,
+  }) {
+    return utf8.encode(
+      'chat:$chatId;sender:$senderId;recv:$receiverId;'
+      'n:$ratchetN;ts:$timestamp;type:$messageType;'
+      'v:$protocolVersion;dh:${base64Encode(dhPub)}'
+    );
+  }
+
   static Future<String> encrypt({
     required String plaintext,
     required List<int> keyBytes,
     List<int>? aad,
     String algorithm = 'AES-GCM-256',
   }) async {
-    if (keyBytes.length != 32) {
-      throw ArgumentError("يجب أن يكون مفتاح التشفير 32 بايت");
-    }
-
-    final key = SecretKey(keyBytes);
-    final algo = (algorithm == 'ChaCha20-Poly1305') ? _chacha : _aes;
-    final nonce = algo.newNonce();
-
-    // ✅ إصلاح: تمرير aad فقط إذا كان غير null
-    final secretBox = await algo.encrypt(
+    final secretKey = SecretKey(keyBytes);
+    final nonce = _randomNonce(12);
+    
+    final secretBox = await _algo.encrypt(
       utf8.encode(plaintext),
-      secretKey: key,
+      secretKey: secretKey,
       nonce: nonce,
-      aad: aad ?? const <int>[],
+      aad: aad,
     );
-
-    final payload = jsonEncode({
-      'n': base64Encode(nonce),
-      'c': base64Encode(secretBox.cipherText),
-      't': base64Encode(secretBox.mac.bytes),
-      'v': 2,
-      'alg': algorithm,
-    });
-
-    return base64Encode(utf8.encode(payload));
+    
+    final combined = [...nonce, ...secretBox.cipherText, ...secretBox.mac.bytes];
+    return base64Encode(combined);
   }
 
-  /// 🔓 فك تشفير رسالة
   static Future<String> decrypt({
     required String encrypted,
     required List<int> keyBytes,
     List<int>? aad,
   }) async {
-    if (keyBytes.length != 32) {
-      throw ArgumentError("مفتاح فك التشفير يجب أن يكون 32 بايت");
-    }
-
-    try {
-      final decodedJson = utf8.decode(base64Decode(encrypted));
-      final decoded = jsonDecode(decodedJson);
-
-      final nonce = base64Decode(decoded['n']);
-      final cipher = base64Decode(decoded['c']);
-      final tag = base64Decode(decoded['t']);
-      final alg = decoded['alg'] ?? 'AES-GCM-256';
-
-      final box = SecretBox(cipher, nonce: nonce, mac: Mac(tag));
-      final key = SecretKey(keyBytes);
-      final algo = (alg == 'ChaCha20-Poly1305') ? _chacha : _aes;
-      // ✅ إصلاح: تمرير aad فقط إذا كان غير null
-      final clear = await algo.decrypt(box, secretKey: key, aad: aad ?? const <int>[]);
-      return utf8.decode(clear);
-    } catch (e) {
-      logger.e('❌ فشل فك التشفير: $e');
-      throw Exception('فشل التوثيق أو خطأ في المفتاح');
-    }
+    final combined = base64Decode(encrypted);
+    final nonce = combined.sublist(0, 12);
+    final cipherText = combined.sublist(12, combined.length - 16);
+    final mac = Mac(combined.sublist(combined.length - 16));
+    
+    final secretKey = SecretKey(keyBytes);
+    final secretBox = SecretBox(cipherText, nonce: nonce, mac: mac);
+    
+    final decrypted = await _algo.decrypt(secretBox, secretKey: secretKey, aad: aad);
+    return utf8.decode(decrypted);
   }
 
-  /// 🔐 تشفير بيانات ثنائية (للملفات)
-  static Future<List<int>> encryptBytes(List<int> plaintext, List<int> keyBytes) async {
-    if (keyBytes.length != 32) {
-      throw ArgumentError("يجب أن يكون مفتاح التشفير 32 بايت");
-    }
-    final key = SecretKey(keyBytes);
-    final nonce = _aes.newNonce();
-    final secretBox = await _aes.encrypt(plaintext, secretKey: key, nonce: nonce);
-    final combined = [...nonce, ...secretBox.cipherText, ...secretBox.mac.bytes];
-    return combined;
+  static Future<List<int>> encryptBytes(
+    List<int> bytes,
+    List<int> keyBytes,
+  ) async {
+    final secretKey = SecretKey(keyBytes);
+    final nonce = _randomNonce(12);
+    
+    final secretBox = await _algo.encrypt(
+      bytes,
+      secretKey: secretKey,
+      nonce: nonce,
+    );
+    
+    return [...nonce, ...secretBox.cipherText, ...secretBox.mac.bytes];
   }
 
-  /// تشفير رسالة دعم مبسط (يُستخدم للرسائل غير الحساسة في واجهة الدعم)
-  /// NOTE: This is intentionally lightweight; replace with real encryption if needed.
-  static Future<String> encryptSupportMessage(String message) async {
-    return base64Encode(utf8.encode(message));
-  }
-
-  /// Hash an email address to produce a pseudonymous identifier
-  static Future<String> hashEmail(String email) async {
-    final digest = await Sha256().hash(utf8.encode(email));
-    return digest.bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  }
-
-  /// 🔓 فك تشفير بيانات ثنائية (للملفات)
-  static Future<List<int>> decryptBytes(List<int> encrypted, List<int> keyBytes) async {
-    if (keyBytes.length != 32) {
-      throw ArgumentError("مفتاح فك التشفير يجب أن يكون 32 بايت");
-    }
-    if (encrypted.length < 28) {
-      throw ArgumentError("البيانات المشفرة غير صالحة");
-    }
+  static Future<List<int>> decryptBytes(
+    List<int> encrypted,
+    List<int> keyBytes,
+  ) async {
     final nonce = encrypted.sublist(0, 12);
     final cipherText = encrypted.sublist(12, encrypted.length - 16);
     final mac = Mac(encrypted.sublist(encrypted.length - 16));
-    final box = SecretBox(cipherText, nonce: nonce, mac: mac);
-    final key = SecretKey(keyBytes);
-    final clear = await _aes.decrypt(box, secretKey: key);
-    return clear;
+    
+    final secretKey = SecretKey(keyBytes);
+    final secretBox = SecretBox(cipherText, nonce: nonce, mac: mac);
+    
+    return await _algo.decrypt(secretBox, secretKey: secretKey);
+  }
+
+  static Future<String> encryptSupportMessage(String message) async {
+    // 🔐 تشفير رسالة الدعم بمفتاح عام ثابت
+    final key = utf8.encode('privoo_support_key_2024');
+    final hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
+    final derived = await hkdf.deriveKey(
+      secretKey: SecretKey(key),
+      info: utf8.encode('privoo:support'),
+    );
+    final keyBytes = await derived.extractBytes();
+    return await encrypt(plaintext: message, keyBytes: keyBytes);
+  }
+
+  static Future<String> hashEmail(String email) async {
+    final hash = await Sha256().hash(utf8.encode(email));
+    return base64Encode(hash.bytes);
+  }
+
+  static List<int> _randomNonce(int len) {
+    final rnd = Random.secure();
+    return List<int>.generate(len, (_) => rnd.nextInt(256));
   }
 }

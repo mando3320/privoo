@@ -28,8 +28,16 @@ class SupabaseChatRepository implements ChatRepository {
 
     final msgType = message.type.name;
 
-    final aad = utf8.encode(
-      'chat:$chatId;sender:$myUserId;recv:$peerUserId;n:${ratchetData.n};ts:$timestamp;type:$msgType;v:2;dh:${base64Encode(ratchetData.myDhPub)}',
+    // ✅ استخدام AAD موحد
+    final aad = EncryptionService.buildAAD(
+      chatId: chatId,
+      senderId: myUserId,
+      receiverId: peerUserId,
+      ratchetN: ratchetData.n,
+      timestamp: timestamp,
+      messageType: msgType,
+      protocolVersion: 2,
+      dhPub: ratchetData.myDhPub,
     );
 
     final encryptedContent = await EncryptionService.encrypt(
@@ -65,37 +73,47 @@ class SupabaseChatRepository implements ChatRepository {
       final messages = await _supabase.getMessages(chatId);
       
       final decryptedMessages = <MessageModel>[];
+      
       for (var msg in messages) {
         try {
-          final ratchetN = msg['ratchet_n'] as int?;
-          if (ratchetN == null) {
-            decryptedMessages.add(MessageModel.fromMap(msg['id'].toString(), msg));
+          final ratchetN = msg.ratchetN;
+          
+          if (ratchetN == 0) {
+            decryptedMessages.add(msg);
             continue;
           }
+          
+          final dhPub = msg.dhPub != null ? base64Decode(msg.dhPub!) : null;
           
           final mk = await RatchetService.keyForReceived(
             chatId: chatId,
             myUserId: myUserId,
             ratchetN: ratchetN,
-            senderDhPub: null,
+            senderDhPub: dhPub,
+          );
+
+          // ✅ استخدام AAD موحد
+          final aad = EncryptionService.buildAAD(
+            chatId: chatId,
+            senderId: msg.senderId,
+            receiverId: myUserId,
+            ratchetN: ratchetN,
+            timestamp: msg.timestamp.millisecondsSinceEpoch,
+            messageType: msg.type.name,
+            protocolVersion: msg.protocolVersion,
+            dhPub: dhPub ?? [],
           );
 
           final clear = await EncryptionService.decrypt(
-            encrypted: msg['content'],
+            encrypted: msg.content,
             keyBytes: mk,
-            aad: utf8.encode('chat:$chatId;...'), // Simplified for example
+            aad: aad,
           );
 
-          decryptedMessages.add(MessageModel.fromMap(msg['id'].toString(), {
-            ...msg,
-            'content': clear,
-          }));
+          decryptedMessages.add(msg.copyWith(content: clear));
         } catch (e) {
           logger.e('❌ فشل فك الرسالة: $e');
-          decryptedMessages.add(MessageModel.fromMap(msg['id'].toString(), {
-            ...msg,
-            'content': '[فشل فك التشفير]',
-          }));
+          decryptedMessages.add(msg.copyWith(content: '[فشل فك التشفير]'));
         }
       }
       

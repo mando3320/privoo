@@ -12,16 +12,34 @@ class PinnedMessagesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('الرسائل المثبتة')),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: Supabase.instance.client
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: Supabase.instance.client
             .from('messages')
-            .stream(primaryKey: ['id'])
+            .select()
             .eq('chat_id', chatId)
-            .filter('is_pinned', 'eq', true)  // ✅ استخدم filter
+            .eq('is_pinned', true)
             .order('timestamp', ascending: false),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text('خطأ: ${snapshot.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('إعادة المحاولة'),
+                  ),
+                ],
+              ),
+            );
           }
 
           final messages = snapshot.data ?? [];
@@ -47,6 +65,7 @@ class PinnedMessagesScreen extends StatelessWidget {
                         .from('messages')
                         .update({'is_pinned': false})
                         .eq('id', message.id);
+                    setState(() {});
                   },
                 ),
                 onTap: () {

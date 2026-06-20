@@ -53,35 +53,29 @@ class ChannelService {
     return channel;
   }
 
-  // ✅ طريقة Supabase الصحيحة للـ Stream
-  Stream<List<ChannelModel>> getUserChannels(String userId) {
-    return _supabase
-        .from('channel_subscribers')
-        .stream(primaryKey: ['channel_id', 'user_id'])
-        .eq('user_id', userId)
-        .map((data) {
-          final channelIds = List<Map<String, dynamic>>.from(data)
-              .map((e) => e['channel_id'] as String)
-              .toList();
-          
-          if (channelIds.isEmpty) return [];
-          
-          return _getChannelsStream(channelIds);
-        });
-  }
-
-  Stream<List<ChannelModel>> _getChannelsStream(List<String> channelIds) async* {
+  Future<List<ChannelModel>> getUserChannels(String userId) async {
     try {
       final response = await _supabase
+          .from('channel_subscribers')
+          .select('channel_id')
+          .eq('user_id', userId);
+      
+      final channelIds = List<Map<String, dynamic>>.from(response)
+          .map((e) => e['channel_id'] as String)
+          .toList();
+      
+      if (channelIds.isEmpty) return [];
+      
+      final channels = await _supabase
           .from('channels')
           .select()
           .inFilter('id', channelIds)
           .order('created_at', ascending: false);
       
-      yield response.map((doc) => ChannelModel.fromSupabase(doc)).toList();
+      return channels.map((doc) => ChannelModel.fromSupabase(doc)).toList();
     } catch (e) {
-      print('❌ _getChannelsStream error: $e');
-      yield [];
+      print('❌ getUserChannels error: $e');
+      return [];
     }
   }
 
@@ -96,15 +90,19 @@ class ChannelService {
     return ChannelModel.fromSupabase(response);
   }
 
-  Stream<List<ChannelModel>> getPublicChannels() {
-    return _supabase
-        .from('channels')
-        .stream(primaryKey: ['id'])
-        .eq('is_public', true)
-        .order('subscriber_count', ascending: false)
-        .map((data) {
-          return data.map((doc) => ChannelModel.fromSupabase(doc)).toList();
-        });
+  Future<List<ChannelModel>> getPublicChannels() async {
+    try {
+      final response = await _supabase
+          .from('channels')
+          .select()
+          .eq('is_public', true)
+          .order('subscriber_count', ascending: false);
+      
+      return response.map((doc) => ChannelModel.fromSupabase(doc)).toList();
+    } catch (e) {
+      print('❌ getPublicChannels error: $e');
+      return [];
+    }
   }
 
   Future<void> subscribeToChannel(String channelId) async {
@@ -149,14 +147,20 @@ class ChannelService {
     });
   }
 
-  Stream<List<Map<String, dynamic>>> getChannelPosts(String channelId) {
-    return _supabase
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('chat_id', channelId)
-        .eq('type', 'channel_post')
-        .order('timestamp', ascending: false)
-        .map((data) => List<Map<String, dynamic>>.from(data));
+  Future<List<Map<String, dynamic>>> getChannelPosts(String channelId) async {
+    try {
+      final response = await _supabase
+          .from('messages')
+          .select()
+          .eq('chat_id', channelId)
+          .eq('type', 'channel_post')
+          .order('timestamp', ascending: false);
+      
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('❌ getChannelPosts error: $e');
+      return [];
+    }
   }
 
   Future<void> likePost(String channelId, String postId) async {

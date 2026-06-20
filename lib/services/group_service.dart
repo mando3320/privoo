@@ -56,25 +56,19 @@ class GroupService {
     return group;
   }
 
-  // ✅ طريقة Supabase الصحيحة للـ Stream
-  Stream<List<GroupModel>> getUserGroups(String userId) {
-    return _supabase
-        .from('chat_members')
-        .stream(primaryKey: ['chat_id', 'user_id'])
-        .eq('user_id', userId)
-        .map((data) {
-          final chatIds = List<Map<String, dynamic>>.from(data)
-              .map((e) => e['chat_id'] as String)
-              .toList();
-          
-          if (chatIds.isEmpty) return [];
-          
-          return _getGroupsStream(chatIds);
-        });
-  }
-
-  Stream<List<GroupModel>> _getGroupsStream(List<String> chatIds) async* {
+  Future<List<GroupModel>> getUserGroups(String userId) async {
     try {
+      final memberResponse = await _supabase
+          .from('chat_members')
+          .select('chat_id')
+          .eq('user_id', userId);
+      
+      final chatIds = List<Map<String, dynamic>>.from(memberResponse)
+          .map((e) => e['chat_id'] as String)
+          .toList();
+      
+      if (chatIds.isEmpty) return [];
+      
       final response = await _supabase
           .from('chats')
           .select()
@@ -82,10 +76,10 @@ class GroupService {
           .inFilter('id', chatIds)
           .order('updated_at', ascending: false);
       
-      yield response.map((doc) => GroupModel.fromSupabase(doc)).toList();
+      return response.map((doc) => GroupModel.fromSupabase(doc)).toList();
     } catch (e) {
-      print('❌ _getGroupsStream error: $e');
-      yield [];
+      print('❌ getUserGroups error: $e');
+      return [];
     }
   }
 
@@ -131,37 +125,40 @@ class GroupService {
     });
   }
 
-  Stream<List<GroupMessage>> getGroupMessages(String groupId) {
-    return _supabase
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('chat_id', groupId)
-        .order('timestamp', ascending: false)
-        .map((data) async {
-          final group = await getGroup(groupId);
-          final messages = <GroupMessage>[];
-          for (var doc in data) {
-            try {
-              final decrypted = await _decryptGroupMessage(doc['content'], groupId);
-              messages.add(GroupMessage(
-                id: doc['id'],
-                senderId: doc['sender_id'],
-                content: decrypted,
-                timestamp: DateTime.parse(doc['timestamp']).millisecondsSinceEpoch,
-                type: doc['type'] ?? 'text',
-              ));
-            } catch (e) {
-              messages.add(GroupMessage(
-                id: doc['id'],
-                senderId: doc['sender_id'],
-                content: '[رسالة مشفرة]',
-                timestamp: DateTime.parse(doc['timestamp']).millisecondsSinceEpoch,
-                type: doc['type'] ?? 'text',
-              ));
-            }
-          }
-          return messages;
-        });
+  Future<List<GroupMessage>> getGroupMessages(String groupId) async {
+    try {
+      final response = await _supabase
+          .from('messages')
+          .select()
+          .eq('chat_id', groupId)
+          .order('timestamp', ascending: false);
+      
+      final messages = <GroupMessage>[];
+      for (var doc in response) {
+        try {
+          final decrypted = await _decryptGroupMessage(doc['content'], groupId);
+          messages.add(GroupMessage(
+            id: doc['id'],
+            senderId: doc['sender_id'],
+            content: decrypted,
+            timestamp: DateTime.parse(doc['timestamp']).millisecondsSinceEpoch,
+            type: doc['type'] ?? 'text',
+          ));
+        } catch (e) {
+          messages.add(GroupMessage(
+            id: doc['id'],
+            senderId: doc['sender_id'],
+            content: '[رسالة مشفرة]',
+            timestamp: DateTime.parse(doc['timestamp']).millisecondsSinceEpoch,
+            type: doc['type'] ?? 'text',
+          ));
+        }
+      }
+      return messages;
+    } catch (e) {
+      print('❌ getGroupMessages error: $e');
+      return [];
+    }
   }
 
   Future<void> addMember(String groupId, String userId, String adminId) async {
