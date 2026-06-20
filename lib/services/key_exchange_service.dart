@@ -148,14 +148,14 @@ class KeyExchangeService {
     List<int> peerPublicBytes,
   ) async {
     final keyPair = await X25519().newKeyPairFromSeed(myPrivate);
-    // ✅ الطريقة الصحيحة لـ cryptography 2.9.0
+    // ✅ استخدام SimplePublicKey مباشرة مع KeyPairType من cryptography
     final peerPublic = SimplePublicKey(peerPublicBytes, type: KeyPairType.x25519);
-    // ✅ الطريقة الصحيحة لـ cryptography 2.9.0
     final sharedSecret = await X25519().sharedSecretKey(
       keyPair: keyPair,
       remotePublicKey: peerPublic,
     );
-    return sharedSecret.bytes;
+    // ✅ استخدام extractBytes() بدلاً من bytes
+    return await sharedSecret.extractBytes();
   }
 
   Future<List<int>> _deriveMessageKey(
@@ -189,7 +189,8 @@ class KeyExchangeService {
   }
 }
 
-enum KeyPairType { x25519, ed25519 }
+// ✅ حذف enum KeyPairType المكرر لتجنب التعارض مع cryptography
+// تم حذف: enum KeyPairType { x25519, ed25519 }
 
 class SessionResult {
   final List<int> myPrivateKey;
