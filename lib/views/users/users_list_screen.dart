@@ -47,7 +47,6 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
     try {
       final users = await SupabaseService().getAllUsers();
       
-      // ✅ استبعاد المستخدم الحالي
       final filteredUsers = users.where((u) => u.authId != _currentUserId).toList();
 
       setState(() {
@@ -97,8 +96,23 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
     }
 
     try {
-      // ✅ إنشاء محادثة
-      final chatId = await SupabaseService().createChat([currentUserId, targetUid]);
+      // ✅ جلب المستخدمين بالـ auth_id للحصول على الـ id الحقيقي
+      final currentUser = await SupabaseService().getUser(currentUserId);
+      final targetUser = await SupabaseService().getUser(targetUid);
+      
+      if (currentUser == null || targetUser == null) {
+        _showSnackbar('المستخدم غير موجود');
+        return;
+      }
+      
+      print('📤 currentUser.id: ${currentUser.id}');
+      print('📤 targetUser.id: ${targetUser.id}');
+      
+      // ✅ استخدم الـ id (المفتاح الأساسي) مش auth_id
+      final chatId = await SupabaseService().createChat([
+        currentUser.id,
+        targetUser.id,
+      ]);
 
       if (mounted) {
         Navigator.pushNamed(
@@ -106,7 +120,7 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
           '/chat',
           arguments: {
             'chatId': chatId,
-            'receiverId': targetUid,
+            'receiverId': targetUser.id,  // ✅ استخدم id
             'name': name,
           },
         );

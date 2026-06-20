@@ -200,27 +200,49 @@ class SupabaseService {
   // ============================================================
 
   Future<String> createChat(List<String> members) async {
-    final chatId = _uuid.v4();
-    final now = DateTime.now().toIso8601String();
-    
-    await _client.from('chats').insert({
-      'id': chatId,
-      'created_at': now,
-      'updated_at': now,
-      'last_message': '',
-      'last_message_time': now,
-      'unread_count': {for (var m in members) m: 0},
-    });
-    
-    for (final member in members) {
-      await _client.from('chat_members').insert({
-        'chat_id': chatId,
-        'user_id': member,
-        'joined_at': now,
+    try {
+      print('📤 createChat called with members: $members');
+      
+      final chatId = _uuid.v4();
+      final now = DateTime.now().toIso8601String();
+      
+      // ✅ بناء unread_count بشكل صحيح
+      final Map<String, int> unreadCount = {};
+      for (var m in members) {
+        unreadCount[m] = 0;
+      }
+      
+      print('📤 Creating chat with ID: $chatId');
+      
+      await _client.from('chats').insert({
+        'id': chatId,
+        'created_at': now,
+        'updated_at': now,
+        'last_message': '',
+        'last_message_time': now,
+        'unread_count': unreadCount,  // ✅ Map صحيح
+        'members': members,
+        'is_group': false,
       });
+      
+      print('✅ Chat created successfully');
+      
+      for (final member in members) {
+        print('📤 Adding member: $member to chat: $chatId');
+        await _client.from('chat_members').insert({
+          'chat_id': chatId,
+          'user_id': member,
+          'joined_at': now,
+          'role': 'member',
+        });
+      }
+      
+      print('✅ All members added successfully');
+      return chatId;
+    } catch (e) {
+      print('❌ createChat error: $e');
+      rethrow;
     }
-    
-    return chatId;
   }
 
   Future<List<ChatModel>> getUserChats(String authId) async {
