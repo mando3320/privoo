@@ -12,6 +12,7 @@ import 'controllers/app_controller.dart';
 import 'l10n/app_localizations.dart';
 import 'services/hive_storage_service.dart';
 import 'services/supabase_service.dart';
+import 'services/permission_service.dart';  // ✅ أضف هذا
 
 final logger = Logger();
 
@@ -22,12 +23,15 @@ Future<void> main() async {
     await dotenv.load(fileName: ".env");
     logger.i('✅ تم تحميل ملف .env بنجاح');
 
-    // ✅ تهيئة Supabase
     await SupabaseService().init();
     logger.i('✅ تم تهيئة Supabase بنجاح');
 
     await HiveStorageService.init();
     logger.i('✅ تم تهيئة Hive Storage بنجاح');
+
+    // ✅ طلب الأذونات تلقائياً
+    await PermissionService.requestAllPermissions();
+    logger.i('✅ تم طلب الأذونات تلقائياً');
 
     runApp(
       const ProviderScope(
