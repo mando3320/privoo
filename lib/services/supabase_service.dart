@@ -142,6 +142,17 @@ class SupabaseService {
     }
   }
 
+  Future<UserModel?> getUserById(String id) async {
+    try {
+      final response = await _client.from('users').select().eq('id', id).maybeSingle();
+      if (response == null) return null;
+      return UserModel.fromJson(response);
+    } catch (e) {
+      print('❌ getUserById error: $e');
+      return null;
+    }
+  }
+
   Future<UserModel?> getUserByPhone(String phoneNumber) async {
     try {
       final response = await _client.from('users').select().eq('phone_number', phoneNumber).maybeSingle();
@@ -166,7 +177,13 @@ class SupabaseService {
   }
 
   Future<void> createUser(UserModel user) async {
-    await _client.from('users').insert(user.toJson());
+    try {
+      await _client.from('users').insert(user.toJson());
+      print('✅ User created: ${user.id}');
+    } catch (e) {
+      print('❌ createUser error: $e');
+      rethrow;
+    }
   }
 
   Future<void> updateUser(String authId, Map<String, dynamic> data) async {
@@ -177,6 +194,18 @@ class SupabaseService {
       print('✅ updateUser success');
     } catch (e) {
       print('❌ updateUser error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateUserById(String id, Map<String, dynamic> data) async {
+    try {
+      print('📤 updateUserById called with id: $id');
+      print('📤 data: $data');
+      await _client.from('users').update(data).eq('id', id);
+      print('✅ updateUserById success');
+    } catch (e) {
+      print('❌ updateUserById error: $e');
       rethrow;
     }
   }
@@ -206,7 +235,6 @@ class SupabaseService {
       final chatId = _uuid.v4();
       final now = DateTime.now().toIso8601String();
       
-      // ✅ بناء unread_count بشكل صحيح
       final Map<String, int> unreadCount = {};
       for (var m in members) {
         unreadCount[m] = 0;
@@ -220,7 +248,7 @@ class SupabaseService {
         'updated_at': now,
         'last_message': '',
         'last_message_time': now,
-        'unread_count': unreadCount,  // ✅ Map صحيح
+        'unread_count': unreadCount,
         'members': members,
         'is_group': false,
       });
@@ -355,39 +383,51 @@ class SupabaseService {
     required String content,
     String type = 'text',
   }) async {
-    final messageId = _uuid.v4();
-    final now = DateTime.now().toIso8601String();
-    
-    final message = MessageModel(
-      id: messageId,
-      senderId: senderId,
-      receiverId: '',
-      content: content,
-      timestamp: DateTime.now(),
-      isRead: false,
-      type: _parseMessageType(type),
-    );
-    
-    final response = await _client
-        .from('messages')
-        .insert({
-          ...message.toMap(),
-          'chat_id': chatId,
-          'created_at': now,
-        })
-        .select()
-        .single();
-    
-    await updateChatLastMessage(chatId, content, DateTime.now());
-    
-    final members = await _getChatMembers(chatId);
-    for (final member in members) {
-      if (member != senderId) {
-        await incrementUnreadCount(chatId, member);
+    try {
+      print('📤 sendMessage called');
+      print('📤 chatId: $chatId');
+      print('📤 senderId: $senderId');
+      print('📤 content: $content');
+      
+      final messageId = _uuid.v4();
+      final now = DateTime.now().toIso8601String();
+      
+      final message = MessageModel(
+        id: messageId,
+        senderId: senderId,
+        receiverId: '',
+        content: content,
+        timestamp: DateTime.now(),
+        isRead: false,
+        type: _parseMessageType(type),
+      );
+      
+      final response = await _client
+          .from('messages')
+          .insert({
+            ...message.toMap(),
+            'chat_id': chatId,
+            'created_at': now,
+          })
+          .select()
+          .single();
+      
+      print('✅ Message saved: ${response['id']}');
+      
+      await updateChatLastMessage(chatId, content, DateTime.now());
+      
+      final members = await _getChatMembers(chatId);
+      for (final member in members) {
+        if (member != senderId) {
+          await incrementUnreadCount(chatId, member);
+        }
       }
+      
+      return MessageModel.fromJson(response);
+    } catch (e) {
+      print('❌ sendMessage error: $e');
+      rethrow;
     }
-    
-    return MessageModel.fromJson(response);
   }
 
   Future<List<MessageModel>> getMessages(String chatId, {int limit = 50}) async {
@@ -414,6 +454,10 @@ class SupabaseService {
     await _client.from('messages').delete().eq('id', messageId);
   }
 
+  Future<void> deleteMessagesForChat(String chatId) async {
+    await _client.from('messages').delete().eq('chat_id', chatId);
+  }
+
   Future<void> markMessageAsRead(String messageId, String userId) async {
     final message = await _client.from('messages').select().eq('id', messageId).maybeSingle();
     if (message == null) return;
@@ -426,6 +470,14 @@ class SupabaseService {
     }).eq('id', messageId);
   }
 
+  Future<void> markAllMessagesAsRead(String chatId, String userId) async {
+    await _client
+        .from('messages')
+        .update({'is_read': true})
+        .eq('chat_id', chatId)
+        .neq('sender_id', userId);
+  }
+
   // ============================================================
   // 📡 Realtime Subscriptions
   // ============================================================
@@ -434,12 +486,11 @@ class SupabaseService {
     return _client
         .from('messages')
         .stream(primaryKey: ['id'])
+        .eq('chat_id', chatId)
+        .order('created_at', ascending: false)
         .map((data) {
           return List<Map<String, dynamic>>.from(data)
-              .where((json) => json['chat_id'] == chatId)
               .map((json) => MessageModel.fromJson(json))
-              .toList()
-              .reversed
               .toList();
         });
   }
@@ -448,6 +499,7 @@ class SupabaseService {
     return _client
         .from('chats')
         .stream(primaryKey: ['id'])
+        .eq('id', chatId)
         .map((data) {
           if (data.isEmpty) return null;
           return ChatModel.fromJson(data.first);
@@ -463,6 +515,28 @@ class SupabaseService {
           if (data.isEmpty) return null;
           return UserModel.fromJson(data.first);
         });
+  }
+
+  // ============================================================
+  // 🗑️ Delete Account
+  // ============================================================
+
+  Future<void> deleteUserAccount(String userId) async {
+    try {
+      // حذف الرسائل
+      await deleteMessagesForChat(userId);
+      
+      // حذف من chat_members
+      await _client.from('chat_members').delete().eq('user_id', userId);
+      
+      // حذف من users
+      await _client.from('users').delete().eq('id', userId);
+      
+      print('✅ User account deleted: $userId');
+    } catch (e) {
+      print('❌ deleteUserAccount error: $e');
+      rethrow;
+    }
   }
 
   // ============================================================
