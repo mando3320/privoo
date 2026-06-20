@@ -66,24 +66,50 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar> {
     final text = chat.inputController.text.trim();
     if (text.isEmpty) return;
 
-    if (widget.isChannel && widget.channelId != null) {
-      final channelService = ChannelService();
-      await channelService.sendChannelPost(
-        channelId: widget.channelId!,
-        content: text,
-        senderId: chat.currentUserId,
-      );
-    } else if (widget.isGroup && widget.groupId != null) {
-      final groupService = GroupService();
-      await groupService.sendGroupMessage(
-        groupId: widget.groupId!,
-        message: text,
-        senderId: chat.currentUserId,
-      );
-    } else {
-      await chat.sendTextMessage(widget.chatId, widget.receiverId);
+    try {
+      print('📤📤📤 SEND BUTTON PRESSED 📤📤📤');
+      print('📤 chatId: ${widget.chatId}');
+      print('📤 receiverId: ${widget.receiverId}');
+      print('📤 text: $text');
+      print('📤 isGroup: ${widget.isGroup}');
+      print('📤 isChannel: ${widget.isChannel}');
+      
+      if (widget.isChannel && widget.channelId != null) {
+        final channelService = ChannelService();
+        await channelService.sendChannelPost(
+          channelId: widget.channelId!,
+          content: text,
+          senderId: chat.currentUserId,
+        );
+      } else if (widget.isGroup && widget.groupId != null) {
+        final groupService = GroupService();
+        await groupService.sendGroupMessage(
+          groupId: widget.groupId!,
+          message: text,
+          senderId: chat.currentUserId,
+        );
+      } else {
+        await chat.sendTextMessage(widget.chatId, widget.receiverId);
+      }
+      
+      print('✅ Message sent successfully');
+      widget.onMessageSent?.call();
+    } catch (e, st) {
+      print('❌❌❌ SEND ERROR ❌❌❌');
+      print('❌ Error: $e');
+      print('❌ Stacktrace: $st');
+      
+      // ✅ عرض الخطأ للمستخدم
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ فشل الإرسال: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     }
-    widget.onMessageSent?.call();
   }
 
   Future<void> _sendDisappearing(WidgetRef ref, dynamic duration) async {
