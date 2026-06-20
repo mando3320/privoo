@@ -101,9 +101,8 @@ class KeyExchangeService {
     final myPrivate = await myKeys.extractPrivateKeyBytes();
 
     final peerPubBytes = await fetchPeerIdentityPublicKey(peerUserId);
-    final peerPub = await X25519().newKeyPairFromSeed(peerPubBytes);
 
-    final sharedSecret = await _x25519SharedSecret(myPrivate, peerPub);
+    final sharedSecret = await _x25519SharedSecret(myPrivate, peerPubBytes);
     final msgKey = await _deriveMessageKey(sharedSecret, chatId, 'msg_key');
 
     return SessionResult(
@@ -124,13 +123,13 @@ class KeyExchangeService {
     final myPrivate = await myKeys.extractPrivateKeyBytes();
 
     final peerPubBytes = await fetchPeerIdentityPublicKey(peerUserId);
-    final peerPub = await X25519().newKeyPairFromSeed(peerPubBytes);
 
     final ephemeralKey = await X25519().newKeyPair();
     final ephemeralPub = await ephemeralKey.extractPublicKey();
+    final ephemeralPrivateBytes = await ephemeralKey.extractPrivateKeyBytes();
     
-    final sharedSecret = await _x25519SharedSecret(myPrivate, peerPub);
-    final ephemeralSecret = await _x25519SharedSecret(await ephemeralKey.extractPrivateKeyBytes(), peerPub);
+    final sharedSecret = await _x25519SharedSecret(myPrivate, peerPubBytes);
+    final ephemeralSecret = await _x25519SharedSecret(ephemeralPrivateBytes, peerPubBytes);
     
     final combinedSecret = [...sharedSecret, ...ephemeralSecret];
     final msgKey = await _deriveMessageKey(combinedSecret, chatId, 'msg_key');
@@ -146,10 +145,11 @@ class KeyExchangeService {
 
   Future<List<int>> _x25519SharedSecret(
     List<int> myPrivate,
-    SimplePublicKey peerPublic,
+    List<int> peerPublicBytes,
   ) async {
     final keyPair = await X25519().newKeyPairFromSeed(myPrivate);
-    final sharedSecret = await keyPair.sharedSecretKey(peerPublic);
+    final peerPublic = await X25519().newPublicKeyFromBytes(peerPublicBytes);
+    final sharedSecret = await keyPair.sharedSecret(peerPublic);
     return sharedSecret.bytes;
   }
 
