@@ -36,7 +36,6 @@ class AuthController extends ChangeNotifier {
 
   AppController get _appController => _ref.read(appControllerProvider);
 
-  // ✅ currentUser باستخدام Supabase
   User? get currentUser => _supabase.client.auth.currentUser;
 
   Future<void> sendOTP(String phoneNumber) async {
@@ -121,11 +120,11 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> checkIfAdminLocal(String phoneNumber) async {
-    return adminPhones.contains(phoneNumber);
+    return adminPhones.contains(phoneNumber) || adminEmails.contains(phoneNumber);
   }
 
   Future<bool> checkIfLifetimeUserLocal(String phoneNumber) async {
-    return lifetimePhones.contains(phoneNumber);
+    return lifetimePhones.contains(phoneNumber) || lifetimeEmails.contains(phoneNumber);
   }
 
   Future<void> _checkLifetimeStatus(String userId) async {
@@ -134,17 +133,14 @@ class AuthController extends ChangeNotifier {
       if (userData == null) return;
       
       final phoneNumber = userData.phoneNumber;
-      if (phoneNumber == null) return;
+      final email = userData.email;
       
-      if (lifetimePhones.contains(phoneNumber)) {
+      final isLifetimeByPhone = phoneNumber != null && lifetimePhones.contains(phoneNumber);
+      final isLifetimeByEmail = email != null && lifetimeEmails.contains(email);
+      
+      if (isLifetimeByPhone || isLifetimeByEmail || userData.isLifetime) {
         await _appController.updateSubscriptionStatus(isPro: true, isLifetime: true);
         _logger.i("✅ تم تفعيل اشتراك مدى الحياة للمستخدم $phoneNumber");
-        return;
-      }
-
-      if (userData.isLifetime) {
-        await _appController.updateSubscriptionStatus(isPro: true, isLifetime: true);
-        _logger.i("✅ تم تفعيل اشتراك مدى الحياة للمستخدم $phoneNumber (من Supabase)");
         return;
       }
     } catch (e) {
@@ -155,19 +151,28 @@ class AuthController extends ChangeNotifier {
   Future<void> _checkAdminStatus(String userId) async {
     try {
       final userData = await _supabase.getUser(userId);
-      if (userData == null) return;
+      if (userData == null) {
+        _logger.w('❌ userData is null');
+        return;
+      }
       
       final phoneNumber = userData.phoneNumber;
-      if (phoneNumber == null) return;
+      final email = userData.email;
       
-      if (adminPhones.contains(phoneNumber)) {
-        _logger.i("✅ المستخدم $phoneNumber لديه صلاحيات مشرف (Super Admin)");
+      _logger.i('📱 phoneNumber: $phoneNumber');
+      _logger.i('📧 email: $email');
+      
+      final isAdminByPhone = phoneNumber != null && adminPhones.contains(phoneNumber);
+      final isAdminByEmail = email != null && adminEmails.contains(email);
+      
+      if (isAdminByPhone || isAdminByEmail) {
+        _logger.i("✅ المستخدم لديه صلاحيات مشرف (Super Admin)");
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isAdmin', true);
         await prefs.setString('adminRole', 'super_admin');
         
         _currentAdmin = AdminModel(
-          phoneNumber: phoneNumber,
+          phoneNumber: phoneNumber ?? '',
           role: AdminRole.superAdmin,
           name: userData.name ?? 'المدير العام',
           assignedAt: DateTime.now(),
