@@ -1,0 +1,9 @@
+{
+  "name": "Flutter Project",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/baronfel/devcontainers-features/flutter:1": {
+      "version": "stable"
+    }
+  }
+}
