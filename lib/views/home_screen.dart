@@ -24,15 +24,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   bool _isLoading = true;
   late TabController _tabController;
   int _selectedIndex = 0;
+  
+  // ✅ متغير لمنع تكرار جلب جهات الاتصال
+  bool _isLoadingContacts = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
-      setState(() {
-        _selectedIndex = _tabController.index;
-      });
+      if (mounted) {
+        setState(() {
+          _selectedIndex = _tabController.index;
+        });
+      }
     });
     
     _initializeHomeScreen();
@@ -40,7 +45,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _initializeHomeScreen() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
       await _loadUserData();
       await _loadRecentChats();
@@ -109,6 +116,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  // ✅ دالة مساعدة لجلب اسم المستخدم
+  Future<String> _getUserName(String userId) async {
+    try {
+      final user = await SupabaseService().getUserById(userId);
+      return user?.name ?? 'مستخدم';
+    } catch (e) {
+      return 'مستخدم';
+    }
+  }
+
   Future<void> _loadRecentChats() async {
     final user = SupabaseService().currentUser;
     if (user == null) return;
@@ -116,28 +133,36 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     try {
       final chats = await SupabaseService().getUserChats(user.id);
       
-      final chatList = chats.map((chat) {
+      final chatList = <Map<String, dynamic>>[];
+      
+      for (var chat in chats) {
         final otherId = chat.members.firstWhere((id) => id != user.id);
-        return {
+        final otherName = await _getUserName(otherId);
+        
+        chatList.add({
           'chatId': chat.chatId,
           'receiverId': otherId,
-          'name': 'مستخدم', // TODO: جلب اسم المستخدم الآخر
+          'name': otherName, // ✅ جلب اسم المستخدم الآخر
           'avatar': null,
           'lastMessage': chat.lastMessage ?? 'ابدأ المحادثة',
           'timestamp': chat.lastMessageTime ?? chat.createdAt,
           'unreadCount': chat.unreadCount[user.id] ?? 0,
-        };
-      }).toList();
+        });
+      }
 
-      setState(() {
-        _recentChats = chatList;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _recentChats = chatList;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       logger.e('❌ فشل تحميل المحادثات: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -157,7 +182,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         'receiverId': receiverId,
         'name': name,
       },
-    ).then((_) => _loadRecentChats());
+    ).then((_) {
+      if (mounted) {
+        _loadRecentChats();
+      }
+    });
   }
 
   Future<void> _logout() async {
@@ -365,7 +394,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
             onDismissed: (direction) async {
               // TODO: حذف المحادثة من Supabase
-              _loadRecentChats();
+              if (mounted) {
+                _loadRecentChats();
+              }
             },
             child: ListTile(
               leading: Stack(
@@ -491,17 +522,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  // ✅ منع التكرار بإضافة _isLoadingContacts
   Future<List<Map<String, dynamic>>> _loadRealContacts() async {
+    if (_isLoadingContacts) return [];
+    _isLoadingContacts = true;
+    
     try {
       final hasPermission = await ContactService.hasPermission();
       if (!hasPermission) {
         logger.w('⚠️ لا يوجد إذن لقراءة جهات الاتصال');
+        _isLoadingContacts = false;
         return [];
       }
       
       final phoneContacts = await ContactService.getPhoneContacts();
       if (phoneContacts.isEmpty) {
         logger.i('📱 لا توجد جهات اتصال في الهاتف');
+        _isLoadingContacts = false;
         return [];
       }
       
@@ -525,9 +562,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       }
       
       logger.i('📱 تم تحميل ${result.length} جهة اتصال');
+      _isLoadingContacts = false;
       return result;
     } catch (e) {
       logger.e('❌ فشل تحميل جهات الاتصال: $e');
+      _isLoadingContacts = false;
       return [];
     }
   }
@@ -564,7 +603,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => setState(() {}),
+                  onPressed: () {
+                    if (mounted) {
+                      setState(() {});
+                    }
+                  },
                   child: const Text('تحديث'),
                 ),
               ],
@@ -694,8 +737,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      );
+    }
   }
 }

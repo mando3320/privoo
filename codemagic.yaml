@@ -1,15 +1,20 @@
 workflows:
-  # 1️⃣ Web Build (للنشر على Firebase Hosting)
+  # 1️⃣ Web Build
   web-workflow:
     name: Web Build
     instance_type: mac_mini_m2
     environment:
       flutter: 3.29.0
     scripts:
+      - name: Generate Localizations
+        script: |
+          flutter gen-l10n
+          
       - name: Build Web
         script: |
           flutter clean
           flutter pub get
+          flutter gen-l10n
           flutter build web --release
           
           echo "========================================="
@@ -20,17 +25,22 @@ workflows:
     artifacts:
       - build/web/**
 
-  # 2️⃣ Release APK (للنشر على المتاجر)
+  # 2️⃣ Release APK
   release-workflow:
     name: Release APK
     instance_type: mac_mini_m2
     environment:
       flutter: 3.29.0
     scripts:
+      - name: Generate Localizations
+        script: |
+          flutter gen-l10n
+          
       - name: Build Release APK
         script: |
           flutter clean
           flutter pub get
+          flutter gen-l10n
           flutter build apk --release
           
           echo "========================================="
@@ -43,17 +53,22 @@ workflows:
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
 
-  # 3️⃣ Debug APK (للتجربة والاختبار)
+  # 3️⃣ Debug APK
   debug-workflow:
     name: Debug APK
     instance_type: mac_mini_m2
     environment:
       flutter: 3.29.0
     scripts:
+      - name: Generate Localizations
+        script: |
+          flutter gen-l10n
+          
       - name: Build Debug APK
         script: |
           flutter clean
           flutter pub get
+          flutter gen-l10n
           flutter build apk --debug
           
           echo "========================================="
@@ -66,25 +81,32 @@ workflows:
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
 
-  # 4️⃣ All builds (APK + Web) في مرة واحدة
+  # 4️⃣ All builds
   all-workflow:
     name: All Builds (APK + Web)
     instance_type: mac_mini_m2
     environment:
       flutter: 3.29.0
     scripts:
+      - name: Generate Localizations
+        script: |
+          flutter gen-l10n
+          
       - name: Build Release APK
         script: |
           flutter clean
           flutter pub get
+          flutter gen-l10n
           flutter build apk --release
           
       - name: Build Debug APK
         script: |
+          flutter gen-l10n
           flutter build apk --debug
           
       - name: Build Web
         script: |
+          flutter gen-l10n
           flutter build web --release
           
       - name: Collect all artifacts
@@ -95,10 +117,7 @@ workflows:
           
           mkdir -p build/outputs
           
-          # نسخ APK files
           find . -name "*.apk" -exec cp {} build/outputs/ \;
-          
-          # نسخ Web files
           cp -r build/web build/outputs/web
           
           echo "✅ All builds completed"

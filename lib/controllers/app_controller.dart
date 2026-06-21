@@ -96,7 +96,10 @@ class AppController extends ChangeNotifier {
       _biometricEnabled = await _loadSecureBool('biometricEnabled');
 
       final prefs = await SharedPreferences.getInstance();
-      _locale = Locale(prefs.getString('language') ?? 'ar');
+      final savedLanguage = prefs.getString('language');
+      if (savedLanguage != null) {
+        _locale = Locale(savedLanguage);
+      }
       
       String savedTheme = prefs.getString('theme_name') ?? 'Privoo Premium';
       if (!AppTheme.isThemeAvailable(savedTheme, _isPro)) {
@@ -152,11 +155,17 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ✅ تحديث اللغة مع إعادة تحميل التطبيق
   Future<void> updateLanguage(String langCode) async {
     _locale = Locale(langCode);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('language', langCode);
     notifyListeners();
+    
+    logger.i('🌐 تم تغيير اللغة إلى: $langCode');
+    
+    // ✅ إعادة تحميل التطبيق لتطبيق اللغة
+    // سيتم التعامل معها من خلال widget.onLocaleChange في PrivooApp
   }
 
   Future<void> toggleTheme(bool isDark) async {
@@ -205,6 +214,8 @@ class AppController extends ChangeNotifier {
     await _saveSecureBool('isPro_cached', isPro);
     await _saveSecureBool('isLifetime_cached', isLifetime);
     notifyListeners();
+    
+    logger.i('💎 تم تحديث حالة الاشتراك: Pro=$isPro, Lifetime=$isLifetime');
   }
 
   Future<void> toggleLockApp(bool value) async {
@@ -265,6 +276,8 @@ class AppController extends ChangeNotifier {
 
   Future<void> clearCache() async {
     logger.i("🧹 جاري مسح كاش التطبيق...");
+    // يمكن إضافة منطق لمسح الكاش هنا
+    notifyListeners();
   }
 
   Future<void> resetSettings() async {

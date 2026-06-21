@@ -1,7 +1,6 @@
 // lib/views/settings/splash_screen.dart
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:provider/provider.dart';
 import '../../core/logger.dart';
 import '../../config/app_theme.dart';
 import '../../services/supabase_service.dart';
@@ -44,8 +43,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     
     _controller.forward();
     
-    // ✅ انتظر 3 ثواني ثم انتقل
-    Future.delayed(const Duration(seconds: 3), () {
+    // ✅ انتظر 2 ثانية للأنيميشن ثم انتقل
+    Future.delayed(const Duration(seconds: 2), () {
       if (!_navigated && mounted) _navigateNext();
     });
   }
@@ -69,12 +68,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           final userData = await SupabaseService().getUser(user.id);
           final hasProfile = userData != null && (userData.name?.isNotEmpty ?? false);
           
+          _logger.debug('hasProfile = $hasProfile, name = ${userData?.name}');
+          
           Navigator.pushReplacementNamed(
             context,
             hasProfile ? '/home' : '/profile',
           );
         } catch (e) {
           _logger.error('Error loading user profile: $e');
+          // ✅ في حالة الخطأ، نروح للـ Home افتراضياً
           Navigator.pushReplacementNamed(context, '/home');
         }
       } else {

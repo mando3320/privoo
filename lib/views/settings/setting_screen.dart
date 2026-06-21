@@ -43,25 +43,36 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const List<Map<String, String>> _languages = [
-    {'code': 'ar', 'label': 'العربية'},
-    {'code': 'en', 'label': 'English'},
-    {'code': 'fr', 'label': 'Français'},
-    {'code': 'es', 'label': 'Español'},
-    {'code': 'de', 'label': 'Deutsch'},
-    {'code': 'zh', 'label': '中文'},
-    {'code': 'ru', 'label': 'Русский'},
-    {'code': 'hi', 'label': 'हिन्दी'},
-    {'code': 'tr', 'label': 'Türkçe'},
-    {'code': 'ja', 'label': '日本語'},
+    {'code': 'ar', 'label': 'العربية', 'flag': '🇸🇦'},
+    {'code': 'en', 'label': 'English', 'flag': '🇬🇧'},
+    {'code': 'fr', 'label': 'Français', 'flag': '🇫🇷'},
+    {'code': 'es', 'label': 'Español', 'flag': '🇪🇸'},
+    {'code': 'de', 'label': 'Deutsch', 'flag': '🇩🇪'},
+    {'code': 'zh', 'label': '中文', 'flag': '🇨🇳'},
+    {'code': 'ru', 'label': 'Русский', 'flag': '🇷🇺'},
+    {'code': 'hi', 'label': 'हिन्दी', 'flag': '🇮🇳'},
+    {'code': 'tr', 'label': 'Türkçe', 'flag': '🇹🇷'},
+    {'code': 'ja', 'label': '日本語', 'flag': '🇯🇵'},
   ];
 
-  Future<bool> _isAdmin(String phoneNumber) async {
-    try {
-      final authController = ref.read(authControllerProvider.notifier);
-      return await authController.checkIfAdmin(phoneNumber);
-    } catch (e) {
-      return false;
-    }
+  bool _isAdminCached = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminStatus();
+  }
+
+  Future<void> _checkAdminStatus() async {
+    final user = SupabaseService().currentUser;
+    if (user == null) return;
+    
+    final authController = ref.read(authControllerProvider.notifier);
+    final isAdmin = authController.isAdmin;
+    
+    setState(() {
+      _isAdminCached = isAdmin;
+    });
   }
 
   void _showSnack(BuildContext context, String message, {bool isError = false}) {
@@ -89,6 +100,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final app = ref.watch(appControllerProvider);
     final appNotifier = ref.read(appControllerProvider.notifier);
     final user = SupabaseService().currentUser;
+    final authController = ref.read(authControllerProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
@@ -367,82 +379,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
 
-          if (user != null)
-            FutureBuilder<bool>(
-              future: _isAdmin(user.phone ?? ''),
-              builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data == true) {
-                  final authController = ref.read(authControllerProvider.notifier);
-                  
-                  return Column(
-                    children: [
-                      const Divider(),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: Row(
-                          children: [
-                            Icon(Icons.admin_panel_settings, color: AppTheme.privooDeepPurple),
-                            SizedBox(width: 8),
-                            Text(
-                              'لوحة تحكم المشرفين',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.privooDeepPurple),
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      if (authController.hasPermission(Permissions.viewSupportTickets))
-                        ListTile(
-                          leading: Icon(Icons.support_agent, color: AppTheme.privooDeepPurple),
-                          title: const Text('تذاكر الدعم الفني'),
-                          subtitle: const Text('عرض والرد على رسائل المستخدمين'),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportTicketsScreen())),
-                        ),
-                      
-                      if (authController.hasPermission(Permissions.viewUsers))
-                        ListTile(
-                          leading: Icon(Icons.people, color: AppTheme.privooDeepPurple),
-                          title: const Text('إدارة المستخدمين'),
-                          subtitle: const Text('عرض، حظر، منح اشتراكات'),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageUsersScreen())),
-                        ),
-                      
-                      if (authController.hasPermission(Permissions.manageAdmins))
-                        ListTile(
-                          leading: Icon(Icons.admin_panel_settings, color: AppTheme.privooDeepPurple),
-                          title: const Text('إدارة المشرفين'),
-                          subtitle: const Text('إضافة، تعديل، حذف المشرفين'),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageAdminsScreen())),
-                        ),
-                      
-                      if (authController.hasPermission(Permissions.manageAdmins))
-                        ListTile(
-                          leading: Icon(Icons.local_offer, color: AppTheme.privooGold),
-                          title: const Text('إدارة العروض والكوبونات'),
-                          subtitle: const Text('إضافة وتعديل أكواد الخصم'),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageOffersScreen())),
-                        ),
-                      
-                      if (authController.hasPermission(Permissions.sendNotifications))
-                        ListTile(
-                          leading: Icon(Icons.notifications_active, color: AppTheme.privooDeepPurple),
-                          title: const Text('إرسال إشعار جماعي'),
-                          subtitle: const Text('إشعار لجميع المستخدمين'),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                          onTap: () => Navigator.pushNamed(context, '/send-notification'),
-                        ),
-                      
-                      const Divider(),
-                    ],
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
+          // ✅ قسم المشرفين - تم التعديل لاستخدام isAdmin مباشرة
+          if (authController.isAdmin)
+            _buildAdminPanel(authController),
 
           const Divider(),
 
@@ -500,24 +439,146 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  // ✅ بناء لوحة تحكم المشرفين
+  Widget _buildAdminPanel(AuthController authController) {
+    return Column(
+      children: [
+        const Divider(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppTheme.privooDeepPurple, AppTheme.privooLightPurple],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              const Icon(Icons.admin_panel_settings, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '👑 لوحة تحكم المشرفين',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.privooGold,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Super Admin',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.privooDeepPurple,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        
+        if (authController.hasPermission(Permissions.viewSupportTickets))
+          ListTile(
+            leading: Icon(Icons.support_agent, color: AppTheme.privooDeepPurple),
+            title: const Text('تذاكر الدعم الفني'),
+            subtitle: const Text('عرض والرد على رسائل المستخدمين'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportTicketsScreen())),
+          ),
+        
+        if (authController.hasPermission(Permissions.viewUsers))
+          ListTile(
+            leading: Icon(Icons.people, color: AppTheme.privooDeepPurple),
+            title: const Text('إدارة المستخدمين'),
+            subtitle: const Text('عرض، حظر، منح اشتراكات'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageUsersScreen())),
+          ),
+        
+        if (authController.hasPermission(Permissions.manageAdmins))
+          ListTile(
+            leading: Icon(Icons.admin_panel_settings, color: AppTheme.privooDeepPurple),
+            title: const Text('إدارة المشرفين'),
+            subtitle: const Text('إضافة، تعديل، حذف المشرفين'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageAdminsScreen())),
+          ),
+        
+        if (authController.hasPermission(Permissions.manageAdmins))
+          ListTile(
+            leading: Icon(Icons.local_offer, color: AppTheme.privooGold),
+            title: const Text('إدارة العروض والكوبونات'),
+            subtitle: const Text('إضافة وتعديل أكواد الخصم'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageOffersScreen())),
+          ),
+        
+        if (authController.hasPermission(Permissions.sendNotifications))
+          ListTile(
+            leading: Icon(Icons.notifications_active, color: AppTheme.privooDeepPurple),
+            title: const Text('إرسال إشعار جماعي'),
+            subtitle: const Text('إشعار لجميع المستخدمين'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => Navigator.pushNamed(context, '/send-notification'),
+          ),
+        
+        const Divider(),
+      ],
+    );
+  }
+
   Widget _buildLanguageTile(BuildContext context, dynamic app, dynamic appNotifier) {
     final currentCode = app.locale.languageCode;
+    final currentLang = _languages.firstWhere(
+      (lang) => lang['code'] == currentCode,
+      orElse: () => _languages.first,
+    );
+    
     return ListTile(
       title: const Text('اللغة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-      trailing: DropdownButton<String>(
-        value: currentCode,
-        items: _languages.map((lang) {
-          return DropdownMenuItem(
-            value: lang['code'],
-            child: Text(lang['label']!),
-          );
-        }).toList(),
-        onChanged: (value) {
+      trailing: PopupMenuButton<String>(
+        icon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(currentLang['flag'] ?? '🌐', style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 4),
+            Icon(Icons.arrow_drop_down, color: AppTheme.privooDeepPurple),
+          ],
+        ),
+        onSelected: (value) {
           if (value != null) {
             final label = _languages.firstWhere((l) => l['code'] == value)['label']!;
             _changeLanguage(value, label, appNotifier);
           }
         },
+        itemBuilder: (context) => _languages.map((lang) {
+          return PopupMenuItem<String>(
+            value: lang['code'],
+            child: Row(
+              children: [
+                Text(lang['flag'] ?? '🌐', style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 12),
+                Text(lang['label']!),
+                if (lang['code'] == currentCode)
+                  const Spacer(),
+                if (lang['code'] == currentCode)
+                  const Icon(Icons.check, color: Colors.green, size: 18),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }

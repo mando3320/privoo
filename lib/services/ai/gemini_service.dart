@@ -1,4 +1,4 @@
-// lib/services/gemini_service.dart
+// lib/services/ai/gemini_service.dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
@@ -22,14 +22,15 @@ class GeminiService {
         throw Exception('$errorMsg\nPlease add GEMINI_API_KEY=your_key to .env');
       } else {
         // وضع الإنتاج - نموذج وهمي مع تسجيل الخطأ
-        _model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: 'dummy');
+        _model = GenerativeModel(model: 'gemini-1.5-pro', apiKey: 'dummy');
         _modelPro = GenerativeModel(model: 'gemini-1.5-pro', apiKey: 'dummy');
         return;
       }
     }
     
+    // ✅ استخدام نماذج متاحة ومجانية
     _model = GenerativeModel(
-      model: 'gemini-1.5-flash',
+      model: 'gemini-1.5-pro',  // ✅ بدلاً من gemini-1.5-flash
       apiKey: apiKey,
       generationConfig: GenerationConfig(
         maxOutputTokens: 500,
@@ -38,7 +39,7 @@ class GeminiService {
     );
 
     _modelPro = GenerativeModel(
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.0-flash-exp',  // ✅ نموذج Pro أحدث وأسرع
       apiKey: apiKey,
       generationConfig: GenerationConfig(
         maxOutputTokens: 1000,
@@ -57,8 +58,13 @@ class GeminiService {
     try {
       final model = isPro ? _modelPro : _model;
       
+      // ✅ دعم اللغة في الـ Prompt
+      final languageName = _getLanguageName(language);
+      
       final prompt = '''
-أنت مساعد ذكي يتحدث العربية بطلاقة. كن مفيداً ومختصراً.
+أنت مساعد ذكي يتحدث اللغة $languageName بطلاقة.
+الرجاء الرد بنفس اللغة التي كتب بها المستخدم.
+كن مفيداً ومختصراً.
 
 السؤال: $message
 ''';
@@ -89,5 +95,22 @@ class GeminiService {
       }
     }
     return 'حدث خطأ، حاول مرة أخرى.';
+  }
+
+  // ✅ دالة مساعدة لتحويل كود اللغة إلى اسم
+  String _getLanguageName(String code) {
+    switch (code) {
+      case 'ar': return 'العربية';
+      case 'en': return 'الإنجليزية';
+      case 'fr': return 'الفرنسية';
+      case 'es': return 'الإسبانية';
+      case 'de': return 'الألمانية';
+      case 'zh': return 'الصينية';
+      case 'ru': return 'الروسية';
+      case 'hi': return 'الهندية';
+      case 'tr': return 'التركية';
+      case 'ja': return 'اليابانية';
+      default: return 'العربية';
+    }
   }
 }

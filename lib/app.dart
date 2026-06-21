@@ -127,6 +127,7 @@ class _PrivooAppState extends ConsumerState<PrivooApp> {
   @override
   Widget build(BuildContext context) {
     if (!_isInitialized) {
+      // ✅ عرض Splash مع تأخير بسيط للتحميل
       return const SplashScreen();
     }
 

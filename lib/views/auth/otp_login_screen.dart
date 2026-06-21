@@ -5,15 +5,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'terms_acceptance_screen.dart';
 import '../../config/app_theme.dart';
 import '../../services/supabase_service.dart';
+import '../../controllers/app_controller.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class OTPLoginScreen extends StatefulWidget {
+class OTPLoginScreen extends ConsumerStatefulWidget {
   const OTPLoginScreen({super.key});
 
   @override
-  State<OTPLoginScreen> createState() => _OTPLoginScreenState();
+  ConsumerState<OTPLoginScreen> createState() => _OTPLoginScreenState();
 }
 
-class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProviderStateMixin {
+class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -35,6 +37,20 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
 
   Timer? _cooldownTimer;
   int _cooldownSeconds = 0;
+
+  // ✅ قائمة اللغات المدعومة
+  final List<Map<String, String>> _languages = [
+    {'code': 'ar', 'name': 'العربية', 'flag': '🇸🇦'},
+    {'code': 'en', 'name': 'English', 'flag': '🇬🇧'},
+    {'code': 'fr', 'name': 'Français', 'flag': '🇫🇷'},
+    {'code': 'es', 'name': 'Español', 'flag': '🇪🇸'},
+    {'code': 'de', 'name': 'Deutsch', 'flag': '🇩🇪'},
+    {'code': 'zh', 'name': '中文', 'flag': '🇨🇳'},
+    {'code': 'ru', 'name': 'Русский', 'flag': '🇷🇺'},
+    {'code': 'hi', 'name': 'हिन्दी', 'flag': '🇮🇳'},
+    {'code': 'tr', 'name': 'Türkçe', 'flag': '🇹🇷'},
+    {'code': 'ja', 'name': '日本語', 'flag': '🇯🇵'},
+  ];
 
   final List<Map<String, String>> _allCountries = [
     {'code': '+20', 'flag': '🇪🇬', 'name': 'مصر'},
@@ -130,6 +146,26 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
         duration: const Duration(seconds: 3),
       ),
     );
+  }
+
+  // ✅ تغيير اللغة وإعادة تحميل التطبيق
+  Future<void> _changeLanguage(String code, String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_language', code);
+    
+    // ✅ تحديث اللغة في AppController
+    final appController = ref.read(appControllerProvider.notifier);
+    appController.updateLanguage(code);
+    
+    // ✅ إعادة تحميل التطبيق
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const OTPLoginScreen()),
+      );
+    }
+    
+    _showSnackbar('✅ تم تغيير اللغة إلى $name');
   }
 
   // 📱 Phone Auth (Supabase)
@@ -385,31 +421,68 @@ class _OTPLoginScreenState extends State<OTPLoginScreen> with SingleTickerProvid
     final resendTitle = _cooldownSeconds > 0 
         ? 'إرسال الرمز (${_cooldownSeconds}s)' 
         : 'إرسال رمز التحقق';
+    
+    // ✅ اللغة الحالية
+    final currentLocale = ref.watch(appControllerProvider).locale;
+    final currentLanguage = _languages.firstWhere(
+      (lang) => lang['code'] == currentLocale.languageCode,
+      orElse: () => _languages.first,
+    );
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("تسجيل الدخول"),
-          centerTitle: true,
-          elevation: 0,
-          bottom: TabBar(
-            onTap: (index) => setState(() => _selectedTab = index),
-            indicatorColor: AppTheme.privooGold,
-            labelColor: AppTheme.privooGold,
-            unselectedLabelColor: Colors.white70,
-            tabs: const [
-              Tab(icon: Icon(Icons.phone), text: '📱 رقم الهاتف'),
-              Tab(icon: Icon(Icons.email), text: '✉️ الإيميل'),
-            ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("تسجيل الدخول"),
+        centerTitle: true,
+        elevation: 0,
+        actions: [
+          // ✅ زر تغيير اللغة
+          PopupMenuButton<String>(
+            icon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(currentLanguage['flag'] ?? '🌐', style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_drop_down, color: Colors.white70),
+              ],
+            ),
+            onSelected: (code) {
+              final selected = _languages.firstWhere((lang) => lang['code'] == code);
+              _changeLanguage(code, selected['name']!);
+            },
+            itemBuilder: (context) => _languages.map((lang) {
+              return PopupMenuItem<String>(
+                value: lang['code'],
+                child: Row(
+                  children: [
+                    Text(lang['flag'] ?? '🌐', style: const TextStyle(fontSize: 20)),
+                    const SizedBox(width: 12),
+                    Text(lang['name']!),
+                    if (lang['code'] == currentLocale.languageCode)
+                      const Spacer(),
+                    if (lang['code'] == currentLocale.languageCode)
+                      const Icon(Icons.check, color: Colors.green),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
+        ],
+        bottom: TabBar(
+          onTap: (index) => setState(() => _selectedTab = index),
+          indicatorColor: AppTheme.privooGold,
+          labelColor: AppTheme.privooGold,
+          unselectedLabelColor: Colors.white70,
+          tabs: const [
+            Tab(icon: Icon(Icons.phone), text: '📱 رقم الهاتف'),
+            Tab(icon: Icon(Icons.email), text: '✉️ الإيميل'),
+          ],
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(24),
-          child: _selectedTab == 0 
-              ? _buildPhoneAuth(resendTitle)
-              : _buildEmailAuth(),
-        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: _selectedTab == 0 
+            ? _buildPhoneAuth(resendTitle)
+            : _buildEmailAuth(),
       ),
     );
   }

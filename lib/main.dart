@@ -12,7 +12,7 @@ import 'controllers/app_controller.dart';
 import 'l10n/app_localizations.dart';
 import 'services/hive_storage_service.dart';
 import 'services/supabase_service.dart';
-import 'services/permission_service.dart';  // ✅ أضف هذا
+import 'services/permission_service.dart';
 
 final logger = Logger();
 

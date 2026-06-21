@@ -195,7 +195,7 @@ class AppTheme {
   // 🎨 تعريف الثيمات
   // ============================================================
   
-  // ✅ الثيم الرئيسي الجديد (Premium)
+  // ✅ الثيم الرئيسي الجديد (Premium) - محسن بـ Material 3
   static final ThemeData privooPremiumTheme = _buildPremiumTheme();
 
   static final ThemeData privooLightTheme = _buildTheme(
@@ -479,31 +479,31 @@ class AppTheme {
   );
 
   // ============================================================
-  // 🎨 دالة بناء الثيم الأساسية (Premium)
+  // 🎨 دالة بناء الثيم الأساسية (Premium) - محسنة
   // ============================================================
   
   static ThemeData _buildPremiumTheme() {
     // ✅ إنشاء ColorScheme متكامل
-    const colorScheme = ColorScheme(
+    final colorScheme = ColorScheme(
       brightness: Brightness.dark,
-      primary: privooLightPurple,      // #7B2F9D
+      primary: privooLightPurple,
       onPrimary: Colors.white,
       primaryContainer: privooDeepPurple,
       onPrimaryContainer: privooTextPrimary,
-      secondary: privooGold,            // #FFD700
+      secondary: privooGold,
       onSecondary: Colors.black,
       secondaryContainer: privooGold,
       onSecondaryContainer: Colors.black,
       tertiary: privooDeepPurple,
       onTertiary: Colors.white,
-      error: privooError,               // #F44336
+      error: privooError,
       onError: Colors.white,
       errorContainer: privooError,
       onErrorContainer: Colors.white,
-      surface: privooDeepPurple,        // #2D1B4E
-      onSurface: privooTextPrimary,     // #FFFFFF
+      surface: privooDeepPurple,
+      onSurface: privooTextPrimary,
       surfaceContainerHighest: privooCardLight,
-      onSurfaceVariant: privooTextSecondary,  // #D0C8E6
+      onSurfaceVariant: privooTextSecondary,
       outline: privooGold,
       outlineVariant: privooTextHint,
       shadow: Colors.black,
@@ -541,15 +541,15 @@ class AppTheme {
       colorScheme: colorScheme,
       
       // ✅ الألوان الأساسية
-      scaffoldBackgroundColor: privooDarkBg,      // #1A1230
+      scaffoldBackgroundColor: privooDarkBg,
       canvasColor: privooDarkBg,
-      cardColor: privooCardDark,                  // #2D1B4E
+      cardColor: privooCardDark,
       primaryColor: privooLightPurple,
       primaryColorDark: privooDeepPurple,
       primaryColorLight: privooLightPurple,
       secondaryHeaderColor: privooGold,
       
-      // ✅ AppBar
+      // ✅ AppBar - محسن
       appBarTheme: AppBarTheme(
         backgroundColor: privooDarkBg,
         foregroundColor: privooTextPrimary,
@@ -562,9 +562,14 @@ class AppTheme {
         ),
         iconTheme: const IconThemeData(color: privooGold),
         actionsIconTheme: const IconThemeData(color: privooGold),
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: privooTextPrimary,
+        ),
       ),
       
-      // ✅ Bottom Navigation Bar
+      // ✅ Bottom Navigation Bar - محسن
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: privooDarkerBg,
         selectedItemColor: privooGold,
@@ -595,7 +600,7 @@ class AppTheme {
         }),
       ),
       
-      // ✅ الأزرار
+      // ✅ الأزرار - محسنة
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: privooLightPurple,
@@ -638,7 +643,7 @@ class AppTheme {
         shape: const CircleBorder(),
       ),
       
-      // ✅ الحقول النصية
+      // ✅ الحقول النصية - محسنة
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: privooDeepPurple,
@@ -670,7 +675,7 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
       
-      // ✅ الكروت
+      // ✅ الكروت - محسنة
       cardTheme: CardThemeData(
         color: privooCardDark,
         elevation: 4,
@@ -678,15 +683,17 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         clipBehavior: Clip.antiAlias,
         margin: const EdgeInsets.all(8),
+        surfaceTintColor: Colors.transparent,
       ),
       
-      // ✅ الحوارات
+      // ✅ الحوارات - محسنة
       dialogTheme: DialogTheme(
         backgroundColor: privooDarkBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         titleTextStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: privooTextPrimary),
         contentTextStyle: const TextStyle(fontSize: 14, color: privooTextSecondary),
         elevation: 8,
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
       
       // ✅ التبويبات (Tabs)
@@ -697,6 +704,7 @@ class AppTheme {
         dividerColor: Colors.transparent,
         labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         unselectedLabelStyle: const TextStyle(fontSize: 14),
+        indicatorSize: TabBarIndicatorSize.tab,
       ),
       
       // ✅ القوائم المنبثقة
@@ -704,6 +712,7 @@ class AppTheme {
         color: privooCardDark,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 8,
+        textStyle: TextStyle(color: privooTextPrimary),
       ),
       
       // ✅ أزرار التبديل (Switch)
@@ -761,7 +770,7 @@ class AppTheme {
         space: 1,
       ),
       
-      // ✅ قوائم ListTile
+      // ✅ قوائم ListTile - محسنة
       listTileTheme: ListTileThemeData(
         tileColor: Colors.transparent,
         iconColor: privooGold,
@@ -769,15 +778,18 @@ class AppTheme {
         titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         subtitleTextStyle: TextStyle(fontSize: 13, color: privooTextSecondary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
       
-      // ✅ SnackBar
+      // ✅ SnackBar - محسن
       snackBarTheme: SnackBarThemeData(
         backgroundColor: privooCardDark,
         contentTextStyle: const TextStyle(color: privooTextPrimary),
         actionTextColor: privooGold,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         behavior: SnackBarBehavior.floating,
+        elevation: 6,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16),
       ),
       
       // ✅ مؤشر التحميل (Progress Indicator)
@@ -791,7 +803,7 @@ class AppTheme {
       drawerTheme: DrawerThemeData(
         backgroundColor: privooDarkBg,
         shape: const RoundedRectangleBorder(
-          borderRadius: const BorderRadius.only(
+          borderRadius: BorderRadius.only(
             topLeft: Radius.circular(24),
             bottomLeft: Radius.zero,
           ),
@@ -804,9 +816,10 @@ class AppTheme {
         hintStyle: WidgetStateProperty.all(TextStyle(color: privooTextHint)),
         textStyle: WidgetStateProperty.all(TextStyle(color: privooTextPrimary)),
         shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+        padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 16)),
       ),
       
-      // ✅ أزرار المساعدة السريعة (Chips)
+      // ✅ أزرار المساعدة السريعة (Chips) - محسنة
       chipTheme: ChipThemeData(
         backgroundColor: privooCardDark,
         selectedColor: privooLightPurple,
@@ -815,6 +828,7 @@ class AppTheme {
         secondaryLabelStyle: TextStyle(color: Colors.black),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        side: BorderSide(color: privooTextHint.withValues(alpha: 0.2)),
       ),
       
       // ✅ تأثيرات الظل
@@ -914,6 +928,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(24),
         ),
         clipBehavior: Clip.antiAlias,
+        surfaceTintColor: Colors.transparent,
       ),
       
       inputDecorationTheme: InputDecorationTheme(
@@ -929,6 +944,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: primaryColor, width: 2),
         ),
+        hintStyle: TextStyle(color: isDark ? privooTextHint : Colors.grey.shade600),
+        labelStyle: TextStyle(color: isDark ? privooTextSecondary : Colors.grey.shade700),
       ),
       
       chipTheme: ChipThemeData(
@@ -962,5 +979,5 @@ class AppTheme {
   }
   
   static final ThemeData lightTheme = privooLightTheme;
-  static final ThemeData darkTheme = privooPremiumTheme;  // ✅ الثيم الرئيسي الجديد
+  static final ThemeData darkTheme = privooPremiumTheme;
 }

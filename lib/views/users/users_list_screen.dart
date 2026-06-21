@@ -32,9 +32,11 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      setState(() {
-        _selectedTab = _tabController.index;
-      });
+      if (mounted) {
+        setState(() {
+          _selectedTab = _tabController.index;
+        });
+      }
     });
     final user = SupabaseService().currentUser;
     _currentUserId = user?.id;
@@ -43,49 +45,63 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
   }
 
   Future<void> _loadUsers() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
       final users = await SupabaseService().getAllUsers();
       
       final filteredUsers = users.where((u) => u.authId != _currentUserId).toList();
 
-      setState(() {
-        _users = filteredUsers;
-        _filteredUsers = filteredUsers;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _users = filteredUsers;
+          _filteredUsers = filteredUsers;
+          _isLoading = false;
+        });
+      }
       
       logger.i('✅ تم تحميل ${filteredUsers.length} مستخدم من Supabase');
     } catch (e) {
       logger.e('❌ فشل تحميل المستخدمين: $e');
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _loadContacts() async {
-    setState(() => _isContactsLoading = true);
+    if (mounted) {
+      setState(() => _isContactsLoading = true);
+    }
     _hasPhonePermission = await ContactService.hasPermission();
     if (_hasPhonePermission) {
       _phoneContacts = await ContactService.getPhoneContacts();
       logger.i('✅ تم تحميل ${_phoneContacts.length} جهة اتصال');
     }
-    setState(() => _isContactsLoading = false);
+    if (mounted) {
+      setState(() => _isContactsLoading = false);
+    }
   }
 
   void _filterUsers(String query) {
     if (query.isEmpty) {
-      setState(() => _filteredUsers = _users);
+      if (mounted) {
+        setState(() => _filteredUsers = _users);
+      }
       return;
     }
 
     final lowerQuery = query.toLowerCase();
-    setState(() {
-      _filteredUsers = _users.where((user) {
-        final name = (user.name ?? '').toLowerCase();
-        final phone = (user.phoneNumber ?? '').toLowerCase();
-        return name.contains(lowerQuery) || phone.contains(lowerQuery);
-      }).toList();
-    });
+    if (mounted) {
+      setState(() {
+        _filteredUsers = _users.where((user) {
+          final name = (user.name ?? '').toLowerCase();
+          final phone = (user.phoneNumber ?? '').toLowerCase();
+          return name.contains(lowerQuery) || phone.contains(lowerQuery);
+        }).toList();
+      });
+    }
   }
 
   Future<void> _startChat(String targetUid, String name) async {
@@ -229,9 +245,11 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
   }
 
   void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      );
+    }
   }
 
   Widget _buildUserCard(UserModel user) {
@@ -480,7 +498,12 @@ class _UsersListScreenState extends State<UsersListScreen> with SingleTickerProv
                                 const SizedBox(height: 16),
                                 const Text('يحتاج التطبيق إلى إذن قراءة جهات الاتصال', style: TextStyle(fontSize: 16)),
                                 const SizedBox(height: 16),
-                                ElevatedButton(onPressed: _loadContacts, child: const Text('منح الإذن')),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    _loadContacts();
+                                  },
+                                  child: const Text('منح الإذن'),
+                                ),
                               ],
                             ),
                           )

@@ -17,6 +17,8 @@ class UserModel {
   final bool isActive;
   final bool isPro;
   final bool isLifetime;
+  final bool isAdmin;
+  final String? role;
   final DateTime createdAt;
   final DateTime? lastSeen;
   final bool isOnline;
@@ -32,6 +34,8 @@ class UserModel {
     this.isActive = true,
     this.isPro = false,
     this.isLifetime = false,
+    this.isAdmin = false,
+    this.role = 'user',
     required this.createdAt,
     this.lastSeen,
     this.isOnline = false,
@@ -48,6 +52,8 @@ class UserModel {
     isActive: json['is_active'] ?? true,
     isPro: json['is_pro'] ?? false,
     isLifetime: json['is_lifetime'] ?? false,
+    isAdmin: json['is_admin'] ?? false,
+    role: json['role'] ?? 'user',
     createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
     lastSeen: json['last_seen'] != null ? DateTime.parse(json['last_seen']) : null,
     isOnline: json['is_online'] ?? false,
@@ -64,6 +70,8 @@ class UserModel {
     'is_active': isActive,
     'is_pro': isPro,
     'is_lifetime': isLifetime,
+    'is_admin': isAdmin,
+    if (role != null) 'role': role,
     'created_at': createdAt.toIso8601String(),
     if (lastSeen != null) 'last_seen': lastSeen!.toIso8601String(),
     'is_online': isOnline,

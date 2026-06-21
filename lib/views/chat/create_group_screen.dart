@@ -34,29 +34,40 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
   }
 
   Future<void> _loadUsers() async {
-    setState(() => _isLoadingUsers = true);
+    // ✅ التحقق من mounted قبل setState
+    if (mounted) {
+      setState(() => _isLoadingUsers = true);
+    }
+    
     try {
       final supabase = Supabase.instance.client;
       final currentUser = SupabaseService().currentUser;
       
+      // ✅ تغيير uid إلى id
       final response = await supabase
           .from('users')
-          .select('uid, name');
+          .select('id, name');
       
       _users = response
-          .where((u) => u['uid'] != currentUser?.id)
+          .where((u) => u['id'] != currentUser?.id)
           .map((u) => {
-            'id': u['uid'],
+            'id': u['id'],
             'name': u['name'] ?? 'مستخدم',
           })
           .toList();
       
-      setState(() {
-        _isLoadingUsers = false;
-      });
+      // ✅ التحقق من mounted قبل setState
+      if (mounted) {
+        setState(() {
+          _isLoadingUsers = false;
+        });
+      }
     } catch (e) {
       print('❌ Failed to load users: $e');
-      setState(() => _isLoadingUsers = false);
+      // ✅ التحقق من mounted قبل setState
+      if (mounted) {
+        setState(() => _isLoadingUsers = false);
+      }
     }
   }
 
@@ -75,7 +86,10 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
       return;
     }
     
-    setState(() => _isLoading = true);
+    // ✅ التحقق من mounted قبل setState
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     
     try {
       final group = await _groupService.createGroup(
@@ -90,11 +104,16 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ: $e')),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      // ✅ التحقق من mounted قبل setState
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -161,13 +180,16 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                             subtitle: Text(userId),
                             value: isSelected,
                             onChanged: (selected) {
-                              setState(() {
-                                if (selected == true) {
-                                  _selectedMembers.add(userId);
-                                } else {
-                                  _selectedMembers.remove(userId);
-                                }
-                              });
+                              // ✅ التحقق من mounted قبل setState
+                              if (mounted) {
+                                setState(() {
+                                  if (selected == true) {
+                                    _selectedMembers.add(userId);
+                                  } else {
+                                    _selectedMembers.remove(userId);
+                                  }
+                                });
+                              }
                             },
                             secondary: const CircleAvatar(
                               child: Icon(Icons.person),

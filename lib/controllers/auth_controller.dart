@@ -60,6 +60,11 @@ class AuthController extends ChangeNotifier {
       
       if (user != null) {
         _logger.i("✅ تم تسجيل الدخول: ${user.id}");
+        
+        // ✅ توليد مفاتيح الهوية (Identity Keys) لـ KeyExchange
+        await KeyExchangeService().ensureIdentityAndSignatureKeys(user.id);
+        _logger.i('🔐 تم توليد مفاتيح الهوية للمستخدم ${user.id}');
+        
         await _generateQuantumKeys(user.id);
         await _checkLifetimeStatus(user.id);
         await _checkAdminStatus(user.id);
@@ -133,6 +138,11 @@ class AuthController extends ChangeNotifier {
     return lifetimePhones.contains(phoneNumber) || lifetimeEmails.contains(phoneNumber);
   }
 
+  /// ✅ التحقق من اشتراك Lifetime عبر:
+  /// - رقم الهاتف (lifetimePhones)
+  /// - البريد الإلكتروني (lifetimeEmails)
+  /// - is_lifetime = true في قاعدة البيانات
+  /// - is_pro = true في قاعدة البيانات
   Future<void> _checkLifetimeStatus(String userId) async {
     try {
       final userData = await _supabase.getUser(userId);
@@ -140,21 +150,36 @@ class AuthController extends ChangeNotifier {
       
       final phoneNumber = userData.phoneNumber;
       final email = userData.email;
+      final id = userData.id;
       
+      _logger.i('📱 phoneNumber: $phoneNumber');
+      _logger.i('📧 email: $email');
+      _logger.i('🆔 id: $id');
+      
+      // ✅ التحقق من جميع المصادر
       final isLifetimeByPhone = phoneNumber != null && lifetimePhones.contains(phoneNumber);
       final isLifetimeByEmail = email != null && lifetimeEmails.contains(email);
+      final isLifetimeInDb = userData.isLifetime;
+      final isProInDb = userData.isPro;
       
-      if (isLifetimeByPhone || isLifetimeByEmail || userData.isLifetime) {
+      if (isLifetimeByPhone || isLifetimeByEmail || isLifetimeInDb || isProInDb) {
         await _appController.updateSubscriptionStatus(isPro: true, isLifetime: true);
-        _logger.i("✅ تم تفعيل اشتراك مدى الحياة للمستخدم $phoneNumber");
+        _logger.i("✅ تم تفعيل اشتراك مدى الحياة للمستخدم ${phoneNumber ?? email ?? id}");
         notifyListeners();
         return;
       }
+      
+      _logger.i("ℹ️ المستخدم ليس لديه اشتراك Lifetime");
     } catch (e) {
       _logger.e('❌ خطأ أثناء التحقق من الاشتراك: $e');
     }
   }
 
+  /// ✅ التحقق من صلاحيات Super Admin عبر:
+  /// - رقم الهاتف (adminPhones)
+  /// - البريد الإلكتروني (adminEmails)
+  /// - role = 'super_admin' في قاعدة البيانات
+  /// - is_admin = true في قاعدة البيانات
   Future<void> _checkAdminStatus(String userId) async {
     try {
       final userData = await _supabase.getUser(userId);
@@ -165,14 +190,23 @@ class AuthController extends ChangeNotifier {
       
       final phoneNumber = userData.phoneNumber;
       final email = userData.email;
+      final id = userData.id;
+      final role = userData.role ?? 'user';
+      final isAdmin = userData.isAdmin;
       
       _logger.i('📱 phoneNumber: $phoneNumber');
       _logger.i('📧 email: $email');
+      _logger.i('🆔 id: $id');
+      _logger.i('👑 role: $role');
+      _logger.i('🔑 isAdmin: $isAdmin');
       
+      // ✅ التحقق من جميع المصادر
       final isAdminByPhone = phoneNumber != null && adminPhones.contains(phoneNumber);
       final isAdminByEmail = email != null && adminEmails.contains(email);
+      final isAdminByRole = role == 'super_admin';
+      final isAdminByFlag = isAdmin == true;
       
-      if (isAdminByPhone || isAdminByEmail) {
+      if (isAdminByPhone || isAdminByEmail || isAdminByRole || isAdminByFlag) {
         _logger.i("✅ المستخدم لديه صلاحيات مشرف (Super Admin)");
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isAdmin', true);
