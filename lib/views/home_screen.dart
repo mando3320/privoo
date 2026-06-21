@@ -142,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         chatList.add({
           'chatId': chat.chatId,
           'receiverId': otherId,
-          'name': otherName, // ✅ جلب اسم المستخدم الآخر
+          'name': otherName,
           'avatar': null,
           'lastMessage': chat.lastMessage ?? 'ابدأ المحادثة',
           'timestamp': chat.lastMessageTime ?? chat.createdAt,
@@ -217,6 +217,37 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/login');
       }
+    }
+  }
+
+  // ✅ حذف محادثة من Supabase
+  Future<void> _deleteChat(String chatId) async {
+    try {
+      // حذف أعضاء المحادثة
+      await SupabaseService().client
+          .from('chat_members')
+          .delete()
+          .eq('chat_id', chatId);
+      
+      // حذف الرسائل
+      await SupabaseService().client
+          .from('messages')
+          .delete()
+          .eq('chat_id', chatId);
+      
+      // حذف المحادثة
+      await SupabaseService().client
+          .from('chats')
+          .delete()
+          .eq('id', chatId);
+      
+      logger.i('🗑️ تم حذف المحادثة $chatId');
+      
+      // إعادة تحميل المحادثات
+      await _loadRecentChats();
+    } catch (e) {
+      logger.e('❌ فشل حذف المحادثة: $e');
+      _showSnackbar('فشل حذف المحادثة: ${e.toString()}');
     }
   }
 
@@ -392,11 +423,33 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               padding: const EdgeInsets.only(right: 20),
               child: const Icon(Icons.delete, color: Colors.white),
             ),
+            confirmDismiss: (direction) async {
+              // ✅ تأكيد الحذف
+              return await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('حذف المحادثة'),
+                  content: Text('هل أنت متأكد من حذف المحادثة مع ${chat['name']}؟'),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('إلغاء'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.privooError,
+                      ),
+                      child: const Text('حذف'),
+                    ),
+                  ],
+                ),
+              ) ?? false;
+            },
             onDismissed: (direction) async {
-              // TODO: حذف المحادثة من Supabase
-              if (mounted) {
-                _loadRecentChats();
-              }
+              // ✅ حذف المحادثة من Supabase
+              await _deleteChat(chat['chatId']);
             },
             child: ListTile(
               leading: Stack(

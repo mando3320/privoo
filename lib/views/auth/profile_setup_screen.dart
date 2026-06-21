@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../main.dart';
 import '../../config/app_theme.dart';
 import '../../services/supabase_service.dart';
@@ -61,7 +62,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         imageQuality: 80,
       );
       if (picked != null) {
-        setState(() => _selectedImage = File(picked.path));
+        if (mounted) {
+          setState(() => _selectedImage = File(picked.path));
+        }
       }
     } catch (e) {
       print('❌ فشل اختيار الصورة: $e');
@@ -80,37 +83,82 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     );
   }
 
+  // ✅ رفع الصورة إلى Supabase Storage
+  Future<String?> _uploadImage(File imageFile) async {
+    try {
+      final user = SupabaseService().currentUser;
+      if (user == null) return null;
+      
+      final fileName = '${user.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final filePath = 'avatars/$fileName';
+      
+      final supabase = Supabase.instance.client;
+      
+      // ✅ رفع الصورة
+      await supabase.storage.from('avatars').upload(
+        filePath,
+        imageFile,
+        fileOptions: FileOptions(
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+        ),
+      );
+      
+      // ✅ الحصول على الرابط العام
+      final publicUrl = supabase.storage.from('avatars').getPublicUrl(filePath);
+      
+      logger.i('✅ تم رفع الصورة بنجاح: $publicUrl');
+      return publicUrl;
+    } catch (e) {
+      logger.e('❌ فشل رفع الصورة: $e');
+      return null;
+    }
+  }
+
   void _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     final name = _nameController.text.trim();
     
     final user = SupabaseService().currentUser;
     if (user == null) {
       _showSnackbar("خطأ: يرجى تسجيل الدخول أولاً.", isError: true);
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
       return;
     }
 
     try {
       String? avatarUrl;
+      
+      // ✅ رفع الصورة إلى Supabase Storage
       if (_selectedImage != null) {
-        avatarUrl = _selectedImage!.path;
+        final uploadedUrl = await _uploadImage(_selectedImage!);
+        if (uploadedUrl != null) {
+          avatarUrl = uploadedUrl;
+        } else {
+          _showSnackbar("⚠️ فشل رفع الصورة، سيتم حفظ الملف الشخصي بدون صورة.", isError: true);
+        }
       }
 
+      // ✅ تحديث الملف الشخصي في Supabase
       await SupabaseService().updateUser(user.id, {
         'name': name,
         if (avatarUrl != null) 'avatar_url': avatarUrl,
         'last_seen': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
       });
 
       logger.i("✅ تم حفظ الملف الشخصي بنجاح: ${user.id}");
 
       if (mounted) {
         setState(() => _isLoading = false);
-        // ✅ استخدام pop بدلاً من pushReplacementNamed عشان مايروحش للـ Login
-        Navigator.pop(context, true);
+        // ✅ التوجيه إلى Home
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
       logger.e("❌ فشل حفظ الملف الشخصي: $e");

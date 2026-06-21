@@ -37,6 +37,10 @@ class _GroupCallScreenState extends ConsumerState<GroupCallScreen> {
   int _participantCount = 0;
   String _callStatus = 'جاري الاتصال...';
   bool _isSpeakerOn = false;
+  
+  // ✅ متغيرات لعرض الفيديو
+  RTCVideoRenderer? _localRenderer;
+  final Map<String, RTCVideoRenderer> _remoteRenderers = {};
 
   @override
   void initState() {
@@ -45,43 +49,62 @@ class _GroupCallScreenState extends ConsumerState<GroupCallScreen> {
   }
 
   Future<void> _initCall() async {
-    final chatId = widget.groupId;
-    final keyService = KeyExchangeService();
-    
-    final peerId = widget.participantIds.isNotEmpty 
-        ? widget.participantIds.first 
-        : widget.currentUserId;
-    
-    final session = await keyService.establishSession(
-      chatId: chatId,
-      myUserId: widget.currentUserId,
-      peerUserId: peerId,
-    );
-    final sharedSecretBytes = session.chatMasterKey;
-    
-    final app = ref.read(appControllerProvider);
-    if (widget.isInitiator) {
-      await _callService.startGroupCall(
-        participantIds: widget.participantIds,
-        sharedSecretBytes: sharedSecretBytes,
-        currentUserId: widget.currentUserId,
-        isVideo: widget.isVideo,
-        currentUserIsPro: app.isPro,
+    try {
+      final chatId = widget.groupId;
+      final keyService = KeyExchangeService();
+      
+      final peerId = widget.participantIds.isNotEmpty 
+          ? widget.participantIds.first 
+          : widget.currentUserId;
+      
+      final session = await keyService.establishSession(
+        chatId: chatId,
+        myUserId: widget.currentUserId,
+        peerUserId: peerId,
       );
+      final sharedSecretBytes = session.chatMasterKey;
+      
+      final app = ref.read(appControllerProvider);
+      
+      // ✅ تهيئة الـ Renderers
+      _localRenderer = RTCVideoRenderer();
+      await _localRenderer!.initialize();
+      
+      if (widget.isInitiator) {
+        await _callService.startGroupCall(
+          participantIds: widget.participantIds,
+          sharedSecretBytes: sharedSecretBytes,
+          currentUserId: widget.currentUserId,
+          isVideo: widget.isVideo,
+          currentUserIsPro: app.isPro,
+        );
+        setState(() {
+          _participantCount = widget.participantIds.length + 1;
+          _callStatus = 'المكالمة جارية';
+        });
+      } else {
+        await _callService.joinGroupCall(
+          callId: widget.callId,
+          sharedSecretBytes: sharedSecretBytes,
+          currentUserId: widget.currentUserId,
+          isVideo: widget.isVideo,
+        );
+        setState(() {
+          _participantCount = _callService.participants.length;
+          _callStatus = 'انضممت إلى المكالمة';
+        });
+      }
+      
+      // ✅ ربط الـ Local Stream بالـ Renderer
+      if (_callService.localStream != null) {
+        _localRenderer!.srcObject = _callService.localStream;
+      }
+      
+    } catch (e) {
+      print('❌ خطأ في بدء المكالمة الجماعية: $e');
       setState(() {
-        _participantCount = widget.participantIds.length + 1;
-        _callStatus = 'المكالمة جارية';
-      });
-    } else {
-      await _callService.joinGroupCall(
-        callId: widget.callId,
-        sharedSecretBytes: sharedSecretBytes,
-        currentUserId: widget.currentUserId,
-        isVideo: widget.isVideo,
-      );
-      setState(() {
-        _participantCount = _callService.participants.length;
-        _callStatus = 'انضممت إلى المكالمة';
+        _callStatus = 'فشل الاتصال';
+        _loading = false;
       });
     }
     
@@ -90,6 +113,10 @@ class _GroupCallScreenState extends ConsumerState<GroupCallScreen> {
 
   @override
   void dispose() {
+    _localRenderer?.dispose();
+    for (var renderer in _remoteRenderers.values) {
+      renderer.dispose();
+    }
     _callService.dispose();
     super.dispose();
   }
@@ -144,12 +171,29 @@ class _GroupCallScreenState extends ConsumerState<GroupCallScreen> {
           ),
           child: Stack(
             children: [
-              if (widget.isVideo && isMe && _callService.localStream != null)
-                // TODO: attach proper RTCVideoRenderer per stream
-                Center(child: Text('Local video', style: TextStyle(color: Colors.white70)))
-              else if (widget.isVideo && remoteStreams.containsKey(participantId))
-                // TODO: attach proper RTCVideoRenderer per remote stream
-                Center(child: Text('Remote video', style: TextStyle(color: Colors.white70)))
+              // ✅ عرض الفيديو المحلي
+              if (widget.isVideo && isMe && _localRenderer != null)
+                RTCVideoView(
+                  _localRenderer!,
+                  mirror: true,
+                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                )
+              // ✅ عرض الفيديو البعيد
+              else if (widget.isVideo && remoteStreams.containsKey(participantId)) {
+                // إنشاء Renderer جديد لكل مشارك
+                if (!_remoteRenderers.containsKey(participantId)) {
+                  final renderer = RTCVideoRenderer();
+                  renderer.initialize();
+                  renderer.srcObject = remoteStreams[participantId];
+                  _remoteRenderers[participantId] = renderer;
+                }
+                return RTCVideoView(
+                  _remoteRenderers[participantId]!,
+                  mirror: false,
+                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                );
+              }
+              // ✅ عرض أيقونة للمشاركين بدون فيديو
               else
                 Center(
                   child: Column(

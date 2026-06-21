@@ -60,10 +60,11 @@ class SealedSenderService {
       final senderId = data['sender'] as String?;
       if (senderId == null) return false;
 
+      // ✅ تغيير uid إلى auth_id
       final userExists = await _supabase
           .from('users')
           .select()
-          .eq('uid', senderId)
+          .eq('auth_id', senderId)  // ✅ استخدام auth_id بدلاً من uid
           .maybeSingle();
 
       return userExists != null;

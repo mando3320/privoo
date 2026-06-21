@@ -72,8 +72,9 @@ class BackupService {
 
       final ts = DateTime.now().toUtc().millisecondsSinceEpoch.toString();
 
+      // ✅ استخدام auth_id بدلاً من user_id
       await _supabase.from('backups').upsert({
-        'user_id': userId,
+        'auth_id': userId,
         'chat_id': chatIdForRatchetExport ?? 'all',
         'encrypted_data': encryptedPayload,
         'created_at': DateTime.now().toIso8601String(),
@@ -81,7 +82,7 @@ class BackupService {
         'version': 3,
         'device_mac': base64Encode(deviceMac),
         'timestamp': ts,
-      }, onConflict: 'user_id,chat_id');
+      }, onConflict: 'auth_id,chat_id');
 
       final localWrapper = jsonEncode({
         'payload': encryptedPayload,
@@ -110,7 +111,7 @@ class BackupService {
       var query = _supabase
           .from('backups')
           .select()
-          .eq('user_id', userId);
+          .eq('auth_id', userId);  // ✅ استخدام auth_id
       
       if (versionTimestamp != null) {
         query = query.eq('timestamp', versionTimestamp);
@@ -159,10 +160,11 @@ class BackupService {
   }
 
   Future<void> autoBackupAllChats(String userId, List<int> backupKey) async {
+    // ✅ استخدام auth_id بدلاً من user_id
     final response = await _supabase
         .from('chats')
         .select()
-        .contains('participants', userId);
+        .eq('created_by', userId);
     
     int backedUp = 0;
     for (var chatDoc in response) {
@@ -197,7 +199,7 @@ class BackupService {
     final response = await _supabase
         .from('backups')
         .select()
-        .eq('user_id', userId)
+        .eq('auth_id', userId)  // ✅ استخدام auth_id
         .order('created_at', ascending: false)
         .limit(1);
     
@@ -219,7 +221,7 @@ class BackupService {
     await _supabase
         .from('backups')
         .delete()
-        .eq('user_id', userId)
+        .eq('auth_id', userId)  // ✅ استخدام auth_id
         .lt('created_at', cutoffDate.toIso8601String());
     
     logger.i('🧹 تم حذف النسخ الاحتياطية القديمة للمستخدم $userId');
@@ -229,7 +231,7 @@ class BackupService {
     await _supabase
         .from('backups')
         .delete()
-        .eq('user_id', userId);
+        .eq('auth_id', userId);  // ✅ استخدام auth_id
     
     await _secureStorage.delete(key: '$_localKeyPrefix$userId');
     

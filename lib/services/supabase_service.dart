@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/message_model.dart';
 import '../models/chat_model.dart';
 import '../models/chat_member_model.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ إضافة
 
 class UserModel {
   final String id;
@@ -92,6 +93,17 @@ class SupabaseService {
   static String get _supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
   static String get _supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
+  // ✅ إعدادات Refresh Token
+  static const int _tokenRefreshThreshold = 300; // 5 دقائق
+  static const String _keyAccessToken = 'supabase_access_token';
+  static const String _keyRefreshToken = 'supabase_refresh_token';
+  static const String _keyTokenExpiry = 'supabase_token_expiry';
+  
+  // ✅ متغيرات تخزين التوكنات
+  String? _cachedAccessToken;
+  String? _cachedRefreshToken;
+  DateTime? _cachedTokenExpiry;
+
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
@@ -101,11 +113,260 @@ class SupabaseService {
       anonKey: _supabaseAnonKey,
     );
     _client = Supabase.instance.client;
-    print('✅ Supabase initialized');
+    
+    // ✅ استعادة التوكنات المخزنة
+    await _restoreTokens();
+    
+    // ✅ التحقق من صلاحية التوكن عند بدء التشغيل
+    if (_cachedAccessToken != null) {
+      await _autoRefreshIfNeeded();
+    }
+    
+    print('✅ Supabase initialized with refresh token support');
   }
 
   // ============================================================
-  // 👤 Auth
+  // 🔐 Refresh Token System
+  // ============================================================
+
+  // ✅ استعادة التوكنات من التخزين المحلي
+  Future<void> _restoreTokens() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _cachedAccessToken = prefs.getString(_keyAccessToken);
+      _cachedRefreshToken = prefs.getString(_keyRefreshToken);
+      
+      final expiryStr = prefs.getString(_keyTokenExpiry);
+      if (expiryStr != null) {
+        _cachedTokenExpiry = DateTime.parse(expiryStr);
+      }
+      
+      print('📂 تم استعادة التوكنات من التخزين المحلي');
+    } catch (e) {
+      print('⚠️ فشل استعادة التوكنات: $e');
+    }
+  }
+
+  // ✅ حفظ التوكنات في التخزين المحلي
+  Future<void> _saveTokens({
+    required String accessToken,
+    required String refreshToken,
+    required DateTime expiry,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyAccessToken, accessToken);
+      await prefs.setString(_keyRefreshToken, refreshToken);
+      await prefs.setString(_keyTokenExpiry, expiry.toIso8601String());
+      
+      _cachedAccessToken = accessToken;
+      _cachedRefreshToken = refreshToken;
+      _cachedTokenExpiry = expiry;
+      
+      print('💾 تم حفظ التوكنات بنجاح');
+    } catch (e) {
+      print('⚠️ فشل حفظ التوكنات: $e');
+    }
+  }
+
+  // ✅ مسح التوكنات (عند تسجيل الخروج)
+  Future<void> _clearTokens() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyAccessToken);
+      await prefs.remove(_keyRefreshToken);
+      await prefs.remove(_keyTokenExpiry);
+      
+      _cachedAccessToken = null;
+      _cachedRefreshToken = null;
+      _cachedTokenExpiry = null;
+      
+      print('🗑️ تم مسح التوكنات');
+    } catch (e) {
+      print('⚠️ فشل مسح التوكنات: $e');
+    }
+  }
+
+  // ✅ التحقق من صلاحية التوكن وتجديده تلقائياً
+  Future<bool> isSessionValid() async {
+    try {
+      // التحقق من وجود جلسة
+      final session = _client.auth.currentSession;
+      if (session == null) {
+        // محاولة استعادة الجلسة من التوكنات المخزنة
+        if (_cachedAccessToken != null && _cachedRefreshToken != null) {
+          try {
+            await _client.auth.setSession(
+              accessToken: _cachedAccessToken!,
+              refreshToken: _cachedRefreshToken!,
+            );
+            print('🔄 تم استعادة الجلسة من التوكنات المخزنة');
+            return true;
+          } catch (e) {
+            print('⚠️ فشل استعادة الجلسة: $e');
+            return false;
+          }
+        }
+        return false;
+      }
+      
+      final expiresAt = session.expiresAt;
+      if (expiresAt == null) return true;
+      
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final remaining = expiresAt - now;
+      
+      // ✅ إذا بقي أقل من 5 دقائق، جدده
+      if (remaining < _tokenRefreshThreshold) {
+        print('🔄 التوكن على وشك الانتهاء (${remaining}s)، جاري التجديد...');
+        await refreshSession();
+        return true;
+      }
+      
+      print('✅ التوكن صالح (${remaining}s متبقية)');
+      return true;
+    } catch (e) {
+      print('❌ فشل التحقق من صلاحية التوكن: $e');
+      return false;
+    }
+  }
+
+  // ✅ تجديد التوكن
+  Future<void> refreshSession() async {
+    try {
+      final currentSession = _client.auth.currentSession;
+      if (currentSession == null) {
+        // محاولة استخدام التوكن المخزن للتجديد
+        if (_cachedRefreshToken != null) {
+          print('🔄 جاري تجديد التوكن باستخدام التوكن المخزن...');
+          final newSession = await _client.auth.refreshSession(
+            refreshToken: _cachedRefreshToken!,
+          );
+          if (newSession != null) {
+            await _saveTokens(
+              accessToken: newSession.accessToken,
+              refreshToken: newSession.refreshToken,
+              expiry: DateTime.fromMillisecondsSinceEpoch(
+                newSession.expiresAt! * 1000,
+              ),
+            );
+            print('✅ تم تجديد التوكن بنجاح (من التخزين)');
+          }
+          return;
+        }
+        print('⚠️ لا توجد جلسة نشطة لتجديدها');
+        return;
+      }
+      
+      // تجديد من الجلسة الحالية
+      final newSession = await _client.auth.refreshSession();
+      if (newSession != null) {
+        await _saveTokens(
+          accessToken: newSession.accessToken,
+          refreshToken: newSession.refreshToken,
+          expiry: DateTime.fromMillisecondsSinceEpoch(
+            newSession.expiresAt! * 1000,
+          ),
+        );
+        print('🔄 تم تجديد التوكن بنجاح');
+      }
+    } catch (e) {
+      print('❌ فشل تجديد التوكن: $e');
+      
+      // ✅ محاولة التجديد باستخدام التوكن المخزن كحل بديل
+      if (_cachedRefreshToken != null) {
+        try {
+          print('🔄 محاولة التجديد باستخدام التوكن المخزن (حل بديل)...');
+          final newSession = await _client.auth.refreshSession(
+            refreshToken: _cachedRefreshToken!,
+          );
+          if (newSession != null) {
+            await _saveTokens(
+              accessToken: newSession.accessToken,
+              refreshToken: newSession.refreshToken,
+              expiry: DateTime.fromMillisecondsSinceEpoch(
+                newSession.expiresAt! * 1000,
+              ),
+            );
+            print('✅ تم تجديد التوكن بنجاح (حل بديل)');
+            return;
+          }
+        } catch (e2) {
+          print('❌ فشل التجديد بالحل البديل: $e2');
+        }
+      }
+      rethrow;
+    }
+  }
+
+  // ✅ تجديد تلقائي عند الحاجة
+  Future<void> _autoRefreshIfNeeded() async {
+    try {
+      if (_cachedTokenExpiry == null) return;
+      
+      final now = DateTime.now();
+      final remaining = _cachedTokenExpiry!.difference(now).inSeconds;
+      
+      if (remaining < _tokenRefreshThreshold) {
+        print('🔄 تجديد تلقائي للتوكن (باقي ${remaining}s)...');
+        await refreshSession();
+      }
+    } catch (e) {
+      print('⚠️ فشل التجديد التلقائي: $e');
+    }
+  }
+
+  // ✅ التحقق من التوكن قبل كل طلب
+  Future<void> ensureValidSession() async {
+    final isValid = await isSessionValid();
+    if (!isValid) {
+      // ✅ محاولة التجديد مرة أخيرة
+      try {
+        await refreshSession();
+        final recheck = await isSessionValid();
+        if (!recheck) {
+          throw Exception('Session expired and refresh failed');
+        }
+      } catch (e) {
+        throw Exception('Session expired: $e');
+      }
+    }
+  }
+
+  // ✅ تسجيل الخروج مع مسح التوكنات
+  Future<void> signOut() async {
+    try {
+      await _client.auth.signOut();
+      await _clearTokens();
+      print('✅ تم تسجيل الخروج ومسح التوكنات');
+    } catch (e) {
+      print('❌ فشل تسجيل الخروج: $e');
+      rethrow;
+    }
+  }
+
+  // ✅ الحصول على التوكن الحالي
+  String? get sessionToken => _cachedAccessToken ?? _client.auth.currentSession?.accessToken;
+
+  // ✅ الحصول على توكن التحديث
+  String? get refreshToken => _cachedRefreshToken ?? _client.auth.currentSession?.refreshToken;
+
+  // ✅ التحقق من صلاحية التوكن
+  bool get isTokenValid {
+    if (_cachedTokenExpiry == null) return false;
+    final now = DateTime.now();
+    return _cachedTokenExpiry!.isAfter(now);
+  }
+
+  // ✅ الحصول على الوقت المتبقي للتوكن
+  Duration? get tokenTimeRemaining {
+    if (_cachedTokenExpiry == null) return null;
+    final now = DateTime.now();
+    return _cachedTokenExpiry!.difference(now);
+  }
+
+  // ============================================================
+  // 👤 Auth (معدل لدعم Refresh Token)
   // ============================================================
 
   Future<void> signInWithOTP(String phoneNumber) async {
@@ -113,34 +374,75 @@ class SupabaseService {
   }
 
   Future<AuthResponse> verifyOTP(String phoneNumber, String code) async {
-    return await _client.auth.verifyOTP(
+    final response = await _client.auth.verifyOTP(
       phone: phoneNumber,
       token: code,
       type: OtpType.sms,
     );
+    
+    // ✅ حفظ التوكنات بعد التحقق
+    if (response.session != null) {
+      await _saveTokens(
+        accessToken: response.session!.accessToken,
+        refreshToken: response.session!.refreshToken,
+        expiry: DateTime.fromMillisecondsSinceEpoch(
+          response.session!.expiresAt! * 1000,
+        ),
+      );
+    }
+    
+    return response;
   }
 
   Future<AuthResponse> signInWithEmail(String email, String password) async {
-    return await _client.auth.signInWithPassword(email: email, password: password);
+    final response = await _client.auth.signInWithPassword(
+      email: email, 
+      password: password,
+    );
+    
+    // ✅ حفظ التوكنات بعد تسجيل الدخول
+    if (response.session != null) {
+      await _saveTokens(
+        accessToken: response.session!.accessToken,
+        refreshToken: response.session!.refreshToken,
+        expiry: DateTime.fromMillisecondsSinceEpoch(
+          response.session!.expiresAt! * 1000,
+        ),
+      );
+    }
+    
+    return response;
   }
 
   Future<AuthResponse> signUpWithEmail(String email, String password) async {
-    return await _client.auth.signUp(email: email, password: password);
-  }
-
-  Future<void> signOut() async {
-    await _client.auth.signOut();
+    final response = await _client.auth.signUp(
+      email: email, 
+      password: password,
+    );
+    
+    // ✅ حفظ التوكنات بعد التسجيل
+    if (response.session != null) {
+      await _saveTokens(
+        accessToken: response.session!.accessToken,
+        refreshToken: response.session!.refreshToken,
+        expiry: DateTime.fromMillisecondsSinceEpoch(
+          response.session!.expiresAt! * 1000,
+        ),
+      );
+    }
+    
+    return response;
   }
 
   User? get currentUser => _client.auth.currentUser;
-  String? get sessionToken => _client.auth.currentSession?.accessToken;
 
   // ============================================================
-  // 👤 Users
+  // 👤 Users (معدل مع ensureValidSession)
   // ============================================================
 
   Future<UserModel?> getUser(String authId) async {
     try {
+      await ensureValidSession();
       final response = await _client.from('users').select().eq('auth_id', authId).maybeSingle();
       if (response == null) return null;
       return UserModel.fromJson(response);
@@ -152,6 +454,7 @@ class SupabaseService {
 
   Future<UserModel?> getUserById(String id) async {
     try {
+      await ensureValidSession();
       final response = await _client.from('users').select().eq('id', id).maybeSingle();
       if (response == null) return null;
       return UserModel.fromJson(response);
@@ -163,6 +466,7 @@ class SupabaseService {
 
   Future<UserModel?> getUserByPhone(String phoneNumber) async {
     try {
+      await ensureValidSession();
       final response = await _client.from('users').select().eq('phone_number', phoneNumber).maybeSingle();
       if (response == null) return null;
       return UserModel.fromJson(response);
@@ -174,6 +478,7 @@ class SupabaseService {
 
   Future<List<UserModel>> getAllUsers() async {
     try {
+      await ensureValidSession();
       final response = await _client.from('users').select();
       return List<Map<String, dynamic>>.from(response)
           .map((json) => UserModel.fromJson(json))
@@ -186,6 +491,7 @@ class SupabaseService {
 
   Future<void> createUser(UserModel user) async {
     try {
+      await ensureValidSession();
       await _client.from('users').insert(user.toJson());
       print('✅ User created: ${user.id}');
     } catch (e) {
@@ -196,6 +502,7 @@ class SupabaseService {
 
   Future<void> updateUser(String authId, Map<String, dynamic> data) async {
     try {
+      await ensureValidSession();
       print('📤 updateUser called with authId: $authId');
       print('📤 data: $data');
       await _client.from('users').update(data).eq('auth_id', authId);
@@ -208,6 +515,7 @@ class SupabaseService {
 
   Future<void> updateUserById(String id, Map<String, dynamic> data) async {
     try {
+      await ensureValidSession();
       print('📤 updateUserById called with id: $id');
       print('📤 data: $data');
       await _client.from('users').update(data).eq('id', id);
@@ -219,25 +527,36 @@ class SupabaseService {
   }
 
   Future<void> updateUserLastSeen(String authId) async {
-    await _client.from('users').update({
-      'last_seen': DateTime.now().toIso8601String(),
-      'is_online': true,
-    }).eq('auth_id', authId);
+    try {
+      await ensureValidSession();
+      await _client.from('users').update({
+        'last_seen': DateTime.now().toIso8601String(),
+        'is_online': true,
+      }).eq('auth_id', authId);
+    } catch (e) {
+      print('❌ updateUserLastSeen error: $e');
+    }
   }
 
   Future<void> setUserOffline(String authId) async {
-    await _client.from('users').update({
-      'is_online': false,
-      'last_seen': DateTime.now().toIso8601String(),
-    }).eq('auth_id', authId);
+    try {
+      await ensureValidSession();
+      await _client.from('users').update({
+        'is_online': false,
+        'last_seen': DateTime.now().toIso8601String(),
+      }).eq('auth_id', authId);
+    } catch (e) {
+      print('❌ setUserOffline error: $e');
+    }
   }
 
   // ============================================================
-  // 💬 Chats
+  // 💬 Chats (معدل مع ensureValidSession)
   // ============================================================
 
   Future<String> createChat(List<String> members) async {
     try {
+      await ensureValidSession();
       print('📤 createChat called with members: $members');
       
       final chatId = _uuid.v4();
@@ -283,6 +602,7 @@ class SupabaseService {
 
   Future<List<ChatModel>> getUserChats(String authId) async {
     try {
+      await ensureValidSession();
       final memberResponse = await _client
           .from('chat_members')
           .select('chat_id')
@@ -317,6 +637,7 @@ class SupabaseService {
 
   Future<List<String>> _getChatMembers(String chatId) async {
     try {
+      await ensureValidSession();
       final response = await _client
           .from('chat_members')
           .select('user_id')
@@ -333,6 +654,7 @@ class SupabaseService {
 
   Future<ChatModel?> getChat(String chatId) async {
     try {
+      await ensureValidSession();
       final response = await _client.from('chats').select().eq('id', chatId).maybeSingle();
       if (response == null) return null;
       
@@ -349,40 +671,55 @@ class SupabaseService {
   }
 
   Future<void> updateChatLastMessage(String chatId, String message, DateTime time) async {
-    await _client.from('chats').update({
-      'last_message': message,
-      'last_message_time': time.toIso8601String(),
-      'updated_at': time.toIso8601String(),
-    }).eq('id', chatId);
+    try {
+      await ensureValidSession();
+      await _client.from('chats').update({
+        'last_message': message,
+        'last_message_time': time.toIso8601String(),
+        'updated_at': time.toIso8601String(),
+      }).eq('id', chatId);
+    } catch (e) {
+      print('❌ updateChatLastMessage error: $e');
+    }
   }
 
   Future<void> incrementUnreadCount(String chatId, String userId) async {
-    final chat = await getChat(chatId);
-    if (chat == null) return;
-    
-    final newCount = (chat.unreadCount[userId] ?? 0) + 1;
-    final newUnread = Map<String, int>.from(chat.unreadCount);
-    newUnread[userId] = newCount;
-    
-    await _client.from('chats').update({
-      'unread_count': newUnread,
-    }).eq('id', chatId);
+    try {
+      await ensureValidSession();
+      final chat = await getChat(chatId);
+      if (chat == null) return;
+      
+      final newCount = (chat.unreadCount[userId] ?? 0) + 1;
+      final newUnread = Map<String, int>.from(chat.unreadCount);
+      newUnread[userId] = newCount;
+      
+      await _client.from('chats').update({
+        'unread_count': newUnread,
+      }).eq('id', chatId);
+    } catch (e) {
+      print('❌ incrementUnreadCount error: $e');
+    }
   }
 
   Future<void> resetUnreadCount(String chatId, String userId) async {
-    final chat = await getChat(chatId);
-    if (chat == null) return;
-    
-    final newUnread = Map<String, int>.from(chat.unreadCount);
-    newUnread[userId] = 0;
-    
-    await _client.from('chats').update({
-      'unread_count': newUnread,
-    }).eq('id', chatId);
+    try {
+      await ensureValidSession();
+      final chat = await getChat(chatId);
+      if (chat == null) return;
+      
+      final newUnread = Map<String, int>.from(chat.unreadCount);
+      newUnread[userId] = 0;
+      
+      await _client.from('chats').update({
+        'unread_count': newUnread,
+      }).eq('id', chatId);
+    } catch (e) {
+      print('❌ resetUnreadCount error: $e');
+    }
   }
 
   // ============================================================
-  // 📨 Messages
+  // 📨 Messages (معدل مع ensureValidSession)
   // ============================================================
 
   Future<MessageModel> sendMessage({
@@ -392,6 +729,7 @@ class SupabaseService {
     String type = 'text',
   }) async {
     try {
+      await ensureValidSession();
       print('📤 sendMessage called');
       print('📤 chatId: $chatId');
       print('📤 senderId: $senderId');
@@ -440,6 +778,7 @@ class SupabaseService {
 
   Future<List<MessageModel>> getMessages(String chatId, {int limit = 50}) async {
     try {
+      await ensureValidSession();
       final response = await _client
           .from('messages')
           .select()
@@ -459,31 +798,51 @@ class SupabaseService {
   }
 
   Future<void> deleteMessage(String messageId) async {
-    await _client.from('messages').delete().eq('id', messageId);
+    try {
+      await ensureValidSession();
+      await _client.from('messages').delete().eq('id', messageId);
+    } catch (e) {
+      print('❌ deleteMessage error: $e');
+    }
   }
 
   Future<void> deleteMessagesForChat(String chatId) async {
-    await _client.from('messages').delete().eq('chat_id', chatId);
+    try {
+      await ensureValidSession();
+      await _client.from('messages').delete().eq('chat_id', chatId);
+    } catch (e) {
+      print('❌ deleteMessagesForChat error: $e');
+    }
   }
 
   Future<void> markMessageAsRead(String messageId, String userId) async {
-    final message = await _client.from('messages').select().eq('id', messageId).maybeSingle();
-    if (message == null) return;
-    
-    final readBy = Map<String, bool>.from(message['read_by'] ?? {});
-    readBy[userId] = true;
-    
-    await _client.from('messages').update({
-      'read_by': readBy,
-    }).eq('id', messageId);
+    try {
+      await ensureValidSession();
+      final message = await _client.from('messages').select().eq('id', messageId).maybeSingle();
+      if (message == null) return;
+      
+      final readBy = Map<String, bool>.from(message['read_by'] ?? {});
+      readBy[userId] = true;
+      
+      await _client.from('messages').update({
+        'read_by': readBy,
+      }).eq('id', messageId);
+    } catch (e) {
+      print('❌ markMessageAsRead error: $e');
+    }
   }
 
   Future<void> markAllMessagesAsRead(String chatId, String userId) async {
-    await _client
-        .from('messages')
-        .update({'is_read': true})
-        .eq('chat_id', chatId)
-        .neq('sender_id', userId);
+    try {
+      await ensureValidSession();
+      await _client
+          .from('messages')
+          .update({'is_read': true})
+          .eq('chat_id', chatId)
+          .neq('sender_id', userId);
+    } catch (e) {
+      print('❌ markAllMessagesAsRead error: $e');
+    }
   }
 
   // ============================================================
@@ -531,6 +890,7 @@ class SupabaseService {
 
   Future<void> deleteUserAccount(String userId) async {
     try {
+      await ensureValidSession();
       // حذف الرسائل
       await deleteMessagesForChat(userId);
       
@@ -539,6 +899,9 @@ class SupabaseService {
       
       // حذف من users
       await _client.from('users').delete().eq('id', userId);
+      
+      // ✅ مسح التوكنات
+      await _clearTokens();
       
       print('✅ User account deleted: $userId');
     } catch (e) {

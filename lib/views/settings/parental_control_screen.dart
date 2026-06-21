@@ -22,6 +22,7 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
   String _pinCode = '';
   bool _isPinSet = false;
   List<String> _allowedContacts = [];
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -30,40 +31,59 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isEnabled = prefs.getBool('parental_enabled') ?? false;
-      _blockAdultContent = prefs.getBool('parental_block_adult') ?? true;
-      _blockViolence = prefs.getBool('parental_block_violence') ?? true;
-      _blockHateSpeech = prefs.getBool('parental_block_hate') ?? true;
-      _limitScreenTime = prefs.getBool('parental_limit_time') ?? false;
-      _dailyLimitMinutes = prefs.getInt('parental_daily_limit') ?? 120;
-      _requirePassword = prefs.getBool('parental_require_password') ?? true;
-      _pinCode = prefs.getString('parental_pin') ?? '';
-      _isPinSet = _pinCode.isNotEmpty;
-      _allowedContacts = prefs.getStringList('parental_allowed_contacts') ?? [];
-    });
+    setState(() => _isLoading = true);
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _isEnabled = prefs.getBool('parental_enabled') ?? false;
+        _blockAdultContent = prefs.getBool('parental_block_adult') ?? true;
+        _blockViolence = prefs.getBool('parental_block_violence') ?? true;
+        _blockHateSpeech = prefs.getBool('parental_block_hate') ?? true;
+        _limitScreenTime = prefs.getBool('parental_limit_time') ?? false;
+        _dailyLimitMinutes = prefs.getInt('parental_daily_limit') ?? 120;
+        _requirePassword = prefs.getBool('parental_require_password') ?? true;
+        _pinCode = prefs.getString('parental_pin') ?? '';
+        _isPinSet = _pinCode.isNotEmpty;
+        _allowedContacts = prefs.getStringList('parental_allowed_contacts') ?? [];
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _saveSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('parental_enabled', _isEnabled);
-    await prefs.setBool('parental_block_adult', _blockAdultContent);
-    await prefs.setBool('parental_block_violence', _blockViolence);
-    await prefs.setBool('parental_block_hate', _blockHateSpeech);
-    await prefs.setBool('parental_limit_time', _limitScreenTime);
-    await prefs.setInt('parental_daily_limit', _dailyLimitMinutes);
-    await prefs.setBool('parental_require_password', _requirePassword);
-    await prefs.setStringList('parental_allowed_contacts', _allowedContacts);
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ تم حفظ إعدادات الرقابة الأبوية'),
-          backgroundColor: AppTheme.privooSuccess,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('parental_enabled', _isEnabled);
+      await prefs.setBool('parental_block_adult', _blockAdultContent);
+      await prefs.setBool('parental_block_violence', _blockViolence);
+      await prefs.setBool('parental_block_hate', _blockHateSpeech);
+      await prefs.setBool('parental_limit_time', _limitScreenTime);
+      await prefs.setInt('parental_daily_limit', _dailyLimitMinutes);
+      await prefs.setBool('parental_require_password', _requirePassword);
+      await prefs.setStringList('parental_allowed_contacts', _allowedContacts);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ تم حفظ إعدادات الرقابة الأبوية'),
+            backgroundColor: AppTheme.privooSuccess,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ فشل حفظ الإعدادات: ${e.toString()}'),
+            backgroundColor: AppTheme.privooError,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -117,7 +137,7 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
                 Navigator.pop(ctx, true);
               } else {
                 ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('الرمز غير متطابق أو غير صحيح')),
+                  const SnackBar(content: Text('❌ الرمز غير متطابق أو غير صحيح')),
                 );
               }
             },
@@ -132,8 +152,46 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
     }
   }
 
+  Future<void> _removePinCode() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('إزالة رمز PIN'),
+        content: const Text('هل أنت متأكد من إزالة رمز PIN؟'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.privooError,
+            ),
+            child: const Text('إزالة'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed == true) {
+      setState(() {
+        _pinCode = '';
+        _isPinSet = false;
+      });
+      await _saveSettings();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('الرقابة الأبوية'),
@@ -243,13 +301,24 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
               _isPinSet ? '✓ تم تعيين رمز PIN' : 'لم يتم تعيين رمز PIN بعد',
               style: TextStyle(color: _isPinSet ? Colors.green : Colors.red),
             ),
-            trailing: ElevatedButton(
-              onPressed: _setPinCode,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _isPinSet ? Colors.green : Colors.orange,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              ),
-              child: Text(_isPinSet ? 'تغيير' : 'تعيين'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isPinSet)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: _removePinCode,
+                    tooltip: 'إزالة PIN',
+                  ),
+                ElevatedButton(
+                  onPressed: _setPinCode,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isPinSet ? Colors.green : Colors.orange,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  child: Text(_isPinSet ? 'تغيير' : 'تعيين'),
+                ),
+              ],
             ),
           ),
         ],
@@ -309,6 +378,14 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
             } : null,
             title: const Text('حظر خطاب الكراهية'),
           ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              'سيتم تطبيق هذه الإعدادات على جميع المحادثات',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ),
         ],
       ),
     );
@@ -362,7 +439,15 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
                     },
                   ),
                   const SizedBox(height: 8),
-                  Text('سيتم إشعار الطفل عند انتهاء الوقت', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  Text(
+                    'سيتم إشعار الطفل عند انتهاء الوقت',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'الوقت المتبقي اليوم: ${_dailyLimitMinutes} دقيقة',
+                    style: TextStyle(fontSize: 12, color: Colors.blue),
+                  ),
                 ],
               ),
             ),
@@ -396,24 +481,78 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
               child: const Icon(Icons.contact_phone, color: Colors.green, size: 28),
             ),
             title: const Text('جهات الاتصال المسموح بها', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('${_allowedContacts.length} جهة اتصال مسموحة'),
+            subtitle: Text(
+              '${_allowedContacts.length} جهة اتصال مسموحة',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
             trailing: IconButton(
               icon: const Icon(Icons.add_circle_outline),
               onPressed: _isEnabled ? () => _addAllowedContact() : null,
+              tooltip: 'إضافة جهة اتصال',
             ),
           ),
-          if (_allowedContacts.isNotEmpty)
-            ..._allowedContacts.map((contact) => ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.person, size: 18)),
-              title: Text(contact),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                onPressed: () {
-                  setState(() {
-                    _allowedContacts.remove(contact);
-                    _saveSettings();
-                  });
-                },
+          if (_allowedContacts.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'لا توجد جهات اتصال مسموحة',
+                style: TextStyle(color: Colors.grey.shade500),
+              ),
+            )
+          else
+            ..._allowedContacts.map((contact) => Dismissible(
+              key: Key(contact),
+              background: Container(
+                color: Colors.red,
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20),
+                child: const Icon(Icons.delete, color: Colors.white),
+              ),
+              confirmDismiss: (direction) async {
+                return await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('حذف جهة اتصال'),
+                    content: Text('هل أنت متأكد من حذف "$contact" من القائمة؟'),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('إلغاء'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.privooError,
+                        ),
+                        child: const Text('حذف'),
+                      ),
+                    ],
+                  ),
+                ) ?? false;
+              },
+              onDismissed: (direction) {
+                setState(() {
+                  _allowedContacts.remove(contact);
+                  _saveSettings();
+                });
+              },
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Colors.green,
+                  child: Icon(Icons.person, size: 18, color: Colors.white),
+                ),
+                title: Text(contact),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () {
+                    setState(() {
+                      _allowedContacts.remove(contact);
+                      _saveSettings();
+                    });
+                  },
+                  tooltip: 'حذف',
+                ),
               ),
             )),
         ],
@@ -431,12 +570,28 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
           controller: controller,
           decoration: const InputDecoration(
             labelText: 'اسم جهة الاتصال أو رقم الهاتف',
+            hintText: 'مثال: أحمد أو 01012345678',
             border: OutlineInputBorder(),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('إضافة')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isNotEmpty) {
+                Navigator.pop(ctx, text);
+              } else {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('❌ الرجاء إدخال اسم أو رقم هاتف')),
+                );
+              }
+            },
+            child: const Text('إضافة'),
+          ),
         ],
       ),
     );
@@ -474,7 +629,48 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
         title: const Text('نشاط الطفل'),
         subtitle: const Text('عرض تقارير الاستخدام'),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: () {},
+        onTap: () {
+          // عرض تقارير النشاط
+          _showActivityReportDialog();
+        },
+      ),
+    );
+  }
+
+  void _showActivityReportDialog() {
+    // ✅ عرض تقرير نشاط الطفل
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('نشاط الطفل'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('📊 وقت الاستخدام اليومي:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('${_dailyLimitMinutes} دقيقة'),
+            const SizedBox(height: 16),
+            const Text('👥 جهات الاتصال المسموحة:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            if (_allowedContacts.isEmpty)
+              const Text('لا توجد جهات اتصال مسموحة', style: TextStyle(color: Colors.grey))
+            else
+              ..._allowedContacts.map((contact) => Text('• $contact')),
+            const SizedBox(height: 16),
+            const Text('🔒 المحتوى المحظور:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            if (_blockAdultContent) Text('• المحتوى الإباحي'),
+            if (_blockViolence) Text('• محتوى العنف'),
+            if (_blockHateSpeech) Text('• خطاب الكراهية'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إغلاق'),
+          ),
+        ],
       ),
     );
   }

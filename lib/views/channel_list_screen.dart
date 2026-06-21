@@ -17,6 +17,7 @@ class ChannelListScreen extends ConsumerStatefulWidget {
 class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
   final ChannelService _channelService = ChannelService();
   int _selectedTab = 0;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +31,11 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             Tab(text: 'قنواتي'),
             Tab(text: 'قنوات عامة'),
           ],
-          onTap: (index) => setState(() => _selectedTab = index),
+          onTap: (index) {
+            if (mounted) {
+              setState(() => _selectedTab = index);
+            }
+          },
         ),
       ),
       body: _selectedTab == 0
@@ -63,30 +68,78 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         final channels = snapshot.data ?? [];
         
         if (channels.isEmpty) {
-          return const Center(child: Text('لا توجد قنوات بعد'));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.chat_bubble_outline,
+                  size: 80,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'لا توجد قنوات بعد',
+                  style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'أنشئ قناتك الأولى الآن',
+                  style: TextStyle(color: Colors.grey.shade500),
+                ),
+              ],
+            ),
+          );
         }
         
-        return ListView.builder(
-          itemCount: channels.length,
-          itemBuilder: (context, index) {
-            final channel = channels[index];
-            return ListTile(
-              leading: CircleAvatar(
-                child: Text(channel.name[0].toUpperCase()),
-              ),
-              title: Text(channel.name),
-              subtitle: Text('${channel.subscribers.length} مشترك'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChannelScreen(channelId: channel.id),
-                  ),
-                );
-              },
-            );
+        return RefreshIndicator(
+          onRefresh: () async {
+            if (mounted) {
+              setState(() {});
+            }
           },
+          child: ListView.builder(
+            itemCount: channels.length,
+            itemBuilder: (context, index) {
+              final channel = channels[index];
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                    child: Text(
+                      channel.name[0].toUpperCase(),
+                      style: TextStyle(
+                        color: Theme.of(context).primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    channel.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    '${channel.subscribers.length} مشترك',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ChannelScreen(channelId: channel.id),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
         );
       },
     );
@@ -107,49 +160,154 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
         final channels = snapshot.data ?? [];
         
         if (channels.isEmpty) {
-          return const Center(child: Text('لا توجد قنوات عامة'));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.public,
+                  size: 80,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'لا توجد قنوات عامة',
+                  style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'استكشف القنوات المتاحة',
+                  style: TextStyle(color: Colors.grey.shade500),
+                ),
+              ],
+            ),
+          );
         }
         
-        return ListView.builder(
-          itemCount: channels.length,
-          itemBuilder: (context, index) {
-            final channel = channels[index];
-            final currentUserId = ref.read(authControllerProvider).currentUser?.id;
-            final isSubscribed = channel.subscribers.contains(currentUserId);
-            
-            return ListTile(
-              leading: CircleAvatar(
-                child: Text(channel.name[0].toUpperCase()),
-              ),
-              title: Text(channel.name),
-              subtitle: Text('${channel.subscribers.length} مشترك'),
-              trailing: isSubscribed
-                  ? const Icon(Icons.check_circle, color: Colors.green)
-                  : ElevatedButton(
-                      onPressed: () => _subscribe(channel.id),
-                      child: const Text('اشترك'),
-                    ),
-              onTap: isSubscribed
-                  ? () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ChannelScreen(channelId: channel.id),
-                        ),
-                      );
-                    }
-                  : null,
-            );
+        return RefreshIndicator(
+          onRefresh: () async {
+            if (mounted) {
+              setState(() {});
+            }
           },
+          child: ListView.builder(
+            itemCount: channels.length,
+            itemBuilder: (context, index) {
+              final channel = channels[index];
+              final currentUserId = ref.read(authControllerProvider).currentUser?.id;
+              final isSubscribed = channel.subscribers.contains(currentUserId);
+              
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                    child: Text(
+                      channel.name[0].toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    channel.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    '${channel.subscribers.length} مشترك',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  trailing: isSubscribed
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                              const SizedBox(width: 4),
+                              Text(
+                                'مشترك',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ElevatedButton(
+                          onPressed: () => _subscribe(channel.id),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          ),
+                          child: const Text('اشترك'),
+                        ),
+                  onTap: isSubscribed
+                      ? () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChannelScreen(channelId: channel.id),
+                            ),
+                          );
+                        }
+                      : null,
+                ),
+              );
+            },
+          ),
         );
       },
     );
   }
 
   Future<void> _subscribe(String channelId) async {
-    await _channelService.subscribeToChannel(channelId);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم الاشتراك في القناة')),
-    );
+    if (_isLoading) return;
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      await _channelService.subscribeToChannel(channelId);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ تم الاشتراك في القناة'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        // ✅ تحديث القائمة
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ فشل الاشتراك: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 }
