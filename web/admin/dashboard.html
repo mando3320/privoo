@@ -19,11 +19,9 @@
     .action-card:hover { border-color: #00c3ff; transform: translateY(-3px); }
     .log-section { background: #101a2b; border-radius: 20px; padding: 20px; margin-bottom: 30px; }
     .log-content { background: #0a1020; border-radius: 16px; padding: 16px; font-family: monospace; font-size: 0.85em; max-height: 200px; overflow-y: auto; }
-    .generate-btn { background: linear-gradient(90deg, #0066ff, #00c3ff); border: none; border-radius: 40px; padding: 12px 28px; color: white; cursor: pointer; margin: 5px; }
-    .generate-btn:hover { transform: scale(1.02); }
-    .post-output { background: #0a1020; border-radius: 16px; padding: 16px; margin-top: 16px; white-space: pre-wrap; border: 1px solid #00c3ff33; }
-    .post-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
-    @media (max-width: 700px) { body { padding: 16px; } .generate-btn { font-size: 12px; padding: 8px 16px; } }
+    .generate-btn { background: linear-gradient(90deg, #0066ff, #00c3ff); border: none; border-radius: 40px; padding: 12px 28px; color: white; cursor: pointer; }
+    .post-output { background: #0a1020; border-radius: 16px; padding: 16px; margin-top: 16px; white-space: pre-wrap; }
+    @media (max-width: 700px) { body { padding: 16px; } }
   </style>
 </head>
 <body>
@@ -51,203 +49,15 @@
 
     <div class="log-section">
       <h3>📢 منشور تسويقي تلقائي</h3>
-      <div class="post-buttons">
-        <button class="generate-btn" id="generatePostBtn">🎲 منشور عشوائي</button>
-        <button class="generate-btn" id="generatePrivacyPostBtn">🛡️ منشور الخصوصية</button>
-        <button class="generate-btn" id="generateSecurityPostBtn">🔐 منشور التشفير</button>
-        <button class="generate-btn" id="generateProPostBtn">💎 منشور Pro</button>
-        <button class="generate-btn" id="generateAIPostBtn">🤖 منشور AI</button>
-        <button class="generate-btn" id="generateWhatsAppPostBtn">📱 منشور قصير</button>
-        <button class="generate-btn" id="generateRamadanPostBtn">🌙 منشور رمضان</button>
-        <button class="generate-btn" id="generateQuantumPostBtn">⚛️ منشور التشفير الكمومي</button>
-      </div>
+      <button class="generate-btn" id="generatePostBtn">🎯 توليد منشور جديد</button>
       <div class="post-output" id="postOutput"></div>
-      <div style="margin-top: 12px; font-size: 12px; color: #aaa;">💡 اضغط على أي زر لتوليد منشور جاهز للنسخ</div>
     </div>
   </div>
 
   <script>
-    // ============= المنشورات والمقدمات =============
-    
-    const intros = [
-      "🔒 هل تبحث عن تطبيق يحترم خصوصيتك؟",
-      "🚀 لكل من يرفض التتبع الرقمي",
-      "💬 تواصل بحرية، بدون وسطاء",
-      "🛡️ خصوصيتك خط أحمر",
-      "🔐 الأمان ليس رفاهية، إنه حق",
-      "📱 تطبيق مصمم للخصوصية من الصفر",
-      "⚡ تواصل بذكاء، بدون تتبع",
-      "💎 Privoo - لأنك تستحق الأمان",
-      "🎯 تحدى التتبع الرقمي مع Privoo",
-      "🌟 Privoo - ثورتك في عالم التواصل",
-      "🔥 حرر محادثاتك من العيون المتطفلة",
-      "🎯 تواصل بحرية... آمنة... ذكية"
-    ];
-
-    const features = [
-      "🔐 تشفير من طرف إلى طرف (E2EE) - مثله مثل كبرى تطبيقات التواصل",
-      "🚫 لا نستخدم خدمات خارجية للتتبع",
-      "🛡️ لا نبيع بياناتك ولا نشاركها",
-      "🤖 ذكاء اصطناعي مدمج (Gemini AI)",
-      "📹 مكالمات فيديو جماعية مشفرة",
-      "🎨 8 ثيمات مجانية + 17 ثيماً Pro",
-      "📍 مشاركة موقع حي مشفرة - ميزة فريدة لا توجد في تطبيقات أخرى",
-      "📞 مكالمات صوتية جماعية (10 مجاناً)",
-      "💾 نسخ احتياطي سحابي مشفر (Pro)",
-      "🔐 قفل التطبيق بالبصمة (Pro)",
-      "🎁 7 أيام تجربة مجانية لـ Pro",
-      "⚖️ متوافق مع 13 قانوناً عالمياً للخصوصية",
-      "🔬 تشفير كمومي مقاوم للحواسيب المستقبلية (Kyber - معيار NIST 2024)",
-      "✉️ إخفاء هوية المرسل (Sealed Sender)",
-      "🔄 تدوير تلقائي لمفاتيح التشفير كل 7 أيام"
-    ];
-
-    const cta = "⬇️ حمل Privoo الآن: https://privoo-b1c4b.web.app";
-
-    // منشور عشوائي
-    function generateRandomPost() {
-      const intro = intros[Math.floor(Math.random() * intros.length)];
-      const shuffled = [...features];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-      const selectedFeatures = shuffled.slice(0, Math.random() > 0.5 ? 3 : 4);
-      const endEmojis = ["🚀", "💪", "✨", "🌟", "🔥", "💎", "🎉", "🔒", "🛡️"];
-      const endEmoji = Math.random() > 0.7 ? `\n\n${endEmojis[Math.floor(Math.random() * endEmojis.length)]} جرب Privoo اليوم!` : "";
-      return `${intro}\n\n${selectedFeatures.join("\n")}\n\n${cta}${endEmoji}`;
-    }
-
-    // منشور الخصوصية
-    function generatePrivacyPost() {
-      return `🛡️ يناير هو شهر الخصوصية العالمية!
-
-Privoo يمنحك السيطرة الكاملة على بياناتك:
-
-🔐 تشفير من طرف إلى طرف (مثل كبرى تطبيقات التواصل)
-🚫 لا تتبع، لا إعلانات، لا مشاركة بيانات
-🛡️ لا نبيع بياناتك ولا نشاركها مع أي طرف ثالث
-⚖️ متوافق مع 13 قانوناً عالمياً (GDPR, CCPA, PDPL)
-
-⬇️ ابدأ رحلتك مع الخصوصية الحقيقية:
-${cta}`;
-    }
-
-    // منشور التشفير
-    function generateSecurityPost() {
-      return `🔐 Privoo - أحدث تقنيات التشفير في تطبيق واحد
-
-التقنيات المستخدمة:
-
-🔬 تشفير كمومي مقاوم للحواسيب المستقبلية (Kyber - معيار NIST 2024)
-🔄 بروتوكول Double Ratchet (معيار صناعة التشفير)
-🔑 X3DH لتبادل المفاتيح
-✉️ Sealed Sender لإخفاء هوية المرسل
-📍 تشفير الموقع الحي - ميزة فريدة
-
-نفس بروتوكولات التشفير المستخدمة في كبرى تطبيقات التواصل، مع ميزات إضافية متقدمة.
-
-⬇️ جرب مستوى جديد من الأمان:
-${cta}`;
-    }
-
-    // منشور Pro
-    function generateProPost() {
-      return `💎 Privoo Pro - الميزات الحصرية
-
-🚀 رسائل AI غير محدودة
-🎨 25 ثيماً كاملة (بما فيها ثيم نيون)
-📹 مكالمات فيديو جماعية (50 مشارك)
-📞 مكالمات صوتية جماعية (1050 مشارك - رقم قياسي)
-🔐 قفل التطبيق بالبصمة
-💾 نسخ احتياطي سحابي مشفر
-📦 رفع ملفات حتى 2GB
-
-💰 الأسعار:
-- يومي: 25 ج.م
-- شهري: 199 ج.م
-- سنوي: 1,200 ج.م
-- عائلي: 399 ج.م/شهر
-- طلابي: 99 ج.م/شهر
-
-🎁 7 أيام تجربة مجانية!
-
-${cta}`;
-    }
-
-    // منشور AI
-    function generateAIPost() {
-      return `🤖 Privoo يدمج Google Gemini AI بأفضل طريقة!
-
-💬 مساعد ذكي يتحدث العربية بطلاقة
-📝 تلخيص المحادثات بنقرة واحدة
-🎨 توليد ستيكرات بالذكاء الاصطناعي
-🌐 RAG (بحث على الويب للحصول على إجابات محدثة)
-📖 ترجمة فورية للمحادثات
-
-🎯 30 رسالة/يوم مجاناً
-💎 غير محدود مع Privoo Pro
-
-⚡ كل هذا مع تشفير كامل من الطرف إلى الطرف!
-
-⬇️ جرب الذكاء الاصطناعي في محادثاتك:
-${cta}`;
-    }
-
-    // منشور قصير (للواتساب)
-    function generateShortPost() {
-      return `📱 Privoo - تواصل بثقة وأمان
-
-✅ تشفير من طرف إلى طرف
-✅ مجاني ولا يبيع بياناتك
-✅ مجموعة ثيمات رهيبة
-✅ ذكاء اصطناعي مدمج
-✅ مكالمات جماعية مشفرة
-
-⬇️ حمل Privoo:
-${cta}`;
-    }
-
-    // منشور رمضان
-    function generateRamadanPost() {
-      return `🌙 رمضان كريم!
-
-في هذا الشهر الفضيل، تواصل مع أحبابك بأمان وخصوصية.
-
-✨ Privoo يقدم لك:
-🔐 تشفير كامل للرسائل والمكالمات
-🤖 مساعد ذكي يساعدك في تنظيم وقتك
-🎨 ثيمات تناسب أجواء رمضان
-
-💝 عرض خاص للشهر الكريم:
-خصم 30% على الاشتراك السنوي (كود: RAMADAN30)
-
-⬇️ حمله الآن وشارك الخير:
-${cta}`;
-    }
-
-    // منشور التشفير الكمومي
-    function generateQuantumPost() {
-      return `⚛️ Privoo - أول تطبيق تواصل بتشفير كمومي مقاوم!
-
-🔬 التقنية: Kyber (ML-KEM) - معيار NIST 2024 للتشفير المقاوم للحواسيب الكمومية
-
-✨ مميزات إضافية:
-🔐 نفس بروتوكولات التشفير المستخدمة في كبرى تطبيقات التواصل
-🔄 تدوير تلقائي للمفاتيح كل 7 أيام
-📍 تشفير الموقع الحي
-✉️ إخفاء هوية المرسل
-
-🛡️ استثمر في أمان مستقبلك اليوم!
-
-⬇️ حمّل Privoo:
-${cta}`;
-    }
-
-    // ============= تحميل الإحصائيات والسجل =============
-    
     async function loadStats() {
       try {
+        // ✅ إضافة مؤقت وحماية من الأخطاء
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 5000)
         );
@@ -260,6 +70,7 @@ ${cta}`;
         
         const results = await Promise.race([fetchPromise, timeoutPromise]);
         
+        // visitors
         if (results[0]) {
           const visitors = await results[0].json();
           document.getElementById('visitorsCount').innerText = visitors?.count || 0;
@@ -267,6 +78,7 @@ ${cta}`;
           document.getElementById('visitorsCount').innerText = '0';
         }
         
+        // downloads
         if (results[1]) {
           const downloads = await results[1].json();
           document.getElementById('downloadsCount').innerText = downloads?.count || 0;
@@ -274,6 +86,7 @@ ${cta}`;
           document.getElementById('downloadsCount').innerText = '0';
         }
         
+        // messages
         if (results[2]) {
           const messages = await results[2].json();
           const msgCount = messages ? Object.keys(messages).length : 0;
@@ -284,6 +97,7 @@ ${cta}`;
         
       } catch(e) {
         console.error('خطأ في تحميل الإحصائيات:', e);
+        // ✅ عرض 0 بدلاً من "اعدادات"
         document.getElementById('visitorsCount').innerText = '0';
         document.getElementById('downloadsCount').innerText = '0';
         document.getElementById('messagesCount').innerText = '0';
@@ -307,38 +121,31 @@ ${cta}`;
       }
     }
 
-    // ============= ربط الأزرار =============
+    const intros = ["🔒 هل تبحث عن تطبيق يحترم خصوصيتك؟", "🚀 لكل من يرفض التتبع الرقمي", "💬 تواصل بحرية، بدون وسطاء"];
+    const features = ["🔐 تشفير من طرف إلى طرف", "🚫 لا يستخدم خدمات خارجية", "🛡️ لا يجمع بياناتك", "🤖 ذكاء اصطناعي مدمج (Gemini AI)"];
+    const cta = "⬇️ حمل Privoo الآن: https://privoo-b1c4b.web.app";
     
+    function generatePost() {
+      const intro = intros[Math.floor(Math.random() * intros.length)];
+      const shuffled = [...features];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return `${intro}\n\n${shuffled.slice(0, 3).join("\n")}\n\n${cta}`;
+    }
+
     document.getElementById("generatePostBtn").addEventListener("click", () => {
-      document.getElementById("postOutput").innerText = generateRandomPost();
-    });
-    document.getElementById("generatePrivacyPostBtn").addEventListener("click", () => {
-      document.getElementById("postOutput").innerText = generatePrivacyPost();
-    });
-    document.getElementById("generateSecurityPostBtn").addEventListener("click", () => {
-      document.getElementById("postOutput").innerText = generateSecurityPost();
-    });
-    document.getElementById("generateProPostBtn").addEventListener("click", () => {
-      document.getElementById("postOutput").innerText = generateProPost();
-    });
-    document.getElementById("generateAIPostBtn").addEventListener("click", () => {
-      document.getElementById("postOutput").innerText = generateAIPost();
-    });
-    document.getElementById("generateWhatsAppPostBtn").addEventListener("click", () => {
-      document.getElementById("postOutput").innerText = generateShortPost();
-    });
-    document.getElementById("generateRamadanPostBtn").addEventListener("click", () => {
-      document.getElementById("postOutput").innerText = generateRamadanPost();
-    });
-    document.getElementById("generateQuantumPostBtn").addEventListener("click", () => {
-      document.getElementById("postOutput").innerText = generateQuantumPost();
+      document.getElementById("postOutput").innerText = generatePost();
     });
 
-    // تحميل البيانات الأولية
     loadStats();
     loadLog();
     setInterval(loadStats, 30000);
-    document.getElementById("postOutput").innerText = generateRandomPost();
+    document.getElementById("postOutput").innerText = generatePost();
+    
+    // ✅ إضافة مؤشر للاتصال
+    console.log('✅ Dashboard loaded - Stats will show 0 if no data');
   </script>
 </body>
 </html>

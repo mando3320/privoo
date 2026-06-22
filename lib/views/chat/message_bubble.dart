@@ -19,6 +19,7 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback? onDelete;
   final bool isPinned;
   final void Function(String)? onReaction;
+  final VoidCallback? onDownload;  // ✅ إضافة callback للتحميل
 
   const MessageBubble({
     super.key,
@@ -31,6 +32,7 @@ class MessageBubble extends StatelessWidget {
     this.onDelete,
     this.isPinned = false,
     this.onReaction,
+    this.onDownload,  // ✅ إضافة
   });
 
   Color _getBubbleColor(BuildContext context) {
@@ -253,6 +255,19 @@ class MessageBubble extends StatelessWidget {
                       _showTranslationDialog(context, message.content);
                     },
                   ),
+                // ✅ خيار تحميل الملفات
+                if (onDownload != null && (message.type == MessageType.file || 
+                    message.type == MessageType.image || 
+                    message.type == MessageType.video || 
+                    message.type == MessageType.audio))
+                  ListTile(
+                    leading: const Icon(Icons.download, color: Colors.blue),
+                    title: const Text('تحميل الملف'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onDownload!.call();
+                    },
+                  ),
               ],
             ),
           ),
@@ -394,6 +409,14 @@ class MessageBubble extends StatelessWidget {
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
+            ),
+            // ✅ زر تحميل الملف
+            IconButton(
+              icon: Icon(Icons.download, size: 18, color: isMe ? Colors.white : Colors.blue),
+              onPressed: onDownload,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              tooltip: 'تحميل الملف',
             ),
           ],
         );

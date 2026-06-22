@@ -775,6 +775,8 @@ class _SmartChatScreenState extends ConsumerState<SmartChatScreen> {
                                         }
                                         _refreshMessages();
                                       },
+                                      // ✅ إضافة onDownload
+                                      onDownload: () => chatController.downloadMediaMessage(context, msg),
                                     ),
                                     if (msg.pollId != null)
                                       PollWidget(pollId: msg.pollId!.toString()),
