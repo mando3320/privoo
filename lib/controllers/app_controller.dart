@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config/app_theme.dart';
+import '../config/theme_engine.dart';
 import '../main.dart';
 
 final userAuthTokenProvider = StateProvider<String>((ref) => 'UNINITIALIZED_AUTH_TOKEN');
@@ -18,10 +19,8 @@ class AppController extends ChangeNotifier {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   Locale _locale = const Locale('ar');
-  // ✅ التعديل هنا
-  ThemeMode _themeMode = ThemeMode.system;  // ← بدلاً من ThemeMode.dark
+  ThemeMode _themeMode = ThemeMode.system;
   String _themeName = 'Privoo Premium';
-  ThemeData? _cachedTheme;
 
   bool _isPro = false;
   bool _isLifetime = false;
@@ -47,6 +46,9 @@ class AppController extends ChangeNotifier {
   String _defaultAlgorithm = "AES-GCM-256";
   bool _biometricEnabled = false;
 
+  // ============================================================
+  // ✅ Getters
+  // ============================================================
   Locale get locale => _locale;
   ThemeMode get themeMode => _themeMode;
   String get themeName => _themeName;
@@ -69,10 +71,26 @@ class AppController extends ChangeNotifier {
   String get defaultAlgorithm => _defaultAlgorithm;
   bool get biometricEnabled => _biometricEnabled;
 
+  // ✅ الحصول على الثيم الحالي مباشرة من ThemeEngine
+  ThemeData get currentTheme {
+    return ThemeEngine.getTheme(
+      themeName: _themeName,
+      themeMode: _themeMode,
+    );
+  }
+
+  // ✅ التحقق من دعم الوضع الفاتح
+  bool get supportsLightMode {
+    return ThemeEngine.supportsLightMode(_themeName);
+  }
+
   AppController(this._ref) {
     _loadPreferences();
   }
 
+  // ============================================================
+  // ✅ دوال التخزين المساعدة
+  // ============================================================
   Future<void> _saveSecureBool(String key, bool value) async {
     await _secureStorage.write(key: key, value: value.toString());
   }
@@ -83,6 +101,9 @@ class AppController extends ChangeNotifier {
     return value == 'true';
   }
 
+  // ============================================================
+  // ✅ تحميل الإعدادات
+  // ============================================================
   Future<void> _loadPreferences() async {
     try {
       _isPro = await _loadSecureBool('isPro_cached');
@@ -97,19 +118,30 @@ class AppController extends ChangeNotifier {
       _biometricEnabled = await _loadSecureBool('biometricEnabled');
 
       final prefs = await SharedPreferences.getInstance();
+      
+      // ✅ تحميل اللغة
       final savedLanguage = prefs.getString('language');
       if (savedLanguage != null) {
         _locale = Locale(savedLanguage);
       }
       
+      // ✅ تحميل اسم الثيم
       String savedTheme = prefs.getString('theme_name') ?? 'Privoo Premium';
-      if (!AppTheme.isThemeAvailable(savedTheme, _isPro)) {
+      if (!ThemeEngine.getAvailableThemes(_isPro).contains(savedTheme)) {
         savedTheme = 'Privoo Premium';
       }
-      _themeName = AppTheme.allThemes.containsKey(savedTheme) ? savedTheme : 'Privoo Premium';
+      _themeName = savedTheme;
       
-      // ✅ تحميل الوضع المختار من التخزين المحلي
-      _themeMode = (prefs.getBool('darkMode') ?? true) ? ThemeMode.dark : ThemeMode.light;
+      // ✅ تحميل الوضع (Light/Dark/System)
+      final savedThemeMode = prefs.getString('theme_mode');
+      if (savedThemeMode == 'dark') {
+        _themeMode = ThemeMode.dark;
+      } else if (savedThemeMode == 'light') {
+        _themeMode = ThemeMode.light;
+      } else {
+        _themeMode = ThemeMode.system;
+      }
+      
       _chatWallpaper = prefs.getString('chatWallpaper') ?? "default";
       _chatFontSize = prefs.getDouble('chatFontSize') ?? 14.0;
       _protocolVersion = prefs.getInt('protocolVersion') ?? 2;
@@ -119,12 +151,16 @@ class AppController extends ChangeNotifier {
 
       await _loadMessageCount();
       notifyListeners();
-      logger.d("✅ إعدادات التطبيق تم تحميلها بنجاح. الثيم الحالي: $_themeName (isPro: $_isPro)");
+      
+      logger.d("✅ إعدادات التطبيق تم تحميلها بنجاح. الثيم: $_themeName, الوضع: $_themeMode, Pro: $_isPro");
     } catch (e) {
       logger.e("❌ خطأ أثناء تحميل الإعدادات: $e");
     }
   }
 
+  // ============================================================
+  // ✅ إدارة الرسائل اليومية
+  // ============================================================
   Future<void> _loadMessageCount() async {
     final prefs = await SharedPreferences.getInstance();
     _lastMessageDate = prefs.getString('lastMessageDate') ?? '';
@@ -157,6 +193,9 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ============================================================
+  // ✅ إدارة اللغة
+  // ============================================================
   Future<void> updateLanguage(String langCode) async {
     _locale = Locale(langCode);
     final prefs = await SharedPreferences.getInstance();
@@ -166,42 +205,82 @@ class AppController extends ChangeNotifier {
     logger.i('🌐 تم تغيير اللغة إلى: $langCode');
   }
 
-  Future<void> toggleTheme(bool isDark) async {
-    _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('darkMode', isDark);
+  // ============================================================
+  // ✅ إدارة الثيمات (محسنة)
+  // ============================================================
+  
+  /// ✅ تبديل الوضع (Light/Dark/System)
+  Future<void> toggleThemeMode() async {
+    // ✅ التحقق من دعم الوضع الفاتح
+    if (!supportsLightMode && _themeMode != ThemeMode.dark) {
+      // ✅ إذا كان الثيم لا يدعم Light، ارجع إلى Dark
+      _themeMode = ThemeMode.dark;
+    } else {
+      // ✅ التبديل بين Light و Dark
+      switch (_themeMode) {
+        case ThemeMode.dark:
+          _themeMode = ThemeMode.light;
+          break;
+        case ThemeMode.light:
+          _themeMode = ThemeMode.dark;
+          break;
+        case ThemeMode.system:
+          _themeMode = ThemeMode.dark;
+          break;
+      }
+    }
+    
+    await _saveThemeSettings();
     notifyListeners();
+    logger.d("🎨 تم تغيير وضع الثيم إلى: $_themeMode");
   }
 
+  /// ✅ تغيير الثيم
   Future<void> setTheme(String themeName) async {
-    if (!AppTheme.isThemeAvailable(themeName, _isPro)) {
+    // ✅ التحقق من توفر الثيم للمستخدم
+    final availableThemes = ThemeEngine.getAvailableThemes(_isPro);
+    if (!availableThemes.contains(themeName)) {
       logger.w("⚠️ محاولة تغيير ثيم غير متاح للمستخدم: $themeName (isPro: $_isPro)");
       return;
     }
     
-    if (AppTheme.allThemes.containsKey(themeName)) {
-      _themeName = themeName;
-      _cachedTheme = null;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('theme_name', themeName);
-      notifyListeners();
-      logger.d("🎨 تم تغيير الثيم إلى: $themeName");
+    _themeName = themeName;
+    
+    // ✅ إذا كان الثيم لا يدعم Light Mode، اجبره على Dark
+    if (!ThemeEngine.supportsLightMode(themeName)) {
+      _themeMode = ThemeMode.dark;
     }
-  }
-  
-  ThemeData getCurrentTheme() {
-    _cachedTheme ??= AppTheme.getTheme(_themeName);
-    return _cachedTheme!;
-  }
-  
-  List<String> getAvailableThemes() {
-    return AppTheme.getAvailableThemesForUser(_isPro);
-  }
-  
-  int getLockedThemesCount() {
-    return AppTheme.lockedThemesCount;
+    
+    await _saveThemeSettings();
+    notifyListeners();
+    logger.d("🎨 تم تغيير الثيم إلى: $themeName");
   }
 
+  /// ✅ حفظ إعدادات الثيم
+  Future<void> _saveThemeSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('theme_name', _themeName);
+    await prefs.setString('theme_mode', _themeMode == ThemeMode.dark ? 'dark' : 'light');
+  }
+
+  /// ✅ الحصول على الثيم الحالي (بدون Cache)
+  ThemeData getCurrentTheme() {
+    return currentTheme;
+  }
+
+  /// ✅ قائمة الثيمات المتاحة للمستخدم
+  List<String> getAvailableThemes() {
+    return ThemeEngine.getAvailableThemes(_isPro);
+  }
+
+  /// ✅ عدد الثيمات المقفلة
+  int getLockedThemesCount() {
+    return ThemeEngine.getAvailableThemes(false).length - ThemeEngine.getAvailableThemes(true).length;
+  }
+
+  // ============================================================
+  // ✅ إدارة الاشتراك
+  // ============================================================
   Future<void> updateSubscriptionStatus({
     required bool isPro,
     required bool isLifetime,
@@ -215,6 +294,9 @@ class AppController extends ChangeNotifier {
     logger.i('💎 تم تحديث حالة الاشتراك: Pro=$isPro, Lifetime=$isLifetime');
   }
 
+  // ============================================================
+  // ✅ إعدادات التطبيق
+  // ============================================================
   Future<void> toggleLockApp(bool value) async {
     _lockApp = value;
     await _saveSecureBool('lockApp', value);
@@ -271,6 +353,27 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ============================================================
+  // ✅ إعدادات الأمان
+  // ============================================================
+  Future<void> setFingerprints(String myFingerprint, String peerFingerprint) async {
+    _myFingerprint = myFingerprint;
+    _peerFingerprint = peerFingerprint;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('myFingerprint', myFingerprint);
+    await prefs.setString('peerFingerprint', peerFingerprint);
+    notifyListeners();
+  }
+
+  Future<void> toggleBiometric(bool value) async {
+    _biometricEnabled = value;
+    await _saveSecureBool('biometricEnabled', value);
+    notifyListeners();
+  }
+
+  // ============================================================
+  // ✅ أدوات مساعدة
+  // ============================================================
   Future<void> clearCache() async {
     logger.i("🧹 جاري مسح كاش التطبيق...");
     notifyListeners();
@@ -285,7 +388,7 @@ class AppController extends ChangeNotifier {
     ];
     
     final normalKeys = [
-      'language', 'darkMode', 'theme_name', 'chatWallpaper', 'chatFontSize',
+      'language', 'theme_name', 'theme_mode', 'chatWallpaper', 'chatFontSize',
       'protocolVersion', 'defaultAlgorithm', 'myFingerprint', 'peerFingerprint',
     ];
 
@@ -298,10 +401,12 @@ class AppController extends ChangeNotifier {
       await prefs.remove(key);
     }
 
+    // ✅ إعادة تعيين القيم الافتراضية
     _themeName = 'Privoo Premium';
-    _cachedTheme = null;
     _themeMode = ThemeMode.dark;
     _locale = const Locale('ar');
+    _isPro = false;
+    _isLifetime = false;
 
     await _loadPreferences();
     logger.i("✅ تمت إعادة ضبط الإعدادات بنجاح.");
