@@ -439,7 +439,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
     final backgroundColor = isDark ? AppTheme.privooDarkBg : Colors.white;
 
     return Scaffold(
-      backgroundColor: backgroundColor,  // ✅ من الثيم
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         title: Text(
           "تسجيل الدخول",
@@ -486,7 +486,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
           onTap: (index) => setState(() => _selectedTab = index),
           indicatorColor: AppTheme.privooGold,
           labelColor: AppTheme.privooGold,
-          unselectedLabelColor: isDark ? Colors.white70 : Colors.grey.shade700,  // ✅ من الثيم
+          unselectedLabelColor: isDark ? Colors.white70 : Colors.grey.shade700,
           tabs: const [
             Tab(icon: Icon(Icons.phone), text: '📱 رقم الهاتف'),
             Tab(icon: Icon(Icons.email), text: '✉️ الإيميل'),
@@ -508,7 +508,8 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
   
   Widget _buildPhoneAuth(String resendTitle) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final textColor = isDark ? Colors.white : Colors.black87;  // ✅ تم إضافة textColor
+    final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;  // ✅ تم إضافة secondaryTextColor
     
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -539,7 +540,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
           'سيتم إرسال رمز تحقق إلى رقم هاتفك',
           style: TextStyle(
             fontSize: 14, 
-            color: secondaryTextColor,  // ✅ من الثيم
+            color: secondaryTextColor,
           ),
         ),
         const SizedBox(height: 24),
@@ -561,9 +562,9 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
                     const SizedBox(width: 4),
                     Text(
                       _selectedCountryCode, 
-                      style: TextStyle(fontSize: 14, color: textColor),
+                      style: TextStyle(fontSize: 14, color: textColor),  // ✅ استخدام textColor
                     ),
-                    Icon(Icons.arrow_drop_down, size: 20, color: textColor),
+                    Icon(Icons.arrow_drop_down, size: 20, color: textColor),  // ✅ استخدام textColor
                   ],
                 ),
               ),
@@ -695,7 +696,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
           _isLogin ? 'سجل الدخول باستخدام بريدك الإلكتروني' : 'أنشئ حساباً جديداً باستخدام بريدك الإلكتروني',
           style: TextStyle(
             fontSize: 14, 
-            color: secondaryTextColor,  // ✅ من الثيم
+            color: secondaryTextColor,
           ),
         ),
         const SizedBox(height: 24),

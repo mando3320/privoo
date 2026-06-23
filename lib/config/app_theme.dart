@@ -517,7 +517,9 @@ class AppTheme {
         color: Colors.white,
         elevation: 2,
         shadowColor: Colors.black12,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -538,7 +540,9 @@ class AppTheme {
           backgroundColor: privooDeepPurple,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
       ),
       textTheme: const TextTheme(
@@ -573,16 +577,21 @@ class AppTheme {
       ),
       dialogTheme: DialogTheme(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
         titleTextStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
         contentTextStyle: const TextStyle(fontSize: 14, color: Colors.black54),
         elevation: 8,
       ),
-      snackBarTheme: const SnackBarThemeData(
+      // ✅ إصلاح: إزالة const من SnackBarThemeData
+      snackBarTheme: SnackBarThemeData(
         backgroundColor: Colors.white,
-        contentTextStyle: TextStyle(color: Colors.black87),
+        contentTextStyle: const TextStyle(color: Colors.black87),
         actionTextColor: privooDeepPurple,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         behavior: SnackBarBehavior.floating,
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
@@ -616,7 +625,9 @@ class AppTheme {
         }),
         checkColor: WidgetStateProperty.all(Colors.white),
         side: const BorderSide(color: Colors.grey, width: 1.5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
@@ -634,7 +645,9 @@ class AppTheme {
       ),
       popupMenuTheme: PopupMenuThemeData(
         color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         elevation: 8,
       ),
       listTileTheme: ListTileThemeData(
@@ -643,7 +656,9 @@ class AppTheme {
         textColor: Colors.black87,
         titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         subtitleTextStyle: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
     );
@@ -782,7 +797,9 @@ class AppTheme {
           shadowColor: privooLightPurple,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           minimumSize: const Size(88, 48),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
@@ -793,7 +810,9 @@ class AppTheme {
           side: const BorderSide(color: privooGold, width: 1.5),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           minimumSize: const Size(88, 48),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
@@ -802,7 +821,9 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: privooGold,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
       ),
@@ -851,7 +872,9 @@ class AppTheme {
         color: privooCardDark,
         elevation: 4,
         shadowColor: privooDarkBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
         clipBehavior: Clip.antiAlias,
         margin: const EdgeInsets.all(8),
         surfaceTintColor: Colors.transparent,
@@ -860,7 +883,9 @@ class AppTheme {
       // ✅ الحوارات - محسنة
       dialogTheme: DialogTheme(
         backgroundColor: privooDarkBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
         titleTextStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: privooTextPrimary),
         contentTextStyle: const TextStyle(fontSize: 14, color: privooTextSecondary),
         elevation: 8,
@@ -881,7 +906,9 @@ class AppTheme {
       // ✅ القوائم المنبثقة
       popupMenuTheme: PopupMenuThemeData(
         color: privooCardDark,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         elevation: 8,
         textStyle: TextStyle(color: privooTextPrimary),
       ),
@@ -906,7 +933,9 @@ class AppTheme {
         }),
         checkColor: WidgetStateProperty.all(Colors.black),
         side: const BorderSide(color: privooTextHint, width: 1.5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
       ),
       
       // ✅ أزرار الراديو (Radio)
@@ -948,7 +977,9 @@ class AppTheme {
         textColor: privooTextPrimary,
         titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         subtitleTextStyle: TextStyle(fontSize: 13, color: privooTextSecondary),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
       
@@ -957,7 +988,9 @@ class AppTheme {
         backgroundColor: privooCardDark,
         contentTextStyle: const TextStyle(color: privooTextPrimary),
         actionTextColor: privooGold,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         behavior: SnackBarBehavior.floating,
         elevation: 6,
         insetPadding: const EdgeInsets.symmetric(horizontal: 16),
@@ -986,7 +1019,9 @@ class AppTheme {
         backgroundColor: WidgetStateProperty.all(privooCardDark),
         hintStyle: WidgetStateProperty.all(TextStyle(color: privooTextHint)),
         textStyle: WidgetStateProperty.all(TextStyle(color: privooTextPrimary)),
-        shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+        shape: WidgetStateProperty.all(RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        )),
         padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 16)),
       ),
       
@@ -998,7 +1033,9 @@ class AppTheme {
         labelStyle: TextStyle(color: privooTextPrimary),
         secondaryLabelStyle: TextStyle(color: Colors.black),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
         side: BorderSide(color: privooTextHint.withValues(alpha: 0.2)),
       ),
       
@@ -1075,7 +1112,9 @@ class AppTheme {
             const EdgeInsets.symmetric(vertical: 16, horizontal: 28),
           ),
           shape: WidgetStateProperty.all(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
           ),
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.pressed)) {
