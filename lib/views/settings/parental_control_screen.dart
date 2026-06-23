@@ -1,4 +1,5 @@
 // lib/views/settings/parental_control_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -492,8 +493,8 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
             ),
           ),
           if (_allowedContacts.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Text(
                 'لا توجد جهات اتصال مسموحة',
                 style: TextStyle(color: Colors.grey.shade500),
@@ -630,7 +631,6 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
         subtitle: const Text('عرض تقارير الاستخدام'),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
-          // عرض تقارير النشاط
           _showActivityReportDialog();
         },
       ),
@@ -638,7 +638,6 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
   }
 
   void _showActivityReportDialog() {
-    // ✅ عرض تقرير نشاط الطفل
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -654,7 +653,10 @@ class _ParentalControlScreenState extends ConsumerState<ParentalControlScreen> {
             const Text('👥 جهات الاتصال المسموحة:', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (_allowedContacts.isEmpty)
-              const Text('لا توجد جهات اتصال مسموحة', style: TextStyle(color: Colors.grey))
+              Text(
+                'لا توجد جهات اتصال مسموحة',
+                style: TextStyle(color: Colors.grey.shade600),
+              )
             else
               ..._allowedContacts.map((contact) => Text('• $contact')),
             const SizedBox(height: 16),

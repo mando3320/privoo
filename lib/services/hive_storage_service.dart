@@ -1,4 +1,5 @@
-// services/hive_storage_service.dart
+// lib/services/hive_storage_service.dart
+
 import 'dart:convert';
 import 'dart:math';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -11,8 +12,8 @@ class HiveStorageService {
   static const String _settingsBox = 'settings';
   static const String _messagesBox = 'messages';
   static const String _chatsBox = 'chats';
-  static const String _pendingMessagesBox = 'pending_messages'; // ✅ جديد: للرسائل المعلقة
-  static const String _syncBox = 'sync_status'; // ✅ جديد: لحالة المزامنة
+  static const String _pendingMessagesBox = 'pending_messages';
+  static const String _syncBox = 'sync_status';
   
   static final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   static const String _encryptionKeyKey = 'hive_encryption_key';
@@ -32,42 +33,20 @@ class HiveStorageService {
     final cipher = await _getOrCreateCipher();
     _cachedCipher = cipher;
     
-    // ✅ فتح الصناديق مع التشفير
-    await Hive.openBox(
-      _settingsBox,
-      encryptionCipher: cipher,
-    );
-    
-    await Hive.openBox(
-      _messagesBox,
-      encryptionCipher: cipher,
-    );
-    
-    await Hive.openBox(
-      _chatsBox,
-      encryptionCipher: cipher,
-    );
-    
-    // ✅ صناديق جديدة
-    await Hive.openBox(
-      _pendingMessagesBox,
-      encryptionCipher: cipher,
-    );
-    
-    await Hive.openBox(
-      _syncBox,
-      encryptionCipher: cipher,
-    );
+    await Hive.openBox(_settingsBox, encryptionCipher: cipher);
+    await Hive.openBox(_messagesBox, encryptionCipher: cipher);
+    await Hive.openBox(_chatsBox, encryptionCipher: cipher);
+    await Hive.openBox(_pendingMessagesBox, encryptionCipher: cipher);
+    await Hive.openBox(_syncBox, encryptionCipher: cipher);
     
     _initialized = true;
-    logger.i('✅ Hive Storage initialized successfully with offline support');
+    logger.i('✅ Hive Storage initialized successfully');
   }
   
   static Future<HiveAesCipher> _getOrCreateCipher() async {
     String? keyBase64 = await _secureStorage.read(key: _encryptionKeyKey);
     
     if (keyBase64 == null) {
-      // توليد مفتاح جديد
       final random = Random.secure();
       final keyBytes = List<int>.generate(32, (_) => random.nextInt(256));
       final cipher = HiveAesCipher(keyBytes);
@@ -86,23 +65,15 @@ class HiveStorageService {
   
   static Future<bool> isConnected() async {
     try {
-      // يمكن استخدام Connectivity أو أي طريقة أخرى
-      // هنا نستخدم طريقة بسيطة للتحقق
       final box = Hive.box(_syncBox);
       final lastSync = box.get('last_sync_time') as int?;
-      
-      // إذا كان آخر مزامنة منذ أقل من دقيقة، نعتبر أننا متصلون
       if (lastSync != null) {
         final diff = DateTime.now().millisecondsSinceEpoch - lastSync;
-        if (diff < 60000) {
-          return true;
-        }
+        if (diff < 60000) return true;
       }
-      
-      // بشكل افتراضي نعتبر أننا متصلون
       return true;
     } catch (e) {
-      return true; // افتراضي
+      return true;
     }
   }
 
@@ -129,11 +100,11 @@ class HiveStorageService {
   // 💬 الرسائل (Messages) - Offline Support
   // ============================================================
   
-  /// ✅ حفظ رسالة محلياً
-  static Future<void> saveMessage(MessageModel message) async {
+  /// ✅ حفظ رسالة محلياً - إضافة chatId كمعامل
+  static Future<void> saveMessage(String chatId, MessageModel message) async {
     try {
       final box = Hive.box(_messagesBox);
-      final key = '${message.chatId}_${message.id}';
+      final key = '${chatId}_${message.id}';  // ✅ استخدام chatId المعطى
       await box.put(key, jsonEncode(message.toJson()));
       logger.d('📦 تم حفظ الرسالة محلياً: ${message.id}');
     } catch (e) {
@@ -141,11 +112,11 @@ class HiveStorageService {
     }
   }
   
-  /// ✅ حفظ رسالة معلقة (لم ترسل بعد)
-  static Future<void> savePendingMessage(MessageModel message) async {
+  /// ✅ حفظ رسالة معلقة - إضافة chatId كمعامل
+  static Future<void> savePendingMessage(String chatId, MessageModel message) async {
     try {
       final box = Hive.box(_pendingMessagesBox);
-      final key = '${message.chatId}_${message.id}';
+      final key = '${chatId}_${message.id}';  // ✅ استخدام chatId المعطى
       final data = {
         ...message.toJson(),
         'retry_count': 0,
@@ -162,7 +133,7 @@ class HiveStorageService {
   static Future<List<MessageModel>> getPendingMessages(String chatId) async {
     try {
       final box = Hive.box(_pendingMessagesBox);
-      final keys = box.keys.where((key) => key.toString().startsWith('$chatId_'));
+      final keys = box.keys.where((key) => key.toString().startsWith('${chatId}_'));  // ✅ استخدام chatId
       final messages = <MessageModel>[];
       
       for (var key in keys) {
@@ -247,7 +218,7 @@ class HiveStorageService {
     try {
       final box = Hive.box(_messagesBox);
       for (var message in messages) {
-        final key = '${message.chatId}_${message.id}';
+        final key = '${chatId}_${message.id}';  // ✅ استخدام chatId
         await box.put(key, jsonEncode(message.toJson()));
       }
       logger.d('📦 تم حفظ ${messages.length} رسالة للمحادثة $chatId');
@@ -260,7 +231,7 @@ class HiveStorageService {
   static Future<List<MessageModel>> getMessagesForChat(String chatId) async {
     try {
       final box = Hive.box(_messagesBox);
-      final keys = box.keys.where((key) => key.toString().startsWith('$chatId_'));
+      final keys = box.keys.where((key) => key.toString().startsWith('${chatId}_'));  // ✅ استخدام chatId
       final messages = <MessageModel>[];
       
       for (var key in keys) {
@@ -276,7 +247,6 @@ class HiveStorageService {
         }
       }
       
-      // ترتيب حسب الوقت
       messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
       return messages;
     } catch (e) {
@@ -317,7 +287,7 @@ class HiveStorageService {
   static Future<void> deleteMessagesForChat(String chatId) async {
     try {
       final box = Hive.box(_messagesBox);
-      final keys = box.keys.where((key) => key.toString().startsWith('$chatId_'));
+      final keys = box.keys.where((key) => key.toString().startsWith('${chatId}_'));  // ✅ استخدام chatId
       await box.deleteAll(keys);
       logger.d('🗑️ تم حذف كل رسائل المحادثة $chatId');
     } catch (e) {
@@ -329,7 +299,7 @@ class HiveStorageService {
   static Future<bool> hasMessagesForChat(String chatId) async {
     try {
       final box = Hive.box(_messagesBox);
-      final keys = box.keys.where((key) => key.toString().startsWith('$chatId_'));
+      final keys = box.keys.where((key) => key.toString().startsWith('${chatId}_'));
       return keys.isNotEmpty;
     } catch (e) {
       return false;
@@ -340,7 +310,7 @@ class HiveStorageService {
   static Future<int> getMessageCountForChat(String chatId) async {
     try {
       final box = Hive.box(_messagesBox);
-      final keys = box.keys.where((key) => key.toString().startsWith('$chatId_'));
+      final keys = box.keys.where((key) => key.toString().startsWith('${chatId}_'));
       return keys.length;
     } catch (e) {
       return 0;
@@ -351,7 +321,6 @@ class HiveStorageService {
   // 📋 المحادثات (Chats) - Offline Support
   // ============================================================
   
-  /// ✅ حفظ محادثة محلياً
   static Future<void> saveChat(ChatModel chat) async {
     try {
       final box = Hive.box(_chatsBox);
@@ -362,7 +331,6 @@ class HiveStorageService {
     }
   }
   
-  /// ✅ جلب محادثة من التخزين المحلي
   static Future<ChatModel?> getChat(String chatId) async {
     try {
       final box = Hive.box(_chatsBox);
@@ -377,7 +345,6 @@ class HiveStorageService {
     }
   }
   
-  /// ✅ جلب كل المحادثات
   static Future<List<ChatModel>> getAllChats() async {
     try {
       final box = Hive.box(_chatsBox);
@@ -396,7 +363,6 @@ class HiveStorageService {
         }
       }
       
-      // ترتيب حسب آخر تحديث
       chats.sort((a, b) => (b.lastMessageTime ?? b.createdAt)
           .compareTo(a.lastMessageTime ?? a.createdAt));
       return chats;
@@ -406,7 +372,6 @@ class HiveStorageService {
     }
   }
   
-  /// ✅ حذف محادثة محلياً
   static Future<void> deleteChat(String chatId) async {
     try {
       final box = Hive.box(_chatsBox);
@@ -422,7 +387,6 @@ class HiveStorageService {
   // 🔄 مزامنة البيانات
   // ============================================================
   
-  /// ✅ تحديث وقت آخر مزامنة
   static Future<void> updateLastSyncTime() async {
     try {
       final box = Hive.box(_syncBox);
@@ -432,7 +396,6 @@ class HiveStorageService {
     }
   }
   
-  /// ✅ جلب وقت آخر مزامنة
   static Future<DateTime?> getLastSyncTime() async {
     try {
       final box = Hive.box(_syncBox);
@@ -444,17 +407,15 @@ class HiveStorageService {
     }
   }
   
-  /// ✅ مزامنة الرسائل من الخادم إلى المحلي
   static Future<void> syncMessages(String chatId, List<MessageModel> serverMessages) async {
     try {
       final localMessages = await getMessagesForChat(chatId);
       final localIds = localMessages.map((m) => m.id).toSet();
       
-      // ✅ إضافة الرسائل الجديدة فقط
       int addedCount = 0;
       for (var message in serverMessages) {
         if (!localIds.contains(message.id)) {
-          await saveMessage(message);
+          await saveMessage(chatId, message);  // ✅ تمرير chatId
           addedCount++;
         }
       }
@@ -466,7 +427,6 @@ class HiveStorageService {
     }
   }
   
-  /// ✅ مزامنة المحادثات من الخادم إلى المحلي
   static Future<void> syncChats(List<ChatModel> serverChats) async {
     try {
       for (var chat in serverChats) {
@@ -479,7 +439,6 @@ class HiveStorageService {
     }
   }
   
-  /// ✅ إرسال الرسائل المعلقة (عند استعادة الاتصال)
   static Future<List<MessageModel>> getPendingMessagesToSend() async {
     try {
       final box = Hive.box(_pendingMessagesBox);
@@ -490,7 +449,6 @@ class HiveStorageService {
         if (value != null) {
           try {
             final json = jsonDecode(value.toString()) as Map<String, dynamic>;
-            // ✅ تجاهل الرسائل التي تجاوزت عدد المحاولات
             final retryCount = json['retry_count'] ?? 0;
             if (retryCount < 5) {
               final message = MessageModel.fromJson(json);
@@ -513,7 +471,6 @@ class HiveStorageService {
   // 📊 حالة التطبيق (App State)
   // ============================================================
   
-  /// ✅ حفظ حالة التطبيق (مثل ما إذا كان المستخدم مسجل دخول)
   static Future<void> saveAppState(Map<String, dynamic> state) async {
     try {
       final box = Hive.box(_settingsBox);
@@ -523,7 +480,6 @@ class HiveStorageService {
     }
   }
   
-  /// ✅ جلب حالة التطبيق
   static Future<Map<String, dynamic>?> getAppState() async {
     try {
       final box = Hive.box(_settingsBox);
@@ -535,12 +491,10 @@ class HiveStorageService {
     }
   }
   
-  /// ✅ حفظ معرف المستخدم الحالي
   static Future<void> saveCurrentUserId(String userId) async {
     await saveSetting('current_user_id', userId);
   }
   
-  /// ✅ جلب معرف المستخدم الحالي
   static String? getCurrentUserId() {
     return getSetting('current_user_id') as String?;
   }
@@ -549,7 +503,6 @@ class HiveStorageService {
   // 🗑️ تنظيف
   // ============================================================
   
-  /// ✅ حذف كل البيانات المحلية
   static Future<void> clearAllData() async {
     try {
       final messagesBox = Hive.box(_messagesBox);
@@ -568,7 +521,6 @@ class HiveStorageService {
     }
   }
   
-  /// ✅ حذف البيانات القديمة (أكثر من 30 يوم)
   static Future<void> cleanOldData({int keepDays = 30}) async {
     try {
       final cutoffDate = DateTime.now().subtract(Duration(days: keepDays));
@@ -599,7 +551,6 @@ class HiveStorageService {
     }
   }
   
-  /// ✅ تنظيف الرسائل المعلقة الفاشلة (أكثر من 5 محاولات)
   static Future<void> cleanFailedPendingMessages() async {
     try {
       final box = Hive.box(_pendingMessagesBox);
@@ -633,7 +584,6 @@ class HiveStorageService {
   // 📝 سجلات (Logs) - للتشخيص
   // ============================================================
   
-  /// ✅ الحصول على حجم التخزين
   static Future<Map<String, int>> getStorageSize() async {
     try {
       final messagesBox = Hive.box(_messagesBox);

@@ -1,4 +1,5 @@
 // lib/services/supabase_service.dart
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -20,6 +21,8 @@ class UserModel {
   final DateTime createdAt;
   final DateTime? lastSeen;
   final bool isOnline;
+  final String? role;      // ✅ إضافة - لدور المستخدم (user, admin, super_admin)
+  final bool isAdmin;      // ✅ إضافة - صلاحية المشرف
 
   UserModel({
     required this.id,
@@ -35,6 +38,8 @@ class UserModel {
     required this.createdAt,
     this.lastSeen,
     this.isOnline = false,
+    this.role,               // ✅ إضافة
+    this.isAdmin = false,    // ✅ إضافة
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
@@ -51,6 +56,8 @@ class UserModel {
     createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
     lastSeen: json['last_seen'] != null ? DateTime.parse(json['last_seen']) : null,
     isOnline: json['is_online'] ?? false,
+    role: json['role'],      // ✅ إضافة
+    isAdmin: json['is_admin'] ?? false,  // ✅ إضافة
   );
 
   Map<String, dynamic> toJson() => {
@@ -67,6 +74,8 @@ class UserModel {
     'created_at': createdAt.toIso8601String(),
     if (lastSeen != null) 'last_seen': lastSeen!.toIso8601String(),
     'is_online': isOnline,
+    if (role != null) 'role': role,     // ✅ إضافة
+    'is_admin': isAdmin,                 // ✅ إضافة
   };
 }
 
@@ -523,19 +532,74 @@ class SupabaseService {
 
   Future<void> deleteUserAccount(String userId) async {
     try {
-      // حذف الرسائل
       await deleteMessagesForChat(userId);
-      
-      // حذف من chat_members
       await _client.from('chat_members').delete().eq('user_id', userId);
-      
-      // حذف من users
       await _client.from('users').delete().eq('id', userId);
-      
       print('✅ User account deleted: $userId');
     } catch (e) {
       print('❌ deleteUserAccount error: $e');
       rethrow;
+    }
+  }
+
+  // ============================================================
+  // 🔄 Refresh Token (TODO 31)
+  // ============================================================
+
+  /// ✅ تجديد التوكن (Session Refresh)
+  Future<void> refreshSession() async {
+    try {
+      final currentSession = _client.auth.currentSession;
+      if (currentSession == null) {
+        print('⚠️ لا توجد جلسة نشطة لتجديدها');
+        return;
+      }
+      
+      print('🔄 جاري تجديد التوكن...');
+      final newSession = await _client.auth.refreshSession();
+      if (newSession != null) {
+        print('✅ تم تجديد التوكن بنجاح');
+      } else {
+        print('⚠️ فشل تجديد التوكن');
+      }
+    } catch (e) {
+      print('❌ فشل تجديد التوكن: $e');
+    }
+  }
+
+  /// ✅ التحقق من صلاحية التوكن وتجديده تلقائياً
+  Future<bool> isSessionValid() async {
+    try {
+      final session = _client.auth.currentSession;
+      if (session == null) return false;
+      
+      final expiresAt = session.expiresAt;
+      if (expiresAt != null) {
+        final expiryTime = DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000);
+        final timeLeft = expiryTime.difference(DateTime.now());
+        
+        if (timeLeft.inMinutes < 5) {
+          print('⏳ التوكن سينتهي خلال ${timeLeft.inMinutes} دقيقة، جاري التجديد...');
+          await refreshSession();
+        }
+      }
+      
+      return true;
+    } catch (e) {
+      print('❌ فشل التحقق من صلاحية التوكن: $e');
+      return false;
+    }
+  }
+
+  /// ✅ الحصول على توكن صالح مع تجديد تلقائي
+  Future<String?> getValidAccessToken() async {
+    try {
+      await isSessionValid();
+      final session = _client.auth.currentSession;
+      return session?.accessToken;
+    } catch (e) {
+      print('❌ فشل الحصول على التوكن الصالح: $e');
+      return null;
     }
   }
 
@@ -545,20 +609,13 @@ class SupabaseService {
 
   MessageType _parseMessageType(String type) {
     switch (type.toLowerCase()) {
-      case 'image':
-        return MessageType.image;
-      case 'gif':
-        return MessageType.gif;
-      case 'video':
-        return MessageType.video;
-      case 'voice':
-        return MessageType.voice;
-      case 'audio':
-        return MessageType.audio;
-      case 'file':
-        return MessageType.file;
-      default:
-        return MessageType.text;
+      case 'image': return MessageType.image;
+      case 'gif': return MessageType.gif;
+      case 'video': return MessageType.video;
+      case 'voice': return MessageType.voice;
+      case 'audio': return MessageType.audio;
+      case 'file': return MessageType.file;
+      default: return MessageType.text;
     }
   }
 }

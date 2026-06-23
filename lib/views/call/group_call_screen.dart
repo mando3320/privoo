@@ -1,4 +1,5 @@
-// views/call/group_call_screen.dart
+// lib/views/call/group_call_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -117,6 +118,7 @@ class _GroupCallScreenState extends ConsumerState<GroupCallScreen> {
     for (var renderer in _remoteRenderers.values) {
       renderer.dispose();
     }
+    _remoteRenderers.clear();
     _callService.dispose();
     super.dispose();
   }
@@ -126,6 +128,26 @@ class _GroupCallScreenState extends ConsumerState<GroupCallScreen> {
       return '${(count / 1000).toStringAsFixed(1)}K';
     }
     return count.toString();
+  }
+
+  /// ✅ دالة مساعدة لبناء فيديو المشارك البعيد
+  Widget _buildRemoteVideo(String participantId) {
+    // ✅ إنشاء Renderer جديد إذا لم يكن موجوداً
+    if (!_remoteRenderers.containsKey(participantId)) {
+      final renderer = RTCVideoRenderer();
+      renderer.initialize();
+      final stream = _callService.remoteStreams[participantId];
+      if (stream != null) {
+        renderer.srcObject = stream;
+      }
+      _remoteRenderers[participantId] = renderer;
+    }
+    
+    return RTCVideoView(
+      _remoteRenderers[participantId]!,
+      mirror: false,
+      objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+    );
   }
 
   Widget _buildVideoGrid() {
@@ -178,21 +200,9 @@ class _GroupCallScreenState extends ConsumerState<GroupCallScreen> {
                   mirror: true,
                   objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
                 )
-              // ✅ عرض الفيديو البعيد
-              else if (widget.isVideo && remoteStreams.containsKey(participantId)) {
-                // إنشاء Renderer جديد لكل مشارك
-                if (!_remoteRenderers.containsKey(participantId)) {
-                  final renderer = RTCVideoRenderer();
-                  renderer.initialize();
-                  renderer.srcObject = remoteStreams[participantId];
-                  _remoteRenderers[participantId] = renderer;
-                }
-                return RTCVideoView(
-                  _remoteRenderers[participantId]!,
-                  mirror: false,
-                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                );
-              }
+              // ✅ عرض الفيديو البعيد - استخدام الدالة المساعدة
+              else if (widget.isVideo && remoteStreams.containsKey(participantId))
+                _buildRemoteVideo(participantId)
               // ✅ عرض أيقونة للمشاركين بدون فيديو
               else
                 Center(
@@ -314,7 +324,10 @@ class _GroupCallScreenState extends ConsumerState<GroupCallScreen> {
   @override
   Widget build(BuildContext context) {
     final app = ref.watch(appControllerProvider);
-    final maxParticipants = GroupVideoCallService.effectiveMaxParticipants(isVideo: widget.isVideo, isPro: app.isPro);
+    final maxParticipants = GroupVideoCallService.effectiveMaxParticipants(
+      isVideo: widget.isVideo, 
+      isPro: app.isPro,
+    );
     
     return Scaffold(
       backgroundColor: Colors.black,

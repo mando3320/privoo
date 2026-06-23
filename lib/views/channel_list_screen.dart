@@ -1,4 +1,5 @@
 // lib/views/channel_list_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/channel_service.dart';
@@ -78,12 +79,14 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                   color: Colors.grey.shade400,
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                // ✅ إزالة const من هذا Text
+                Text(
                   'لا توجد قنوات بعد',
                   style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                // ✅ إزالة const من هذا Text
+                Text(
                   'أنشئ قناتك الأولى الآن',
                   style: TextStyle(color: Colors.grey.shade500),
                 ),
@@ -170,12 +173,14 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
                   color: Colors.grey.shade400,
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                // ✅ إزالة const من هذا Text
+                Text(
                   'لا توجد قنوات عامة',
                   style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                // ✅ إزالة const من هذا Text
+                Text(
                   'استكشف القنوات المتاحة',
                   style: TextStyle(color: Colors.grey.shade500),
                 ),
@@ -291,7 +296,6 @@ class _ChannelListScreenState extends ConsumerState<ChannelListScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        // ✅ تحديث القائمة
         setState(() {});
       }
     } catch (e) {
