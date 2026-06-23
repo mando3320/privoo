@@ -416,6 +416,10 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
     super.dispose();
   }
 
+  // ✅ ============================================================
+  // ✅ BUILD - تم التعديل لإضافة دعم Light Mode
+  // ✅ ============================================================
+  
   @override
   Widget build(BuildContext context) {
     final resendTitle = _cooldownSeconds > 0 
@@ -429,11 +433,22 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
       orElse: () => _languages.first,
     );
 
+    // ✅ الحصول على الألوان من الثيم
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final backgroundColor = isDark ? AppTheme.privooDarkBg : Colors.white;
+
     return Scaffold(
+      backgroundColor: backgroundColor,  // ✅ من الثيم
       appBar: AppBar(
-        title: const Text("تسجيل الدخول"),
+        title: Text(
+          "تسجيل الدخول",
+          style: TextStyle(color: textColor),
+        ),
         centerTitle: true,
         elevation: 0,
+        backgroundColor: isDark ? AppTheme.privooDarkBg : Colors.white,
+        foregroundColor: textColor,
         actions: [
           // ✅ زر تغيير اللغة
           PopupMenuButton<String>(
@@ -442,7 +457,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
               children: [
                 Text(currentLanguage['flag'] ?? '🌐', style: const TextStyle(fontSize: 20)),
                 const SizedBox(width: 4),
-                Icon(Icons.arrow_drop_down, color: Colors.white70),
+                Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
               ],
             ),
             onSelected: (code) {
@@ -471,7 +486,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
           onTap: (index) => setState(() => _selectedTab = index),
           indicatorColor: AppTheme.privooGold,
           labelColor: AppTheme.privooGold,
-          unselectedLabelColor: Colors.white70,
+          unselectedLabelColor: isDark ? Colors.white70 : Colors.grey.shade700,  // ✅ من الثيم
           tabs: const [
             Tab(icon: Icon(Icons.phone), text: '📱 رقم الهاتف'),
             Tab(icon: Icon(Icons.email), text: '✉️ الإيميل'),
@@ -487,7 +502,14 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
     );
   }
 
+  // ✅ ============================================================
+  // ✅ PHONE AUTH - تم التعديل لإضافة دعم Light Mode
+  // ✅ ============================================================
+  
   Widget _buildPhoneAuth(String resendTitle) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -506,12 +528,19 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
         const SizedBox(height: 16),
         Text(
           '📱 تسجيل الدخول برقم الهاتف',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.privooDeepPurple),
+          style: TextStyle(
+            fontSize: 20, 
+            fontWeight: FontWeight.bold, 
+            color: isDark ? AppTheme.privooDeepPurple : AppTheme.privooDeepPurple,
+          ),
         ),
         const SizedBox(height: 8),
         Text(
           'سيتم إرسال رمز تحقق إلى رقم هاتفك',
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          style: TextStyle(
+            fontSize: 14, 
+            color: secondaryTextColor,  // ✅ من الثيم
+          ),
         ),
         const SizedBox(height: 24),
         
@@ -523,15 +552,18 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
+                  border: Border.all(color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   children: [
                     Text(_selectedCountryFlag, style: const TextStyle(fontSize: 24)),
                     const SizedBox(width: 4),
-                    Text(_selectedCountryCode, style: const TextStyle(fontSize: 14)),
-                    const Icon(Icons.arrow_drop_down, size: 20),
+                    Text(
+                      _selectedCountryCode, 
+                      style: TextStyle(fontSize: 14, color: textColor),
+                    ),
+                    Icon(Icons.arrow_drop_down, size: 20, color: textColor),
                   ],
                 ),
               ),
@@ -558,7 +590,10 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
         const SizedBox(height: 8),
         Text(
           '$_selectedCountryName • ${_selectedCountryFlag} $_selectedCountryCode',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          style: TextStyle(
+            fontSize: 12, 
+            color: secondaryTextColor,
+          ),
         ),
         const SizedBox(height: 16),
         
@@ -612,14 +647,25 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
         const SizedBox(height: 16),
         Text(
           'سيتم إرسال رمز تحقق عن طريق رسالة نصية إلى رقم هاتفك',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          style: TextStyle(
+            fontSize: 12, 
+            color: secondaryTextColor,
+          ),
           textAlign: TextAlign.center,
         ),
       ],
     );
   }
 
+  // ✅ ============================================================
+  // ✅ EMAIL AUTH - تم التعديل لإضافة دعم Light Mode
+  // ✅ ============================================================
+  
   Widget _buildEmailAuth() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -638,12 +684,19 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
         const SizedBox(height: 16),
         Text(
           _isLogin ? '✉️ تسجيل الدخول بالإيميل' : '✉️ إنشاء حساب جديد',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.privooDeepPurple),
+          style: TextStyle(
+            fontSize: 20, 
+            fontWeight: FontWeight.bold, 
+            color: isDark ? AppTheme.privooDeepPurple : AppTheme.privooDeepPurple,
+          ),
         ),
         const SizedBox(height: 8),
         Text(
           _isLogin ? 'سجل الدخول باستخدام بريدك الإلكتروني' : 'أنشئ حساباً جديداً باستخدام بريدك الإلكتروني',
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          style: TextStyle(
+            fontSize: 14, 
+            color: secondaryTextColor,  // ✅ من الثيم
+          ),
         ),
         const SizedBox(height: 24),
 
@@ -747,7 +800,9 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
               _isLogin
                   ? 'ليس لديك حساب؟'
                   : 'لديك حساب بالفعل؟',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(
+                color: secondaryTextColor,
+              ),
             ),
             TextButton(
               onPressed: () => setState(() {
@@ -757,7 +812,10 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
               }),
               child: Text(
                 _isLogin ? 'إنشاء حساب' : 'تسجيل الدخول',
-                style: TextStyle(color: AppTheme.privooGold, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: AppTheme.privooGold, 
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],

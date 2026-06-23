@@ -479,6 +479,177 @@ class AppTheme {
   );
 
   // ============================================================
+  // ✅ ثيم Light Mode لـ Privoo Premium (جديد)
+  // ============================================================
+
+  /// ✅ ثيم فاتح لـ Privoo Premium (للاستخدام في Light Mode)
+  static final ThemeData privooLightPremiumTheme = _buildLightPremiumTheme();
+
+  static ThemeData _buildLightPremiumTheme() {
+    return ThemeData(
+      brightness: Brightness.light,
+      useMaterial3: true,
+      fontFamily: 'Cairo',
+      scaffoldBackgroundColor: Colors.white,
+      colorScheme: const ColorScheme.light(
+        primary: privooDeepPurple,
+        onPrimary: Colors.white,
+        secondary: privooGold,
+        onSecondary: Colors.black,
+        surface: Colors.white,
+        onSurface: Colors.black87,
+        error: privooError,
+        onError: Colors.white,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: IconThemeData(color: privooDeepPurple),
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: Colors.black,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 2,
+        shadowColor: Colors.black12,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: privooDeepPurple, width: 2),
+        ),
+        hintStyle: TextStyle(color: Colors.grey.shade600),
+        labelStyle: TextStyle(color: Colors.grey.shade700),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: privooDeepPurple,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+      ),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: Colors.black87),
+        bodyMedium: TextStyle(color: Colors.black87),
+        titleLarge: TextStyle(color: Colors.black87),
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Colors.white,
+        selectedItemColor: privooDeepPurple,
+        unselectedItemColor: Colors.grey,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.white,
+        indicatorColor: privooDeepPurple.withValues(alpha: 0.1),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: privooDeepPurple);
+          }
+          return const TextStyle(fontSize: 12, color: Colors.grey);
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: privooDeepPurple);
+          }
+          return const IconThemeData(color: Colors.grey);
+        }),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: Colors.grey,
+        thickness: 1,
+      ),
+      dialogTheme: DialogTheme(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        titleTextStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+        contentTextStyle: const TextStyle(fontSize: 14, color: Colors.black54),
+        elevation: 8,
+      ),
+      snackBarTheme: const SnackBarThemeData(
+        backgroundColor: Colors.white,
+        contentTextStyle: TextStyle(color: Colors.black87),
+        actionTextColor: privooDeepPurple,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        behavior: SnackBarBehavior.floating,
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: privooDeepPurple,
+      ),
+      tabBarTheme: const TabBarTheme(
+        labelColor: privooDeepPurple,
+        unselectedLabelColor: Colors.grey,
+        indicatorColor: privooDeepPurple,
+        dividerColor: Colors.transparent,
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: privooDeepPurple,
+        foregroundColor: Colors.white,
+        elevation: 8,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return privooDeepPurple;
+          return Colors.grey;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return privooDeepPurple.withValues(alpha: 0.5);
+          return Colors.grey.withValues(alpha: 0.5);
+        }),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return privooDeepPurple;
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.all(Colors.white),
+        side: const BorderSide(color: Colors.grey, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return privooDeepPurple;
+          return Colors.grey;
+        }),
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: privooDeepPurple,
+        inactiveTrackColor: Colors.grey.shade300,
+        thumbColor: privooDeepPurple,
+        overlayColor: privooDeepPurple.withValues(alpha: 0.2),
+        trackHeight: 4,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 8,
+      ),
+      listTileTheme: ListTileThemeData(
+        tileColor: Colors.transparent,
+        iconColor: privooDeepPurple,
+        textColor: Colors.black87,
+        titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        subtitleTextStyle: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      ),
+    );
+  }
+
+  // ============================================================
   // 🎨 دالة بناء الثيم الأساسية (Premium) - محسنة
   // ============================================================
   
@@ -967,6 +1138,11 @@ class AppTheme {
   // ============================================================
   
   static ThemeData getTheme(String themeName) {
+    // ✅ إذا كان الثيم Privoo Premium، استخدم الثيم المناسب
+    if (themeName == 'Privoo Premium') {
+      // سيتم تحديد الثيم حسب الوضع من خلال main.dart
+      return privooPremiumTheme;
+    }
     return allThemes[themeName] ?? privooPremiumTheme;
   }
   

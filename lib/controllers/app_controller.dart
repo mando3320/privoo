@@ -18,7 +18,8 @@ class AppController extends ChangeNotifier {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   Locale _locale = const Locale('ar');
-  ThemeMode _themeMode = ThemeMode.dark;
+  // ✅ التعديل هنا
+  ThemeMode _themeMode = ThemeMode.system;  // ← بدلاً من ThemeMode.dark
   String _themeName = 'Privoo Premium';
   ThemeData? _cachedTheme;
 
@@ -107,6 +108,7 @@ class AppController extends ChangeNotifier {
       }
       _themeName = AppTheme.allThemes.containsKey(savedTheme) ? savedTheme : 'Privoo Premium';
       
+      // ✅ تحميل الوضع المختار من التخزين المحلي
       _themeMode = (prefs.getBool('darkMode') ?? true) ? ThemeMode.dark : ThemeMode.light;
       _chatWallpaper = prefs.getString('chatWallpaper') ?? "default";
       _chatFontSize = prefs.getDouble('chatFontSize') ?? 14.0;
@@ -155,7 +157,6 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ تحديث اللغة مع إعادة تحميل التطبيق
   Future<void> updateLanguage(String langCode) async {
     _locale = Locale(langCode);
     final prefs = await SharedPreferences.getInstance();
@@ -163,9 +164,6 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     
     logger.i('🌐 تم تغيير اللغة إلى: $langCode');
-    
-    // ✅ إعادة تحميل التطبيق لتطبيق اللغة
-    // سيتم التعامل معها من خلال widget.onLocaleChange في PrivooApp
   }
 
   Future<void> toggleTheme(bool isDark) async {
@@ -204,7 +202,6 @@ class AppController extends ChangeNotifier {
     return AppTheme.lockedThemesCount;
   }
 
-  // ✅ دالة تحديث حالة الاشتراك
   Future<void> updateSubscriptionStatus({
     required bool isPro,
     required bool isLifetime,
@@ -276,7 +273,6 @@ class AppController extends ChangeNotifier {
 
   Future<void> clearCache() async {
     logger.i("🧹 جاري مسح كاش التطبيق...");
-    // يمكن إضافة منطق لمسح الكاش هنا
     notifyListeners();
   }
 
