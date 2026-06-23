@@ -235,6 +235,20 @@ class AppController extends ChangeNotifier {
     logger.d("🎨 تم تغيير وضع الثيم إلى: $_themeMode");
   }
 
+  /// ✅ دالة للتوافق مع الكود القديم (تستخدم في setting_screen)
+  Future<void> toggleTheme(bool isDark) async {
+    // ✅ التحقق من دعم الوضع الفاتح
+    if (!supportsLightMode && !isDark) {
+      // ✅ إذا كان الثيم لا يدعم Light، اجبره على Dark
+      _themeMode = ThemeMode.dark;
+    } else {
+      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+    }
+    await _saveThemeSettings();
+    notifyListeners();
+    logger.d("🎨 تم تغيير وضع الثيم إلى: ${isDark ? 'Dark' : 'Light'}");
+  }
+
   /// ✅ تغيير الثيم
   Future<void> setTheme(String themeName) async {
     // ✅ التحقق من توفر الثيم للمستخدم
