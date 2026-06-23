@@ -105,14 +105,16 @@ class _PrivooMainAppState extends ConsumerState<PrivooMainApp> {
   @override
   Widget build(BuildContext context) {
     final app = ref.watch(appControllerProvider);
-    final theme = app.getCurrentTheme();
 
     return MaterialApp(
       title: 'Privoo',
       debugShowCheckedModeBanner: false,
-      theme: theme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: app.themeMode,
+      // ✅ استخدام Privoo Premium Theme فقط
+      theme: AppTheme.privooPremiumTheme,
+      // ✅ استخدام نفس الثيم للوضع الداكن (لأن Privoo Premium داكن)
+      darkTheme: AppTheme.privooPremiumTheme,
+      // ✅ تثبيت الوضع على الداكن دائماً (لأن Privoo Premium مصمم للداكن)
+      themeMode: ThemeMode.dark,
       locale: _locale ?? app.locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,
