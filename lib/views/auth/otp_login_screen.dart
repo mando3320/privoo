@@ -153,11 +153,9 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_language', code);
     
-    // ✅ تحديث اللغة في AppController
     final appController = ref.read(appControllerProvider.notifier);
     appController.updateLanguage(code);
     
-    // ✅ إعادة تحميل التطبيق
     if (mounted) {
       Navigator.pushReplacement(
         context,
@@ -219,7 +217,6 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
         return;
       }
       
-      // ✅ حفظ المستخدم في Supabase
       await SupabaseService().createUser(UserModel(
         id: user.id,
         authId: user.id,
@@ -291,7 +288,6 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
         if (user != null) {
           final name = _nameController.text.trim();
           
-          // ✅ حفظ المستخدم في Supabase
           await SupabaseService().createUser(UserModel(
             id: user.id,
             authId: user.id,
@@ -417,7 +413,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
   }
 
   // ✅ ============================================================
-  // ✅ BUILD - تم التعديل لإضافة دعم Light Mode
+  // ✅ BUILD - استخدام ألوان الثيم مباشرة
   // ✅ ============================================================
   
   @override
@@ -426,17 +422,18 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
         ? 'إرسال الرمز (${_cooldownSeconds}s)' 
         : 'إرسال رمز التحقق';
     
-    // ✅ اللغة الحالية
     final currentLocale = ref.watch(appControllerProvider).locale;
     final currentLanguage = _languages.firstWhere(
       (lang) => lang['code'] == currentLocale.languageCode,
       orElse: () => _languages.first,
     );
 
-    // ✅ الحصول على الألوان من الثيم
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final backgroundColor = isDark ? AppTheme.privooDarkBg : Colors.white;
+    // ✅ استخدام ألوان الثيم مباشرة
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textColor = colorScheme.onSurface;
+    final backgroundColor = colorScheme.surface;
+    final primaryColor = colorScheme.primary;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -447,17 +444,16 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: isDark ? AppTheme.privooDarkBg : Colors.white,
+        backgroundColor: backgroundColor,
         foregroundColor: textColor,
         actions: [
-          // ✅ زر تغيير اللغة
           PopupMenuButton<String>(
             icon: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(currentLanguage['flag'] ?? '🌐', style: const TextStyle(fontSize: 20)),
                 const SizedBox(width: 4),
-                Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                Icon(Icons.arrow_drop_down, color: textColor),
               ],
             ),
             onSelected: (code) {
@@ -484,9 +480,9 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
         ],
         bottom: TabBar(
           onTap: (index) => setState(() => _selectedTab = index),
-          indicatorColor: AppTheme.privooGold,
-          labelColor: AppTheme.privooGold,
-          unselectedLabelColor: isDark ? Colors.white70 : Colors.grey.shade700,
+          indicatorColor: primaryColor,
+          labelColor: primaryColor,
+          unselectedLabelColor: colorScheme.onSurfaceVariant,
           tabs: const [
             Tab(icon: Icon(Icons.phone), text: '📱 رقم الهاتف'),
             Tab(icon: Icon(Icons.email), text: '✉️ الإيميل'),
@@ -503,13 +499,19 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
   }
 
   // ✅ ============================================================
-  // ✅ PHONE AUTH - تم التعديل لإضافة دعم Light Mode
+  // ✅ PHONE AUTH - استخدام ألوان الثيم مباشرة
   // ✅ ============================================================
   
   Widget _buildPhoneAuth(String resendTitle) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;  // ✅ تم إضافة textColor
-    final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;  // ✅ تم إضافة secondaryTextColor
+    // ✅ استخدام ألوان الثيم مباشرة
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    
+    final textColor = colorScheme.onSurface;
+    final secondaryTextColor = colorScheme.onSurfaceVariant;
+    final primaryColor = colorScheme.primary;
+    final borderColor = colorScheme.outlineVariant;
     
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -519,27 +521,24 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
           height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppTheme.privooDeepPurple,
-            boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
+            color: primaryColor,
+            boxShadow: [AppTheme.mainShadow(primaryColor)],
           ),
-          child: const Center(
-            child: Icon(Icons.phone_android, size: 40, color: Colors.white),
+          child: Center(
+            child: Icon(Icons.phone_android, size: 40, color: colorScheme.onPrimary),
           ),
         ),
         const SizedBox(height: 16),
         Text(
           '📱 تسجيل الدخول برقم الهاتف',
-          style: TextStyle(
-            fontSize: 20, 
-            fontWeight: FontWeight.bold, 
-            color: isDark ? AppTheme.privooDeepPurple : AppTheme.privooDeepPurple,
+          style: textTheme.titleLarge?.copyWith(
+            color: primaryColor,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'سيتم إرسال رمز تحقق إلى رقم هاتفك',
-          style: TextStyle(
-            fontSize: 14, 
+          style: textTheme.bodyMedium?.copyWith(
             color: secondaryTextColor,
           ),
         ),
@@ -553,7 +552,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                 decoration: BoxDecoration(
-                  border: Border.all(color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
+                  border: Border.all(color: borderColor),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -562,9 +561,9 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
                     const SizedBox(width: 4),
                     Text(
                       _selectedCountryCode, 
-                      style: TextStyle(fontSize: 14, color: textColor),  // ✅ استخدام textColor
+                      style: TextStyle(fontSize: 14, color: textColor),
                     ),
-                    Icon(Icons.arrow_drop_down, size: 20, color: textColor),  // ✅ استخدام textColor
+                    Icon(Icons.arrow_drop_down, size: 20, color: textColor),
                   ],
                 ),
               ),
@@ -573,13 +572,24 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
             Expanded(
               child: TextField(
                 controller: _phoneController,
+                style: TextStyle(color: textColor),
                 decoration: InputDecoration(
                   labelText: "رقم الهاتف",
                   hintText: "مثال: 123456789",
+                  labelStyle: TextStyle(color: secondaryTextColor),
+                  hintStyle: TextStyle(color: secondaryTextColor),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  prefixIcon: const Icon(Icons.phone),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: borderColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                  prefixIcon: Icon(Icons.phone, color: secondaryTextColor),
                 ),
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.done,
@@ -601,13 +611,24 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
         if (_codeSent)
           TextField(
             controller: _otpController,
+            style: TextStyle(color: textColor),
             decoration: InputDecoration(
               labelText: "رمز التحقق",
               hintText: "أدخل الرقم المكون من 6 أرقام",
+              labelStyle: TextStyle(color: secondaryTextColor),
+              hintStyle: TextStyle(color: secondaryTextColor),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              prefixIcon: const Icon(Icons.lock),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: primaryColor, width: 2),
+              ),
+              prefixIcon: Icon(Icons.lock, color: secondaryTextColor),
             ),
             keyboardType: TextInputType.number,
             maxLength: 6,
@@ -618,10 +639,12 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
         const SizedBox(height: 20),
         
         _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(child: CircularProgressIndicator(color: primaryColor))
             : ElevatedButton(
                 onPressed: _codeSent ? _verifyOTP : _sendOTP,
                 style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: colorScheme.onPrimary,
                   minimumSize: const Size(double.infinity, 55),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
@@ -642,7 +665,10 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
                 _attempts = 0;
               });
             },
-            child: const Text("تغيير رقم الهاتف"),
+            child: Text(
+              "تغيير رقم الهاتف",
+              style: TextStyle(color: primaryColor),
+            ),
           ),
           
         const SizedBox(height: 16),
@@ -659,13 +685,18 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
   }
 
   // ✅ ============================================================
-  // ✅ EMAIL AUTH - تم التعديل لإضافة دعم Light Mode
+  // ✅ EMAIL AUTH - استخدام ألوان الثيم مباشرة
   // ✅ ============================================================
   
   Widget _buildEmailAuth() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final secondaryTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    // ✅ استخدام ألوان الثيم مباشرة
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    
+    final textColor = colorScheme.onSurface;
+    final secondaryTextColor = colorScheme.onSurfaceVariant;
+    final primaryColor = colorScheme.primary;
     
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -675,27 +706,24 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
           height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppTheme.privooDeepPurple,
-            boxShadow: [AppTheme.mainShadow(AppTheme.privooDeepPurple)],
+            color: primaryColor,
+            boxShadow: [AppTheme.mainShadow(primaryColor)],
           ),
-          child: const Center(
-            child: Icon(Icons.email, size: 40, color: Colors.white),
+          child: Center(
+            child: Icon(Icons.email, size: 40, color: colorScheme.onPrimary),
           ),
         ),
         const SizedBox(height: 16),
         Text(
           _isLogin ? '✉️ تسجيل الدخول بالإيميل' : '✉️ إنشاء حساب جديد',
-          style: TextStyle(
-            fontSize: 20, 
-            fontWeight: FontWeight.bold, 
-            color: isDark ? AppTheme.privooDeepPurple : AppTheme.privooDeepPurple,
+          style: textTheme.titleLarge?.copyWith(
+            color: primaryColor,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           _isLogin ? 'سجل الدخول باستخدام بريدك الإلكتروني' : 'أنشئ حساباً جديداً باستخدام بريدك الإلكتروني',
-          style: TextStyle(
-            fontSize: 14, 
+          style: textTheme.bodyMedium?.copyWith(
             color: secondaryTextColor,
           ),
         ),
@@ -706,11 +734,16 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
             children: [
               TextField(
                 controller: _nameController,
-                decoration: const InputDecoration(
+                style: TextStyle(color: textColor),
+                decoration: InputDecoration(
                   labelText: 'الاسم الكامل',
                   hintText: 'أدخل اسمك الكامل',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
+                  labelStyle: TextStyle(color: secondaryTextColor),
+                  hintStyle: TextStyle(color: secondaryTextColor),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  prefixIcon: Icon(Icons.person, color: secondaryTextColor),
                 ),
               ),
               const SizedBox(height: 16),
@@ -719,11 +752,16 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
 
         TextField(
           controller: _emailController,
-          decoration: const InputDecoration(
+          style: TextStyle(color: textColor),
+          decoration: InputDecoration(
             labelText: 'البريد الإلكتروني',
             hintText: 'example@email.com',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.email),
+            labelStyle: TextStyle(color: secondaryTextColor),
+            hintStyle: TextStyle(color: secondaryTextColor),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            prefixIcon: Icon(Icons.email, color: secondaryTextColor),
           ),
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
@@ -732,13 +770,21 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
 
         TextField(
           controller: _passwordController,
+          style: TextStyle(color: textColor),
           decoration: InputDecoration(
             labelText: 'كلمة المرور',
             hintText: '********',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.lock),
+            labelStyle: TextStyle(color: secondaryTextColor),
+            hintStyle: TextStyle(color: secondaryTextColor),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            prefixIcon: Icon(Icons.lock, color: secondaryTextColor),
             suffixIcon: IconButton(
-              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+              icon: Icon(
+                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                color: secondaryTextColor,
+              ),
               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
           ),
@@ -750,13 +796,21 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
         if (!_isLogin)
           TextField(
             controller: _confirmPasswordController,
+            style: TextStyle(color: textColor),
             decoration: InputDecoration(
               labelText: 'تأكيد كلمة المرور',
               hintText: 'أعد كتابة كلمة المرور',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.lock_outline),
+              labelStyle: TextStyle(color: secondaryTextColor),
+              hintStyle: TextStyle(color: secondaryTextColor),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              prefixIcon: Icon(Icons.lock_outline, color: secondaryTextColor),
               suffixIcon: IconButton(
-                icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                icon: Icon(
+                  _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                  color: secondaryTextColor,
+                ),
                 onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
               ),
             ),
@@ -772,18 +826,20 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
           child: ElevatedButton(
             onPressed: _isLoading ? null : _emailSubmit,
             style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: colorScheme.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
             child: _isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 24,
                     height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: colorScheme.onPrimary,
                     ),
                   )
                 : Text(
@@ -798,12 +854,8 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              _isLogin
-                  ? 'ليس لديك حساب؟'
-                  : 'لديك حساب بالفعل؟',
-              style: TextStyle(
-                color: secondaryTextColor,
-              ),
+              _isLogin ? 'ليس لديك حساب؟' : 'لديك حساب بالفعل؟',
+              style: TextStyle(color: secondaryTextColor),
             ),
             TextButton(
               onPressed: () => setState(() {
@@ -814,7 +866,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
               child: Text(
                 _isLogin ? 'إنشاء حساب' : 'تسجيل الدخول',
                 style: TextStyle(
-                  color: AppTheme.privooGold, 
+                  color: primaryColor,
                   fontWeight: FontWeight.bold,
                 ),
               ),
