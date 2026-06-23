@@ -51,42 +51,36 @@ class AppTheme {
   // 🎨 تدرجات لونية احترافية (Gradients)
   // ============================================================
   
-  // ✅ تدرج الخلفية الرئيسية
   static const LinearGradient backgroundGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [privooDarkerBg, privooDarkBg, privooDarkerBg],
   );
   
-  // ✅ تدرج AppBar
   static const LinearGradient appBarGradient = LinearGradient(
     colors: [privooLightPurple, privooDeepPurple],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  // ✅ تدرج الأزرار الرئيسية
   static const LinearGradient buttonGradient = LinearGradient(
     colors: [privooLightPurple, privooDeepPurple, privooLightPurple],
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
   );
 
-  // ✅ تدرج الأزرار الذهبية (Pro/Upgrade)
   static const LinearGradient goldButtonGradient = LinearGradient(
     colors: [privooGold, Color(0xFFFFA500), privooGold],
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
   );
 
-  // ✅ تدرج أزرار FAB
   static const LinearGradient fabGradient = LinearGradient(
     colors: [privooLightPurple, privooGold],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  // ✅ تدرج الكروت
   static final LinearGradient cardGradient = LinearGradient(
     colors: [
       privooCardDark.withValues(alpha: 0.95),
@@ -96,10 +90,8 @@ class AppTheme {
     end: Alignment.bottomRight,
   );
   
-  // ✅ تدرج الخلفية الرئيسية (احتياطي)
   static const LinearGradient mainGradient = backgroundGradient;
   
-  // ✅ تدرج ذهبي للزينة
   static const LinearGradient goldGradient = LinearGradient(
     colors: [privooGold, Color(0xFFFFA500)],
     begin: Alignment.topLeft,
@@ -132,9 +124,11 @@ class AppTheme {
   // ✅ تصنيف الثيمات حسب نوع الاشتراك
   // ============================================================
   
+  // ✅ الثيمات المجانية
   static const Set<String> freeThemes = {
-    'Privoo Premium',  // ✅ أصبح الاسم يعكس الهوية الجديدة
-    'Privoo Light',    // احتياطي
+    'Privoo Premium',
+    // ✅ الثيمات القديمة المجانية
+    'Privoo Light',
     'Privoo Dark',
     'Blue Light',
     'Blue Dark',
@@ -144,8 +138,37 @@ class AppTheme {
     'Purple Dark',
   };
   
+  // ✅ الثيمات المدفوعة (Pro)
+  static const Set<String> proThemes = {
+    'Privoo Midnight',
+    'Privoo Royal',
+    'Privoo Ocean',
+    'Privoo Aurora',
+    'Privoo Obsidian',
+    // ✅ الثيمات القديمة المدفوعة
+    'Red Light',
+    'Red Dark',
+    'Green Light',
+    'Green Dark',
+    'Yellow Light',
+    'Yellow Dark',
+    'Orange Light',
+    'Orange Dark',
+    'Pink Light',
+    'Pink Dark',
+    'Teal Light',
+    'Teal Dark',
+    'Cyan Light',
+    'Cyan Dark',
+    'Indigo Light',
+    'Indigo Dark',
+    'Neon Dark',
+  };
+  
+  // ✅ جميع الثيمات
   static final Map<String, ThemeData> allThemes = {
-    'Privoo Premium': privooPremiumTheme,   // ✅ الثيم الرئيسي الجديد
+    // ✅ ثيمات مجانية
+    'Privoo Premium': privooPremiumTheme,
     'Privoo Light': privooLightTheme,
     'Privoo Dark': privooDarkTheme,
     'Blue Light': blueLightTheme,
@@ -154,6 +177,13 @@ class AppTheme {
     'Grey Dark': greyDarkTheme,
     'Purple Light': purpleLightTheme,
     'Purple Dark': purpleDarkTheme,
+    
+    // ✅ ثيمات Pro (جديدة وقديمة)
+    'Privoo Midnight': privooMidnightTheme,
+    'Privoo Royal': privooRoyalTheme,
+    'Privoo Ocean': privooOceanTheme,
+    'Privoo Aurora': privooAuroraTheme,
+    'Privoo Obsidian': privooObsidianTheme,
     'Red Light': redLightTheme,
     'Red Dark': redDarkTheme,
     'Green Light': greenLightTheme,
@@ -177,7 +207,7 @@ class AppTheme {
   
   static bool isThemeAvailable(String themeName, bool isPro) {
     if (freeThemes.contains(themeName)) return true;
-    if (isPro && allThemes.containsKey(themeName)) return true;
+    if (isPro && proThemes.contains(themeName)) return true;
     return false;
   }
   
@@ -189,15 +219,67 @@ class AppTheme {
     }
   }
   
-  static int get lockedThemesCount => allThemeNames.length - freeThemes.length;
+  static int get lockedThemesCount => proThemes.length;
 
   // ============================================================
   // 🎨 تعريف الثيمات
   // ============================================================
   
-  // ✅ الثيم الرئيسي الجديد (Premium) - محسن بـ Material 3
+  // ✅ الثيم الرئيسي (مجاني)
   static final ThemeData privooPremiumTheme = _buildPremiumTheme();
+  
+  // ✅ ثيمات Pro الجديدة
+  static final ThemeData privooMidnightTheme = _buildProTheme(
+    name: 'Privoo Midnight',
+    primaryColor: const Color(0xFF1A0A2E),
+    secondaryColor: const Color(0xFFFFD700),
+    backgroundColor: const Color(0xFF0F0720),
+    scaffoldColor: const Color(0xFF0F0720),
+    appBarColor: const Color(0xFF0F0720),
+    cardColor: const Color(0xFF1A0A2E),
+  );
 
+  static final ThemeData privooRoyalTheme = _buildProTheme(
+    name: 'Privoo Royal',
+    primaryColor: const Color(0xFF4A148C),
+    secondaryColor: const Color(0xFFFFD700),
+    backgroundColor: const Color(0xFF1A0033),
+    scaffoldColor: const Color(0xFF1A0033),
+    appBarColor: const Color(0xFF0D001A),
+    cardColor: const Color(0xFF2A0055),
+  );
+
+  static final ThemeData privooOceanTheme = _buildProTheme(
+    name: 'Privoo Ocean',
+    primaryColor: const Color(0xFF006994),
+    secondaryColor: const Color(0xFF00D4FF),
+    backgroundColor: const Color(0xFF0A192F),
+    scaffoldColor: const Color(0xFF0A192F),
+    appBarColor: const Color(0xFF0A192F),
+    cardColor: const Color(0xFF112240),
+  );
+
+  static final ThemeData privooAuroraTheme = _buildProTheme(
+    name: 'Privoo Aurora',
+    primaryColor: const Color(0xFF00B4D8),
+    secondaryColor: const Color(0xFF90E0EF),
+    backgroundColor: const Color(0xFF0A1128),
+    scaffoldColor: const Color(0xFF0A1128),
+    appBarColor: const Color(0xFF0A1128),
+    cardColor: const Color(0xFF1A2A4A),
+  );
+
+  static final ThemeData privooObsidianTheme = _buildProTheme(
+    name: 'Privoo Obsidian',
+    primaryColor: const Color(0xFF1A1A1A),
+    secondaryColor: const Color(0xFFC0C0C0),
+    backgroundColor: const Color(0xFF0D0D0D),
+    scaffoldColor: const Color(0xFF0D0D0D),
+    appBarColor: const Color(0xFF0D0D0D),
+    cardColor: const Color(0xFF1A1A1A),
+  );
+
+  // ✅ الثيمات القديمة
   static final ThemeData privooLightTheme = _buildTheme(
     brightness: Brightness.light,
     primaryColor: privooDeepPurple,
@@ -220,7 +302,6 @@ class AppTheme {
     name: 'Privoo Dark',
   );
 
-  // ✅ الثيمات الإضافية (سيتم تحديثها تدريجياً)
   static final ThemeData blueLightTheme = _buildTheme(
     brightness: Brightness.light,
     primaryColor: privooBlue,
@@ -482,7 +563,6 @@ class AppTheme {
   // ✅ ثيم Light Mode لـ Privoo Premium (جديد)
   // ============================================================
 
-  /// ✅ ثيم فاتح لـ Privoo Premium (للاستخدام في Light Mode)
   static final ThemeData privooLightPremiumTheme = _buildLightPremiumTheme();
 
   static ThemeData _buildLightPremiumTheme() {
@@ -584,7 +664,6 @@ class AppTheme {
         contentTextStyle: const TextStyle(fontSize: 14, color: Colors.black54),
         elevation: 8,
       ),
-      // ✅ إصلاح: إزالة const من SnackBarThemeData
       snackBarTheme: SnackBarThemeData(
         backgroundColor: Colors.white,
         contentTextStyle: const TextStyle(color: Colors.black87),
@@ -665,11 +744,365 @@ class AppTheme {
   }
 
   // ============================================================
-  // 🎨 دالة بناء الثيم الأساسية (Premium) - محسنة
+  // 🎨 دالة بناء الثيمات Pro (موحدة)
+  // ============================================================
+  static ThemeData _buildProTheme({
+    required String name,
+    required Color primaryColor,
+    required Color secondaryColor,
+    required Color backgroundColor,
+    required Color scaffoldColor,
+    required Color appBarColor,
+    required Color cardColor,
+  }) {
+    final colorScheme = ColorScheme(
+      brightness: Brightness.dark,
+      primary: primaryColor,
+      onPrimary: Colors.white,
+      secondary: secondaryColor,
+      onSecondary: Colors.black,
+      error: privooError,
+      onError: Colors.white,
+      surface: scaffoldColor,
+      onSurface: Colors.white,
+      surfaceContainerHighest: cardColor,
+      onSurfaceVariant: Colors.grey,
+      outline: secondaryColor,
+      outlineVariant: Colors.grey.shade600,
+      shadow: Colors.black,
+      scrim: Colors.black,
+      inverseSurface: primaryColor,
+      onInverseSurface: Colors.white,
+      inversePrimary: secondaryColor,
+      surfaceTint: primaryColor,
+    );
+
+    return ThemeData(
+      brightness: Brightness.dark,
+      useMaterial3: true,
+      fontFamily: 'Cairo',
+      colorScheme: colorScheme,
+      
+      scaffoldBackgroundColor: scaffoldColor,
+      canvasColor: scaffoldColor,
+      cardColor: cardColor,
+      primaryColor: primaryColor,
+      primaryColorDark: primaryColor,
+      primaryColorLight: primaryColor,
+      secondaryHeaderColor: secondaryColor,
+      
+      appBarTheme: AppBarTheme(
+        backgroundColor: appBarColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        titleSpacing: 0,
+        toolbarHeight: 56,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+        ),
+        iconTheme: IconThemeData(color: secondaryColor),
+        actionsIconTheme: IconThemeData(color: secondaryColor),
+        titleTextStyle: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+      
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: appBarColor,
+        selectedItemColor: secondaryColor,
+        unselectedItemColor: Colors.grey,
+        selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        unselectedLabelStyle: const TextStyle(fontSize: 12),
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+      ),
+      
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: appBarColor,
+        indicatorColor: primaryColor,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: secondaryColor);
+          }
+          return const TextStyle(fontSize: 12, color: Colors.grey);
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return IconThemeData(color: secondaryColor);
+          }
+          return const IconThemeData(color: Colors.grey);
+        }),
+      ),
+      
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: Colors.grey.shade800,
+          disabledForegroundColor: Colors.grey.shade600,
+          elevation: 4,
+          shadowColor: primaryColor,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          minimumSize: const Size(88, 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ),
+      
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: secondaryColor,
+          side: BorderSide(color: secondaryColor, width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          minimumSize: const Size(88, 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ),
+      
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: secondaryColor,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+      ),
+      
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 8,
+        shape: const CircleBorder(),
+      ),
+      
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: cardColor,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade800),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: secondaryColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: privooError, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: privooError, width: 2),
+        ),
+        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+        labelStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        floatingLabelStyle: TextStyle(color: secondaryColor),
+        prefixIconColor: Colors.grey.shade500,
+        suffixIconColor: Colors.grey.shade500,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+      
+      cardTheme: CardThemeData(
+        color: cardColor,
+        elevation: 4,
+        shadowColor: Colors.black,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        clipBehavior: Clip.antiAlias,
+        margin: const EdgeInsets.all(8),
+        surfaceTintColor: Colors.transparent,
+      ),
+      
+      dialogTheme: DialogTheme(
+        backgroundColor: scaffoldColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        titleTextStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+        contentTextStyle: const TextStyle(fontSize: 14, color: Colors.grey),
+        elevation: 8,
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+      
+      tabBarTheme: TabBarTheme(
+        labelColor: secondaryColor,
+        unselectedLabelColor: Colors.grey,
+        indicatorColor: secondaryColor,
+        dividerColor: Colors.transparent,
+        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: const TextStyle(fontSize: 14),
+        indicatorSize: TabBarIndicatorSize.tab,
+      ),
+      
+      popupMenuTheme: PopupMenuThemeData(
+        color: cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        elevation: 8,
+        textStyle: const TextStyle(color: Colors.white),
+      ),
+      
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return secondaryColor;
+          return Colors.grey;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return secondaryColor.withValues(alpha: 0.5);
+          return Colors.grey.withValues(alpha: 0.5);
+        }),
+      ),
+      
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return secondaryColor;
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.all(Colors.black),
+        side: const BorderSide(color: Colors.grey, width: 1.5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+      
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return secondaryColor;
+          return Colors.grey;
+        }),
+      ),
+      
+      sliderTheme: SliderThemeData(
+        activeTrackColor: secondaryColor,
+        inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
+        thumbColor: secondaryColor,
+        overlayColor: secondaryColor.withValues(alpha: 0.2),
+        trackHeight: 4,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+      ),
+      
+      iconTheme: const IconThemeData(color: Colors.white, size: 24),
+      
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.bold, color: Colors.white),
+        displayMedium: TextStyle(fontSize: 45, fontWeight: FontWeight.bold, color: Colors.white),
+        displaySmall: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white),
+        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w600, color: Colors.white),
+        headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: Colors.white),
+        headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Colors.white),
+        titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white),
+        titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.white),
+        titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey),
+        bodyLarge: TextStyle(fontSize: 16, color: Colors.white),
+        bodyMedium: TextStyle(fontSize: 14, color: Colors.white),
+        bodySmall: TextStyle(fontSize: 12, color: Colors.grey),
+        labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white),
+        labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey),
+        labelSmall: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.grey),
+      ),
+      
+      dividerTheme: DividerThemeData(
+        color: Colors.white24,
+        thickness: 1,
+        space: 1,
+      ),
+      
+      listTileTheme: ListTileThemeData(
+        tileColor: Colors.transparent,
+        iconColor: secondaryColor,
+        textColor: Colors.white,
+        titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        subtitleTextStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      ),
+      
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: cardColor,
+        contentTextStyle: const TextStyle(color: Colors.white),
+        actionTextColor: secondaryColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        behavior: SnackBarBehavior.floating,
+        elevation: 6,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+      ),
+      
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: secondaryColor,
+        circularTrackColor: Colors.grey.withValues(alpha: 0.2),
+        linearTrackColor: Colors.grey.withValues(alpha: 0.2),
+      ),
+      
+      drawerTheme: DrawerThemeData(
+        backgroundColor: scaffoldColor,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            bottomLeft: Radius.zero,
+          ),
+        ),
+      ),
+      
+      searchBarTheme: SearchBarThemeData(
+        backgroundColor: WidgetStateProperty.all(cardColor),
+        hintStyle: WidgetStateProperty.all(TextStyle(color: Colors.grey.shade500)),
+        textStyle: WidgetStateProperty.all(TextStyle(color: Colors.white)),
+        shape: WidgetStateProperty.all(RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        )),
+        padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 16)),
+      ),
+      
+      chipTheme: ChipThemeData(
+        backgroundColor: cardColor,
+        selectedColor: primaryColor,
+        secondarySelectedColor: secondaryColor,
+        labelStyle: const TextStyle(color: Colors.white),
+        secondaryLabelStyle: const TextStyle(color: Colors.black),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        side: BorderSide(color: Colors.white24),
+      ),
+      
+      applyElevationOverlayColor: true,
+      
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        textStyle: const TextStyle(color: Colors.white),
+      ),
+    );
+  }
+
+  // ============================================================
+  // 🎨 الثيم الافتراضي (Privoo Premium)
   // ============================================================
   
   static ThemeData _buildPremiumTheme() {
-    // ✅ إنشاء ColorScheme متكامل
     final colorScheme = ColorScheme(
       brightness: Brightness.dark,
       primary: privooLightPurple,
@@ -700,7 +1133,6 @@ class AppTheme {
       surfaceTint: privooLightPurple,
     );
     
-    // ✅ نص ثيم محسن للوضع الداكن
     final textTheme = TextTheme(
       displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.bold, color: privooTextPrimary),
       displayMedium: TextStyle(fontSize: 45, fontWeight: FontWeight.bold, color: privooTextPrimary),
@@ -720,13 +1152,11 @@ class AppTheme {
     );
     
     return ThemeData(
-      // ✅ الأساسيات
       brightness: Brightness.dark,
       useMaterial3: true,
       fontFamily: 'Cairo',
       colorScheme: colorScheme,
       
-      // ✅ الألوان الأساسية
       scaffoldBackgroundColor: privooDarkBg,
       canvasColor: privooDarkBg,
       cardColor: privooCardDark,
@@ -735,7 +1165,6 @@ class AppTheme {
       primaryColorLight: privooLightPurple,
       secondaryHeaderColor: privooGold,
       
-      // ✅ AppBar - محسن
       appBarTheme: AppBarTheme(
         backgroundColor: privooDarkBg,
         foregroundColor: privooTextPrimary,
@@ -755,7 +1184,6 @@ class AppTheme {
         ),
       ),
       
-      // ✅ Bottom Navigation Bar - محسن
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: privooDarkerBg,
         selectedItemColor: privooGold,
@@ -768,7 +1196,6 @@ class AppTheme {
         showUnselectedLabels: true,
       ),
       
-      // ✅ Navigation Bar (Material 3)
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: privooDarkerBg,
         indicatorColor: privooLightPurple,
@@ -786,7 +1213,6 @@ class AppTheme {
         }),
       ),
       
-      // ✅ الأزرار - محسنة
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: privooLightPurple,
@@ -835,7 +1261,6 @@ class AppTheme {
         shape: const CircleBorder(),
       ),
       
-      // ✅ الحقول النصية - محسنة
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: privooDeepPurple,
@@ -867,7 +1292,6 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
       
-      // ✅ الكروت - محسنة
       cardTheme: CardThemeData(
         color: privooCardDark,
         elevation: 4,
@@ -880,7 +1304,6 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
       ),
       
-      // ✅ الحوارات - محسنة
       dialogTheme: DialogTheme(
         backgroundColor: privooDarkBg,
         shape: RoundedRectangleBorder(
@@ -892,7 +1315,6 @@ class AppTheme {
         actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
       
-      // ✅ التبويبات (Tabs)
       tabBarTheme: TabBarTheme(
         labelColor: privooGold,
         unselectedLabelColor: privooTextSecondary,
@@ -903,7 +1325,6 @@ class AppTheme {
         indicatorSize: TabBarIndicatorSize.tab,
       ),
       
-      // ✅ القوائم المنبثقة
       popupMenuTheme: PopupMenuThemeData(
         color: privooCardDark,
         shape: RoundedRectangleBorder(
@@ -913,7 +1334,6 @@ class AppTheme {
         textStyle: TextStyle(color: privooTextPrimary),
       ),
       
-      // ✅ أزرار التبديل (Switch)
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return privooGold;
@@ -925,7 +1345,6 @@ class AppTheme {
         }),
       ),
       
-      // ✅ صناديق الاختيار (Checkbox)
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return privooGold;
@@ -938,7 +1357,6 @@ class AppTheme {
         ),
       ),
       
-      // ✅ أزرار الراديو (Radio)
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return privooGold;
@@ -946,7 +1364,6 @@ class AppTheme {
         }),
       ),
       
-      // ✅ شريط التمرير (Slider)
       sliderTheme: SliderThemeData(
         activeTrackColor: privooGold,
         inactiveTrackColor: privooTextHint.withValues(alpha: 0.3),
@@ -956,21 +1373,16 @@ class AppTheme {
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
       ),
       
-      // ✅ الأيقونات
       iconTheme: const IconThemeData(color: privooTextPrimary, size: 24),
-      
-      // ✅ الخطوط (Typography)
       textTheme: textTheme,
       primaryTextTheme: textTheme,
       
-      // ✅ شريط التقسيم (Divider)
       dividerTheme: DividerThemeData(
         color: privooTextSecondary.withValues(alpha: 0.2),
         thickness: 1,
         space: 1,
       ),
       
-      // ✅ قوائم ListTile - محسنة
       listTileTheme: ListTileThemeData(
         tileColor: Colors.transparent,
         iconColor: privooGold,
@@ -983,7 +1395,6 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
       
-      // ✅ SnackBar - محسن
       snackBarTheme: SnackBarThemeData(
         backgroundColor: privooCardDark,
         contentTextStyle: const TextStyle(color: privooTextPrimary),
@@ -996,14 +1407,12 @@ class AppTheme {
         insetPadding: const EdgeInsets.symmetric(horizontal: 16),
       ),
       
-      // ✅ مؤشر التحميل (Progress Indicator)
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: privooGold,
         circularTrackColor: privooTextHint.withValues(alpha: 0.2),
         linearTrackColor: privooTextHint.withValues(alpha: 0.2),
       ),
       
-      // ✅ الشريط الجانبي (Drawer)
       drawerTheme: DrawerThemeData(
         backgroundColor: privooDarkBg,
         shape: const RoundedRectangleBorder(
@@ -1014,7 +1423,6 @@ class AppTheme {
         ),
       ),
       
-      // ✅ شريط البحث (Search Bar)
       searchBarTheme: SearchBarThemeData(
         backgroundColor: WidgetStateProperty.all(privooCardDark),
         hintStyle: WidgetStateProperty.all(TextStyle(color: privooTextHint)),
@@ -1025,7 +1433,6 @@ class AppTheme {
         padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 16)),
       ),
       
-      // ✅ أزرار المساعدة السريعة (Chips) - محسنة
       chipTheme: ChipThemeData(
         backgroundColor: privooCardDark,
         selectedColor: privooLightPurple,
@@ -1039,10 +1446,8 @@ class AppTheme {
         side: BorderSide(color: privooTextHint.withValues(alpha: 0.2)),
       ),
       
-      // ✅ تأثيرات الظل
       applyElevationOverlayColor: true,
       
-      // ✅ حجم التلميحات
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
           color: privooCardDark,
@@ -1179,7 +1584,6 @@ class AppTheme {
   static ThemeData getTheme(String themeName) {
     // ✅ إذا كان الثيم Privoo Premium، استخدم الثيم المناسب
     if (themeName == 'Privoo Premium') {
-      // سيتم تحديد الثيم حسب الوضع من خلال main.dart
       return privooPremiumTheme;
     }
     return allThemes[themeName] ?? privooPremiumTheme;
