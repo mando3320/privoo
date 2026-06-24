@@ -103,19 +103,16 @@ class _PrivooMainAppState extends ConsumerState<PrivooMainApp> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ استخدام AppController بالكامل
     final app = ref.watch(appControllerProvider);
-    
-    // ✅ الثيم الحالي (بيتغير حسب themeMode)
     final currentTheme = app.currentTheme;
 
     return MaterialApp(
       title: 'Privoo',
       debugShowCheckedModeBanner: false,
-      // ✅ استخدام الثيم الديناميكي من AppController
+      // ✅ ثيم واحد فقط (يتغير ديناميكياً من AppController)
       theme: currentTheme,
-      darkTheme: currentTheme,
-      // ✅ استخدام themeMode من AppController (system/light/dark)
+      // ❌ إلغاء darkTheme تماماً (لمنع التداخل)
+      // darkTheme: currentTheme,  // تم إزالته
       themeMode: app.themeMode,
       locale: _locale ?? app.locale,
       localizationsDelegates: const [
