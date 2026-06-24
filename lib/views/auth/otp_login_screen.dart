@@ -362,7 +362,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
-                        fillColor: theme.colorScheme.surface.withValues(alpha: 0.05),
+                        fillColor: theme.colorScheme.surfaceContainerHighest,
                       ),
                     ),
                   ),
@@ -410,10 +410,6 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
     super.dispose();
   }
 
-  // ✅ ============================================================
-  // ✅ BUILD - استخدام ألوان الثيم مباشرة
-  // ✅ ============================================================
-  
   @override
   Widget build(BuildContext context) {
     final resendTitle = _cooldownSeconds > 0 
@@ -426,7 +422,6 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
       orElse: () => _languages.first,
     );
 
-    // ✅ استخدام ألوان الثيم مباشرة
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textColor = colorScheme.onSurface;
@@ -480,7 +475,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
           onTap: (index) => setState(() => _selectedTab = index),
           indicatorColor: primaryColor,
           labelColor: primaryColor,
-          unselectedLabelColor: colorScheme.onSurface.withValues(alpha: 0.7),
+          unselectedLabelColor: colorScheme.onSurfaceVariant,
           tabs: const [
             Tab(icon: Icon(Icons.phone), text: '📱 رقم الهاتف'),
             Tab(icon: Icon(Icons.email), text: '✉️ الإيميل'),
@@ -497,7 +492,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
   }
 
   // ✅ ============================================================
-  // ✅ PHONE AUTH - استخدام ألوان آمنة متوافقة مع كل الثيمات
+  // ✅ PHONE AUTH - استخدام ألوان الثيم مباشرة (بدون شفافية)
   // ✅ ============================================================
   
   Widget _buildPhoneAuth(String resendTitle) {
@@ -505,12 +500,12 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
     
-    // ✅ ألوان آمنة متوافقة مع كل الثيمات
+    // ✅ ألوان من الثيم مباشرة (بدون .withValues)
     final textColor = colorScheme.onSurface;
-    final secondaryTextColor = colorScheme.onSurface.withValues(alpha: 0.7);
+    final secondaryTextColor = colorScheme.onSurfaceVariant;
     final primaryColor = colorScheme.primary;
-    final borderColor = colorScheme.outline ?? Colors.grey.withValues(alpha: 0.3);
-    final fillColor = colorScheme.surface.withValues(alpha: 0.05);
+    final borderColor = colorScheme.outline;
+    final fillColor = colorScheme.surfaceContainerHighest;
     
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -585,7 +580,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: borderColor),
+                    borderSide: BorderSide(color: borderColor.withValues(alpha: 0.3)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -627,7 +622,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: borderColor),
+                borderSide: BorderSide(color: borderColor.withValues(alpha: 0.3)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -690,7 +685,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
   }
 
   // ✅ ============================================================
-  // ✅ EMAIL AUTH - استخدام ألوان آمنة متوافقة مع كل الثيمات
+  // ✅ EMAIL AUTH - استخدام ألوان الثيم مباشرة (بدون شفافية)
   // ✅ ============================================================
   
   Widget _buildEmailAuth() {
@@ -698,11 +693,11 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
     
-    // ✅ ألوان آمنة متوافقة مع كل الثيمات
+    // ✅ ألوان من الثيم مباشرة (بدون .withValues)
     final textColor = colorScheme.onSurface;
-    final secondaryTextColor = colorScheme.onSurface.withValues(alpha: 0.7);
+    final secondaryTextColor = colorScheme.onSurfaceVariant;
     final primaryColor = colorScheme.primary;
-    final fillColor = colorScheme.surface.withValues(alpha: 0.05);
+    final fillColor = colorScheme.surfaceContainerHighest;
     
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
