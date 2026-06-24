@@ -38,7 +38,6 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
   Timer? _cooldownTimer;
   int _cooldownSeconds = 0;
 
-  // ✅ قائمة اللغات المدعومة
   final List<Map<String, String>> _languages = [
     {'code': 'ar', 'name': 'العربية', 'flag': '🇸🇦'},
     {'code': 'en', 'name': 'English', 'flag': '🇬🇧'},
@@ -138,9 +137,10 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
 
   void _showSnackbar(String message, {bool isError = false}) {
     if (!mounted) return;
+    final theme = Theme.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(message, style: TextStyle(color: theme.colorScheme.onPrimary)),
         backgroundColor: isError ? AppTheme.privooError : AppTheme.privooSuccess,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
@@ -148,7 +148,6 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
     );
   }
 
-  // ✅ تغيير اللغة وإعادة تحميل التطبيق
   Future<void> _changeLanguage(String code, String name) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_language', code);
@@ -166,7 +165,6 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
     _showSnackbar('✅ تم تغيير اللغة إلى $name');
   }
 
-  // 📱 Phone Auth (Supabase)
   Future<void> _sendOTP() async {
     final phone = _getFullPhoneNumber();
     
@@ -240,7 +238,6 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
     }
   }
 
-  // ✉️ Email Auth
   Future<void> _emailSubmit() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -318,7 +315,6 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
     return emailRegex.hasMatch(email);
   }
 
-  // 🚀 Navigation
   Future<void> _checkTermsAndNavigate() async {
     final prefs = await SharedPreferences.getInstance();
     final termsAccepted = prefs.getBool('terms_accepted') ?? false;
@@ -340,6 +336,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
   }
 
   void _showCountryPicker() {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -365,6 +362,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
+                        fillColor: theme.colorScheme.surface.withValues(alpha: 0.05),
                       ),
                     ),
                   ),
@@ -375,9 +373,9 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
                         final country = _filteredCountries[index];
                         return ListTile(
                           leading: Text(country['flag']!, style: const TextStyle(fontSize: 28)),
-                          title: Text(country['name']!),
+                          title: Text(country['name']!, style: TextStyle(color: theme.colorScheme.onSurface)),
                           trailing: Text(country['code']!, 
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
                           onTap: () {
                             setState(() {
                               _selectedCountryCode = country['code']!;
@@ -467,7 +465,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
                   children: [
                     Text(lang['flag'] ?? '🌐', style: const TextStyle(fontSize: 20)),
                     const SizedBox(width: 12),
-                    Text(lang['name']!),
+                    Text(lang['name']!, style: TextStyle(color: colorScheme.onSurface)),
                     if (lang['code'] == currentLocale.languageCode)
                       const Spacer(),
                     if (lang['code'] == currentLocale.languageCode)
@@ -482,7 +480,7 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
           onTap: (index) => setState(() => _selectedTab = index),
           indicatorColor: primaryColor,
           labelColor: primaryColor,
-          unselectedLabelColor: colorScheme.onSurfaceVariant,
+          unselectedLabelColor: colorScheme.onSurface.withValues(alpha: 0.7),
           tabs: const [
             Tab(icon: Icon(Icons.phone), text: '📱 رقم الهاتف'),
             Tab(icon: Icon(Icons.email), text: '✉️ الإيميل'),
@@ -499,19 +497,20 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
   }
 
   // ✅ ============================================================
-  // ✅ PHONE AUTH - استخدام ألوان الثيم مباشرة
+  // ✅ PHONE AUTH - استخدام ألوان آمنة متوافقة مع كل الثيمات
   // ✅ ============================================================
   
   Widget _buildPhoneAuth(String resendTitle) {
-    // ✅ استخدام ألوان الثيم مباشرة
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
     
+    // ✅ ألوان آمنة متوافقة مع كل الثيمات
     final textColor = colorScheme.onSurface;
-    final secondaryTextColor = colorScheme.onSurfaceVariant;
+    final secondaryTextColor = colorScheme.onSurface.withValues(alpha: 0.7);
     final primaryColor = colorScheme.primary;
-    final borderColor = colorScheme.outlineVariant;
+    final borderColor = colorScheme.outline ?? Colors.grey.withValues(alpha: 0.3);
+    final fillColor = colorScheme.surface.withValues(alpha: 0.05);
     
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -578,8 +577,11 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
                   hintText: "مثال: 123456789",
                   labelStyle: TextStyle(color: secondaryTextColor),
                   hintStyle: TextStyle(color: secondaryTextColor),
+                  filled: true,
+                  fillColor: fillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -617,8 +619,11 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
               hintText: "أدخل الرقم المكون من 6 أرقام",
               labelStyle: TextStyle(color: secondaryTextColor),
               hintStyle: TextStyle(color: secondaryTextColor),
+              filled: true,
+              fillColor: fillColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -685,18 +690,19 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
   }
 
   // ✅ ============================================================
-  // ✅ EMAIL AUTH - استخدام ألوان الثيم مباشرة
+  // ✅ EMAIL AUTH - استخدام ألوان آمنة متوافقة مع كل الثيمات
   // ✅ ============================================================
   
   Widget _buildEmailAuth() {
-    // ✅ استخدام ألوان الثيم مباشرة
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
     
+    // ✅ ألوان آمنة متوافقة مع كل الثيمات
     final textColor = colorScheme.onSurface;
-    final secondaryTextColor = colorScheme.onSurfaceVariant;
+    final secondaryTextColor = colorScheme.onSurface.withValues(alpha: 0.7);
     final primaryColor = colorScheme.primary;
+    final fillColor = colorScheme.surface.withValues(alpha: 0.05);
     
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -740,8 +746,11 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
                   hintText: 'أدخل اسمك الكامل',
                   labelStyle: TextStyle(color: secondaryTextColor),
                   hintStyle: TextStyle(color: secondaryTextColor),
+                  filled: true,
+                  fillColor: fillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
                   ),
                   prefixIcon: Icon(Icons.person, color: secondaryTextColor),
                 ),
@@ -758,8 +767,11 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
             hintText: 'example@email.com',
             labelStyle: TextStyle(color: secondaryTextColor),
             hintStyle: TextStyle(color: secondaryTextColor),
+            filled: true,
+            fillColor: fillColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
             ),
             prefixIcon: Icon(Icons.email, color: secondaryTextColor),
           ),
@@ -776,8 +788,11 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
             hintText: '********',
             labelStyle: TextStyle(color: secondaryTextColor),
             hintStyle: TextStyle(color: secondaryTextColor),
+            filled: true,
+            fillColor: fillColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
             ),
             prefixIcon: Icon(Icons.lock, color: secondaryTextColor),
             suffixIcon: IconButton(
@@ -802,8 +817,11 @@ class _OTPLoginScreenState extends ConsumerState<OTPLoginScreen> with SingleTick
               hintText: 'أعد كتابة كلمة المرور',
               labelStyle: TextStyle(color: secondaryTextColor),
               hintStyle: TextStyle(color: secondaryTextColor),
+              filled: true,
+              fillColor: fillColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
               ),
               prefixIcon: Icon(Icons.lock_outline, color: secondaryTextColor),
               suffixIcon: IconButton(
