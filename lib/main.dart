@@ -29,7 +29,6 @@ Future<void> main() async {
     await HiveStorageService.init();
     logger.i('✅ تم تهيئة Hive Storage بنجاح');
 
-    // ✅ طلب الأذونات تلقائياً
     await PermissionService.requestAllPermissions();
     logger.i('✅ تم طلب الأذونات تلقائياً');
 
@@ -104,10 +103,10 @@ class _PrivooMainAppState extends ConsumerState<PrivooMainApp> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ مراقبة التغييرات في AppController
+    // ✅ استخدام AppController بالكامل
     final app = ref.watch(appControllerProvider);
     
-    // ✅ الحصول على الثيم الحالي من AppController (يدعم جميع الثيمات)
+    // ✅ الثيم الحالي (بيتغير حسب themeMode)
     final currentTheme = app.currentTheme;
 
     return MaterialApp(
@@ -116,7 +115,7 @@ class _PrivooMainAppState extends ConsumerState<PrivooMainApp> {
       // ✅ استخدام الثيم الديناميكي من AppController
       theme: currentTheme,
       darkTheme: currentTheme,
-      // ✅ استخدام وضع الثيم من AppController
+      // ✅ استخدام themeMode من AppController (system/light/dark)
       themeMode: app.themeMode,
       locale: _locale ?? app.locale,
       localizationsDelegates: const [
